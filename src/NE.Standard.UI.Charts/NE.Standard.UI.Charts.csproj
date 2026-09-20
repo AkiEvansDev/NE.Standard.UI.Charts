@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <PackageId>NE.Standard.UI.Charts</PackageId>
+    <Description>Chart components for the NE.Standard UI framework: line, area, bar, pie, scatter, sparkline and gauge over a keyed collection of points, drawn as SVG built on the server and patched like any other component. Platform-independent — the axis ranges, the ticks and the path geometry are here; the web rendering is NE.Standard.UI.Web.Charts.</Description>
+    <PackageTags>NE.Standard,UI,Charts,Chart,Graph,SVG</PackageTags>
+  </PropertyGroup>
+
+  <!-- The framework is a sibling in the monorepo and a package in this slice's mirror. Either way the produced nupkg depends on
+       the framework at $(CoreVersion). A chart is a field's kind of component — it draws its own content and hosts nothing of the
+       author's — so the authoring foundation is enough; the generator turns its declared properties into their setters, binders
+       and descriptors exactly as it does for the built-ins. -->
+  <ItemGroup Condition="'$(InMonorepo)' == 'true'">
+    <ProjectReference Include="..\..\..\..\src\Generators\NE.Standard.UI.Generators\NE.Standard.UI.Generators.csproj" OutputItemType="Analyzer" ReferenceOutputAssembly="false" PrivateAssets="all" />
+    <ProjectReference Include="..\..\..\..\src\Core\NE.Standard.UI.Components.Foundation\NE.Standard.UI.Components.Foundation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(InMonorepo)' != 'true'">
+    <PackageReference Include="NE.Standard.UI.Generators" Version="$(CoreVersion)" PrivateAssets="all" />
+    <PackageReference Include="NE.Standard.UI.Components.Foundation" Version="$(CoreVersion)" />
+  </ItemGroup>
+
+</Project>

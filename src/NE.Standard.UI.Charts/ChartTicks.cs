@@ -1,0 +1,131 @@
+using System;
+using System.Collections.Generic;
+
+namespace NE.Standard.UI.Charts;
+
+/// <summary>
+/// The round marks an axis carries: the step it's marked at, the values on it, and the default format when the author named
+/// none. The browser's <c>chart-ticks.ts</c> holds the same arithmetic.
+/// </summary>
+public static class ChartTicks
+{
+    /// <summary>No axis is marked more often than this, whatever the range and the count asked for.</summary>
+    private const int MaximumTicks = 200;
+
+    private const double Second = 1000;
+    private const double Minute = 60 * Second;
+    private const double Hour = 60 * Minute;
+    private const double Day = 24 * Hour;
+    private const double Year = 365 * Day;
+
+    // The intervals a clock is read at, not the round numbers a decimal step would land on: 15 minutes rather than 10, 6 hours
+    // rather than 5.
+    private static readonly double[] TimeSteps =
+    [
+        Second, 2 * Second, 5 * Second, 10 * Second, 15 * Second, 30 * Second,
+        Minute, 2 * Minute, 5 * Minute, 10 * Minute, 15 * Minute, 30 * Minute,
+        Hour, 2 * Hour, 3 * Hour, 6 * Hour, 12 * Hour,
+        Day, 2 * Day, 7 * Day, 14 * Day, 30 * Day, 90 * Day, 180 * Day, Year
+    ];
+
+    /// <summary>The step a range of this kind is marked at, aiming for the given number of marks.</summary>
+    public static double Step(UIChartAxisKind kind, double min, double max, int count)
+    {
+        var target = (max - min) / Math.Max(1, count);
+
+        if (target <= 0 || double.IsNaN(target) || double.IsInfinity(target))
+            return 1;
+
+        if (kind == UIChartAxisKind.Category)
+            return 1;
+
+        if (kind != UIChartAxisKind.Time)
+            return DecimalStep(target);
+
+        for (var i = 0; i < TimeSteps.Length; i++)
+        {
+            if (TimeSteps[i] >= target)
+                return TimeSteps[i];
+        }
+
+        // Beyond a year the ladder runs out and round numbers of years take over.
+        return DecimalStep(target / Year) * Year;
+    }
+
+    /// <summary>The values the axis marks, low end first.</summary>
+    public static double[] Build(UIChartAxisKind kind, ChartScale scale, int count)
+    {
+        if (scale.Max <= scale.Min)
+            return [];
+
+        if (kind == UIChartAxisKind.Logarithmic)
+            return PowersOfTen(scale);
+
+        var step = Step(kind, scale.Min, scale.Max, count);
+        // A step the range does not divide starts at the first multiple inside it, so the marks are round numbers, not the range's ends.
+        var first = Math.Ceiling(scale.Min / step) * step;
+        var slack = step * 1e-9;
+        List<double> values = [];
+
+        // Never a negative zero, which a mark just under the low end can be and which would be written as "-0".
+        for (var value = first; value <= scale.Max + slack && values.Count < MaximumTicks; value += step)
+            values.Add(value == 0 ? 0 : value);
+
+        return [.. values];
+    }
+
+    /// <summary>
+    /// The format a tick is written under when the author named none: as many decimals as the step needs, or the part of a clock
+    /// the step moves.
+    /// </summary>
+    public static string? DefaultFormat(UIChartAxisKind kind, double step)
+    {
+        if (kind == UIChartAxisKind.Category)
+            return null;
+
+        if (kind == UIChartAxisKind.Time)
+        {
+            if (step < Minute)
+                return "HH:mm:ss";
+
+            if (step < Day)
+                return "HH:mm";
+
+            return step < 30 * Day ? "dd MMM" : "MMM yyyy";
+        }
+
+        if (step >= 1)
+            return "N0";
+
+        return step >= 0.1 ? "N1" : step >= 0.01 ? "N2" : "N3";
+    }
+
+    /// <summary>The nearest round number at or above the target: one, two or five times a power of ten.</summary>
+    private static double DecimalStep(double target)
+    {
+        var magnitude = Math.Pow(10, Math.Floor(Math.Log10(target)));
+        var normalized = target / magnitude;
+
+        return normalized <= 1 ? magnitude : normalized <= 2 ? 2 * magnitude : normalized <= 5 ? 5 * magnitude : 10 * magnitude;
+    }
+
+    /// <summary>Every power of ten inside the range; the range's own ends when it holds fewer than two.</summary>
+    private static double[] PowersOfTen(ChartScale scale)
+    {
+        if (scale.Min <= 0)
+            return [];
+
+        var first = (int)Math.Ceiling(Math.Log10(scale.Min));
+        var last = (int)Math.Floor(Math.Log10(scale.Max));
+
+        if (last - first + 1 < 2)
+            return [scale.Min, scale.Max];
+
+        var values = new double[Math.Min(MaximumTicks, last - first + 1)];
+
+        for (var i = 0; i < values.Length; i++)
+            values[i] = Math.Pow(10, first + i);
+
+        return values;
+    }
+}

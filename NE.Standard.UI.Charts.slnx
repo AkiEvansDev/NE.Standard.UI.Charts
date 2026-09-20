@@ -1,0 +1,24 @@
+<!-- Copied to the mirror's root as NE.Standard.UI.Charts.slnx; its paths only resolve there, not from here. -->
+<Solution>
+  <Folder Name="/src/">
+    <File Path="src/Directory.Build.props" />
+    <Project Path="src/NE.Standard.UI.Charts/NE.Standard.UI.Charts.csproj" />
+    <Project Path="src/NE.Standard.UI.Web.Charts/NE.Standard.UI.Web.Charts.csproj" />
+  </Folder>
+
+  <Folder Name="/examples/">
+    <Project Path="examples/DemoApp.Charts/DemoApp.Charts.csproj" />
+    <Project Path="examples/DemoApp.Charts.Web/DemoApp.Charts.Web.csproj" />
+  </Folder>
+
+  <Folder Name="/solution/">
+    <File Path=".editorconfig" />
+    <File Path="global.json" />
+    <File Path="Directory.Build.props" />
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE.md" />
+    <File Path="README.md" />
+    <File Path="CHANGELOG.md" />
+  </Folder>
+</Solution>

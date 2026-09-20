@@ -1,0 +1,197 @@
+{
+    "note": "The arithmetic both ports have to agree on, case by case, with the answer written out. The browser's tests read this file and so does NE.Test.Standard.UI.Charts, so a change to one port that the other did not get fails on both sides. The answers are the ones the browser's own tests already pinned by hand; a number is compared to nine decimals, a path string exactly. A moment is here too: both ports number it by the wall clock it is written with, since a round step has to land on a round clock reading on both. A name is not, its number being the order the rows happened to arrive in.",
+    "moments": [
+        { "case": "the epoch itself", "text": "1970-01-01T00:00:00.000", "written": { "year": 1970, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0, "millisecond": 0 }, "expected": 0 },
+        { "case": "a moment is the wall clock it is written with, whatever zone the reader sits in", "text": "1970-01-01T00:00:10.000", "written": { "year": 1970, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 10, "millisecond": 0 }, "expected": 10000 },
+        { "case": "a zone the text carries is no part of the number", "text": "1970-01-01T00:00:10.000Z", "written": { "year": 1970, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 10, "millisecond": 0 }, "expected": 10000 },
+        { "case": "a date with no clock on it", "text": "2026-09-13", "written": { "year": 2026, "month": 9, "day": 13, "hour": 0, "minute": 0, "second": 0, "millisecond": 0 }, "expected": 1789257600000 },
+        { "case": "a day of the month, to the minute", "text": "2026-09-13T14:35", "written": { "year": 2026, "month": 9, "day": 13, "hour": 14, "minute": 35, "second": 0, "millisecond": 0 }, "expected": 1789310100000 },
+        { "case": "a space where the T would be", "text": "2026-09-13 14:35:09.250", "written": { "year": 2026, "month": 9, "day": 13, "hour": 14, "minute": 35, "second": 9, "millisecond": 250 }, "expected": 1789310109250 },
+        { "case": "an offset the text carries is no part of the number either", "text": "2026-09-13T14:35+05:00", "written": { "year": 2026, "month": 9, "day": 13, "hour": 14, "minute": 35, "second": 0, "millisecond": 0 }, "expected": 1789310100000 },
+        { "case": "text that names no moment", "text": "not a moment", "expected": null },
+        { "case": "a moment with a tail that is neither a clock nor a zone is no moment", "text": "2026-09-13XYZ", "expected": null },
+        { "case": "a field outside its own range names no moment, rather than the day it would roll on to", "text": "2026-02-30T10:00", "expected": null }
+    ],
+    "ranges": [
+        { "case": "both ends open follow the data, rounded outward to the step", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": 3, "dataMax": 47, "categories": 0, "includeZero": false, "expected": { "min": 0, "max": 50, "logarithmic": false } },
+        { "case": "an end the author fixed stands", "kind": "Linear", "min": 2, "max": 48, "ticks": 5, "dataMin": 3, "dataMax": 47, "categories": 0, "includeZero": false, "expected": { "min": 2, "max": 48, "logarithmic": false } },
+        { "case": "no data at all still has width", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": null, "dataMax": null, "categories": 0, "includeZero": false, "expected": { "min": 0, "max": 1, "logarithmic": false } },
+        { "case": "a range flattened to a point gets a band around it", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": 8, "dataMax": 8, "categories": 0, "includeZero": false, "expected": { "min": 7, "max": 9, "logarithmic": false } },
+        { "case": "a category axis reaches half a place past its first and last name", "kind": "Category", "min": null, "max": null, "ticks": 5, "dataMin": 0, "dataMax": 3, "categories": 4, "includeZero": false, "expected": { "min": -0.5, "max": 3.5, "logarithmic": false } },
+        { "case": "a category axis with no names at all", "kind": "Category", "min": null, "max": null, "ticks": 5, "dataMin": 0, "dataMax": 0, "categories": 0, "includeZero": false, "expected": { "min": -0.5, "max": 0.5, "logarithmic": false } },
+        { "case": "a logarithmic axis runs between powers of ten", "kind": "Logarithmic", "min": null, "max": null, "ticks": 5, "dataMin": 3, "dataMax": 4000, "categories": 0, "includeZero": false, "expected": { "min": 1, "max": 10000, "logarithmic": true } },
+        { "case": "a bar's range reaches zero", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": 12, "dataMax": 47, "categories": 0, "includeZero": true, "expected": { "min": 0, "max": 50, "logarithmic": false } },
+        { "case": "zero is the end the author left open, never the one they fixed", "kind": "Linear", "min": 10, "max": null, "ticks": 5, "dataMin": 12, "dataMax": 47, "categories": 0, "includeZero": true, "expected": { "min": 10, "max": 50, "logarithmic": false } },
+        { "case": "values below zero reach up to it", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": -8, "dataMax": -2, "categories": 0, "includeZero": true, "expected": { "min": -8, "max": 0, "logarithmic": false } }
+    ],
+    "steps": [
+        { "case": "a linear step is one, two or five times a power of ten", "kind": "Linear", "min": 0, "max": 100, "count": 5, "expected": 20 },
+        { "case": "under one", "kind": "Linear", "min": 0, "max": 1, "count": 5, "expected": 0.2 },
+        { "case": "rounded up to the ladder's next rung", "kind": "Linear", "min": 0, "max": 37, "count": 5, "expected": 10 },
+        { "case": "no width at all", "kind": "Linear", "min": 0, "max": 0, "count": 5, "expected": 1 },
+        { "case": "a time step is an interval a clock is read at", "kind": "Time", "min": 0, "max": 300000, "count": 5, "expected": 60000 },
+        { "case": "half an hour rather than twenty minutes", "kind": "Time", "min": 0, "max": 5400000, "count": 5, "expected": 1800000 },
+        { "case": "six hours rather than five", "kind": "Time", "min": 0, "max": 86400000, "count": 5, "expected": 21600000 }
+    ],
+    "ticks": [
+        { "case": "the round numbers inside the range", "kind": "Linear", "scale": { "min": 0, "max": 100, "logarithmic": false }, "count": 5, "expected": [0, 20, 40, 60, 80, 100] },
+        { "case": "a category is marked at every place", "kind": "Category", "scale": { "min": -0.5, "max": 2.5, "logarithmic": false }, "count": 5, "expected": [0, 1, 2] },
+        { "case": "a range of no width is marked nowhere", "kind": "Linear", "scale": { "min": 5, "max": 5, "logarithmic": false }, "count": 5, "expected": [] },
+        { "case": "a logarithmic axis is marked at the powers of ten", "kind": "Logarithmic", "scale": { "min": 1, "max": 10000, "logarithmic": true }, "count": 5, "expected": [1, 10, 100, 1000, 10000] },
+        { "case": "a mark just under zero is never a negative zero", "kind": "Linear", "scale": { "min": -8, "max": 0, "logarithmic": false }, "count": 5, "expected": [-8, -6, -4, -2, 0] }
+    ],
+    "formats": [
+        { "kind": "Linear", "step": 20, "expected": "N0" },
+        { "kind": "Linear", "step": 0.2, "expected": "N1" },
+        { "kind": "Linear", "step": 0.02, "expected": "N2" },
+        { "kind": "Time", "step": 30000, "expected": "HH:mm:ss" },
+        { "kind": "Time", "step": 3600000, "expected": "HH:mm" },
+        { "kind": "Time", "step": 604800000, "expected": "dd MMM" },
+        { "kind": "Category", "step": 1, "expected": null }
+    ],
+    "places": [
+        { "plot": { "left": 40, "top": 10, "width": 200, "height": 100 }, "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": 0, "expectedX": 40, "expectedY": 110, "expectedDown": 10 },
+        { "plot": { "left": 40, "top": 10, "width": 200, "height": 100 }, "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": 10, "expectedX": 240, "expectedY": 10, "expectedDown": 110 },
+        { "plot": { "left": 40, "top": 10, "width": 200, "height": 100 }, "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": 5, "expectedX": 140, "expectedY": 60, "expectedDown": 60 },
+        { "plot": { "left": 0, "top": 0, "width": 100, "height": 100 }, "scale": { "min": 1, "max": 10000, "logarithmic": true }, "value": 100, "expectedX": 50, "expectedY": 50, "expectedDown": 50 }
+    ],
+    "shares": [
+        { "scale": { "min": 10, "max": 50, "logarithmic": false }, "share": 0, "expected": 10 },
+        { "scale": { "min": 10, "max": 50, "logarithmic": false }, "share": 1, "expected": 50 },
+        { "scale": { "min": 10, "max": 50, "logarithmic": false }, "share": 0.25, "expected": 20 },
+        { "scale": { "min": 1, "max": 1000, "logarithmic": true }, "share": 0.3333333333333333, "expected": 10 }
+    ],
+    "coords": [
+        { "value": 12, "expected": "12" },
+        { "value": 12.345, "expected": "12.35" },
+        { "value": -0.001, "expected": "0" },
+        { "value": 0.005, "expected": "0.01" }
+    ],
+    "lines": [
+        {
+            "case": "a line joins its points, the low end of the range at the bottom",
+            "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }],
+            "stepped": false, "smooth": false,
+            "expected": "M0 100 L50 50 L100 0"
+        },
+        {
+            "case": "a stepped line holds each value from halfway back to halfway on",
+            "points": [{ "x": 0, "y": 2 }, { "x": 5, "y": 8 }],
+            "stepped": true, "smooth": false,
+            "expected": "M0 80 H25 V20 H50"
+        },
+        {
+            "case": "a step is centred on the point it holds",
+            "points": [{ "x": 0, "y": 2 }, { "x": 5, "y": 8 }, { "x": 10, "y": 4 }],
+            "stepped": true, "smooth": false,
+            "expected": "M0 80 H25 V20 H75 V60 H100"
+        },
+        {
+            "case": "a smooth line passes through every point",
+            "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }],
+            "stepped": false, "smooth": true,
+            "expected": "M0 100 C8.33 91.67 33.33 66.67 50 50 C66.67 33.33 91.67 8.33 100 0"
+        },
+        {
+            "case": "a row with no value breaks the line",
+            "points": [{ "x": 0, "y": 0 }, { "x": 2, "y": null }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }],
+            "stepped": false, "smooth": false,
+            "expected": "M0 100 M50 50 L100 0"
+        },
+        {
+            "case": "a run of one point draws nothing but its own mark",
+            "points": [{ "x": 0, "y": 0 }],
+            "stepped": false, "smooth": false,
+            "expected": "M0 100"
+        },
+        {
+            "case": "no points at all",
+            "points": [],
+            "stepped": false, "smooth": false,
+            "expected": ""
+        }
+    ],
+    "areas": [
+        {
+            "case": "an area closes on the axis's zero",
+            "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }],
+            "baseline": null,
+            "stepped": false, "smooth": false,
+            "expected": "M0 100 L50 50 L100 0 L100 100 L0 100 Z"
+        },
+        {
+            "case": "an area closes on the series below it in a stack",
+            "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }],
+            "baseline": [{ "x": 0, "y": 2 }, { "x": 5, "y": 2 }, { "x": 10, "y": 2 }],
+            "stepped": false, "smooth": false,
+            "expected": "M0 100 L50 50 L100 0 L100 80 L50 80 L0 80 Z"
+        }
+    ],
+    "stacks": [
+        {
+            "case": "every series is drawn from the running total at its x",
+            "series": [[{ "x": 0, "y": 1 }, { "x": 5, "y": 2 }], [{ "x": 0, "y": 3 }, { "x": 5, "y": 4 }]],
+            "expected": [[1, 2], [4, 6]]
+        },
+        {
+            "case": "a point with no value adds nothing and stays missing",
+            "series": [[{ "x": 0, "y": 1 }, { "x": 5, "y": null }], [{ "x": 0, "y": 2 }, { "x": 5, "y": 2 }]],
+            "expected": [[1, null], [3, 2]]
+        }
+    ],
+    "baselines": [
+        { "case": "the value the series below holds there", "points": [{ "x": 0, "y": 4 }, { "x": 5, "y": 6 }], "at": 5, "expected": 6 },
+        { "case": "nothing there is nothing added", "points": [{ "x": 0, "y": 4 }], "at": 5, "expected": 0 },
+        { "case": "a point with no value is nothing added", "points": [{ "x": 5, "y": null }], "at": 5, "expected": 0 }
+    ],
+    "bands": [
+        { "case": "a band is a share of the plot", "length": 100, "slots": 4, "expected": 25 },
+        { "case": "one slot takes the whole", "length": 100, "slots": 1, "expected": 100 },
+        { "case": "no slots at all still has a band", "length": 100, "slots": 0, "expected": 100 }
+    ],
+    "slots": [
+        { "case": "one slot per x the data holds", "series": [[{ "x": 0, "y": 1 }, { "x": 5, "y": 1 }], [{ "x": 0, "y": 2 }, { "x": 9, "y": 2 }]], "expected": 3 }
+    ],
+    "bars": [
+        { "case": "the first of two side by side", "center": 50, "band": 25, "index": 0, "count": 2, "stacked": false, "expected": { "start": 41, "thickness": 9 } },
+        { "case": "the second of two", "center": 50, "band": 25, "index": 1, "count": 2, "stacked": false, "expected": { "start": 50, "thickness": 9 } },
+        { "case": "a stack takes the whole band's fill", "center": 50, "band": 25, "index": 1, "count": 2, "stacked": true, "expected": { "start": 41, "thickness": 18 } }
+    ],
+    "sectors": [
+        { "case": "the values share the turn out between them", "values": [1, 1, 2], "expectedShares": [0.25, 0.25, 0.5] },
+        { "case": "a value of nothing takes no angle", "values": [null, 3], "expectedShares": [0, 1] },
+        { "case": "one below zero takes no angle", "values": [-5, 3], "expectedShares": [0, 1] },
+        { "case": "a set that adds up to nothing takes no angle", "values": [0, 0], "expectedShares": [0, 0] },
+        { "case": "no values at all", "values": [], "expectedShares": [] }
+    ],
+    "radii": [
+        { "case": "no third value takes the plain radius", "size": null, "min": 0, "max": 400, "expected": 4 },
+        { "case": "the smallest of the run", "size": 0, "min": 0, "max": 400, "expected": 3 },
+        { "case": "the largest of the run", "size": 400, "min": 0, "max": 400, "expected": 18 },
+        { "case": "a quarter of the run, by area", "size": 100, "min": 0, "max": 400, "expected": 9.367496997597596 },
+        { "case": "every value the same takes the middle of the run", "size": 5, "min": 5, "max": 5, "expected": 10.5 }
+    ],
+    "reaches": [
+        { "radius": 3, "expected": 11 },
+        { "radius": 4, "expected": 11 },
+        { "radius": 18, "expected": 18 }
+    ],
+    "windows": [
+        { "case": "a window is no wider than the whole", "op": "clamp", "from": -20, "to": 200, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } },
+        { "case": "a window with no width is no window", "op": "clamp", "from": 50, "to": 50, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } },
+        { "case": "no narrower than a fraction of the whole", "op": "clamp", "from": 10, "to": 10.05, "min": 0, "max": 100, "expected": { "from": 10, "to": 10.2 } },
+        { "case": "one pushed past the far end is slid back", "op": "clamp", "from": 90, "to": 130, "min": 0, "max": 100, "expected": { "from": 60, "to": 100 } },
+        { "case": "one pushed past the near end is slid back", "op": "clamp", "from": -30, "to": 10, "min": 0, "max": 100, "expected": { "from": 0, "to": 40 } },
+        { "case": "a wheel narrows it about the value under the pointer", "op": "zoom", "from": 0, "to": 100, "at": 25, "factor": 0.5, "min": 0, "max": 100, "expected": { "from": 12.5, "to": 62.5 } },
+        { "case": "and widens it back", "op": "zoom", "from": 12.5, "to": 62.5, "at": 25, "factor": 2, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } },
+        { "case": "a drag moves it along", "op": "pan", "from": 20, "to": 40, "by": 10, "min": 0, "max": 100, "expected": { "from": 30, "to": 50 } },
+        { "case": "a drag past the near end stops there", "op": "pan", "from": 20, "to": 40, "by": -40, "min": 0, "max": 100, "expected": { "from": 0, "to": 20 } },
+        { "case": "following keeps the width on the far end", "op": "follow", "from": 20, "to": 40, "min": 0, "max": 120, "expected": { "from": 100, "to": 120 } }
+    ],
+    "extents": [
+        { "case": "every point counts where there is no window", "series": [[{ "x": 0, "y": 10 }, { "x": 10, "y": 50 }, { "x": 20, "y": 90 }, { "x": 30, "y": 20 }]], "window": null, "expected": { "min": 10, "max": 90 } },
+        { "case": "the point either side of the window counts too", "series": [[{ "x": 0, "y": 10 }, { "x": 10, "y": 50 }, { "x": 20, "y": 90 }, { "x": 30, "y": 20 }]], "window": { "from": 9, "to": 11 }, "expected": { "min": 10, "max": 90 } },
+        { "case": "and no further than that", "series": [[{ "x": 0, "y": 10 }, { "x": 10, "y": 50 }, { "x": 20, "y": 90 }, { "x": 30, "y": 20 }]], "window": { "from": 29, "to": 31 }, "expected": { "min": 20, "max": 90 } },
+        { "case": "a point with no value counts for nothing", "series": [[{ "x": 0, "y": null }, { "x": 1, "y": 5 }]], "window": null, "expected": { "min": 5, "max": 5 } }
+    ]
+}
