@@ -13,19 +13,19 @@ public abstract partial class LineChartComponent<T>(string? id = null) : ChartCo
     /// Gets or sets whether the lines step between points instead of sloping, as a setting or a stock reading does. A series may
     /// override it.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     public bool Stepped { get; set; }
 
     /// <summary>
     /// Gets or sets whether the lines curve through their points instead of joining them straight. A series may say otherwise.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     public bool Smooth { get; set; }
 
     /// <summary>
     /// Gets or sets whether a mark is drawn at every point. A series may say otherwise.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = true)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = true)]
     public bool ShowMarkers { get; set; } = true;
 }
 

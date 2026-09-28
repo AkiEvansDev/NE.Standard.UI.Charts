@@ -10,11 +10,11 @@ public abstract partial class BarChartComponent<T>(string? id = null) : ChartCom
     where T : BarChartComponent<T>, IUIComponentDefinition
 {
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IStackedChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IStackedChartComponent), IsBindable = false, DefaultValue = false)]
     public bool Stacked { get; set; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IBarChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IBarChartComponent), IsBindable = false, DefaultValue = false)]
     public bool Horizontal { get; set; }
 }
 

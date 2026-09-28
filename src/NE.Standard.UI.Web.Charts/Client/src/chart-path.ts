@@ -1,9 +1,7 @@
 // A series as the SVG path string it becomes. The port of `ChartPath` in NE.Standard.UI.Charts, so a server- and browser-drawn
 // chart match exactly.
 
-import { baselineOf } from "./chart-stack.ts";
-import type { Baseline } from "./chart-stack.ts";
-import { plotX, plotY } from "./chart-ticks.ts";
+import { plotX, plotY, within } from "./chart-ticks.ts";
 import type { Plot, Scale } from "./chart-ticks.ts";
 
 export type ChartPoint = {
@@ -12,6 +10,8 @@ export type ChartPoint = {
     readonly y: number | null;
     /** A third value the point is sized by, where the series names one. */
     readonly size?: number | null;
+    /** Where a stacked point's bar or band starts: the total of its own side of the stack under it; absent where it stands on zero. */
+    readonly base?: number | null;
 };
 
 type Vertex = {
@@ -38,21 +38,11 @@ export function linePath(points: readonly ChartPoint[], x: Scale, y: Scale, plot
 }
 
 /**
- * The band between a series' line and its baseline — the series below it in a stack, or the axis's zero when there is none —
- * closed like the line.
+ * The band between a series' line and what it stands on — each point's own `base` in a stack, or the axis's zero — closed like
+ * the line.
  */
-export function areaPath(
-    points: readonly ChartPoint[],
-    baseline: readonly ChartPoint[] | null,
-    x: Scale,
-    y: Scale,
-    plot: Plot,
-    stepped: boolean,
-    smooth: boolean
-): string {
-    const zero = plotY(plot, y, Math.min(Math.max(0, y.min), y.max));
-    // Once per series, not once per point: the series below is read by x for every point of this one.
-    const stands = baseline === null ? null : baselineOf(baseline);
+export function areaPath(points: readonly ChartPoint[], x: Scale, y: Scale, plot: Plot, stepped: boolean, smooth: boolean): string {
+    const zero = plotY(plot, y, within(y, 0));
     let path = "";
     let start = -1;
 
@@ -65,7 +55,7 @@ export function areaPath(
         }
 
         if (start >= 0)
-            path = appendBand(path, points, start, i - 1, stands, x, y, plot, stepped, smooth, zero);
+            path = appendBand(path, points, start, i - 1, x, y, plot, stepped, smooth, zero);
 
         start = -1;
     }
@@ -139,13 +129,12 @@ function curve(run: readonly Vertex[], index: number): string {
     return ` C${coord(firstX)} ${coord(firstY)} ${coord(secondX)} ${coord(secondY)} ${coord(run[index].x)} ${coord(run[index].y)}`;
 }
 
-/** One unbroken stretch of the band: the tops from `from` to `to`, then the baseline back. */
+/** One unbroken stretch of the band: the tops from `from` to `to`, then the bases back. */
 function appendBand(
     path: string,
     points: readonly ChartPoint[],
     from: number,
     to: number,
-    baseline: Baseline | null,
     x: Scale,
     y: Scale,
     plot: Plot,
@@ -161,13 +150,13 @@ function appendBand(
     let result = appendRun(path, top, stepped, smooth);
 
     // Nothing under it: the band closes on the axis's zero, which is one straight edge whatever the line did.
-    if (baseline === null)
+    if (points[from].base === undefined || points[from].base === null)
         return result + ` L${coord(top[top.length - 1].x)} ${coord(zero)} L${coord(top[0].x)} ${coord(zero)} Z`;
 
     const bottom: Vertex[] = [];
 
     for (let i = to; i >= from; i--)
-        bottom.push({ x: plotX(plot, x, points[i].x), y: plotY(plot, y, baseline.get(points[i].x) ?? 0) });
+        bottom.push({ x: plotX(plot, x, points[i].x), y: plotY(plot, y, points[i].base ?? 0) });
 
     result += ` L${coord(bottom[0].x)} ${coord(bottom[0].y)}`;
 

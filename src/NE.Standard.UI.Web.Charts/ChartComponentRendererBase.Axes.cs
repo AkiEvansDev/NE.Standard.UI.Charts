@@ -146,7 +146,7 @@ public abstract partial class ChartComponentRendererBase
                 var half = under[i].Text.Length * LabelCharacterWidth / 2;
                 var along = spec.Horizontal ? ValueCoord(spec, plot, y, under[i].Value) : BandCoord(spec, plot, x, under[i].Value);
 
-                RenderText(axes, LabelClassName, under[i].Text, Math.Clamp(along, half, NominalWidth - half), plot.Bottom + 16, "middle");
+                RenderText(axes, LabelClassName, under[i].Text, Math.Min(Math.Max(along, half), NominalWidth - half), plot.Bottom + 16, "middle");
             }
 
             for (var i = 0; i < beside.Count; i++)

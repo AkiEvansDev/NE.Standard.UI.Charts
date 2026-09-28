@@ -45,4 +45,8 @@ public readonly record struct ChartScale(double Min, double Max, bool Logarithmi
 
         return Math.Pow(10, low + (share * (Math.Log10(Max) - low)));
     }
+
+    /// <summary>The value held inside the range, whichever way round an author's fixed ends put it.</summary>
+    public double Within(double value)
+        => Math.Min(Math.Max(value, Math.Min(Min, Max)), Math.Max(Min, Max));
 }

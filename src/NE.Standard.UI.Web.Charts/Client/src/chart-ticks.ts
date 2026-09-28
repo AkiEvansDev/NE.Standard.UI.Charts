@@ -1,10 +1,14 @@
 // The arithmetic of an axis: the range it covers, the round step it is marked at, and where a value lands in the plot. The port
 // of `ChartRange`, `ChartTicks`, `ChartScale` and `ChartPlot` in NE.Standard.UI.Charts.
 
+import { MaxTime, MinTime, floorToStep, monthOf, monthStart, monthsOf } from "./chart-calendar.ts";
 import type { AxisKind, ChartAxis } from "./chart-model.ts";
 
 /** No axis is marked more often than this, whatever the range and the count asked for. */
 const MaximumTicks = 200;
+
+/** No default format writes more decimals than a double holds. */
+const MaximumDecimals = 15;
 
 const Second = 1000;
 const Minute = 60 * Second;
@@ -59,10 +63,15 @@ export function valueOf(scale: Scale, share: number): number {
 
         const low = Math.log10(scale.min);
 
-        return Math.pow(10, low + share * (Math.log10(scale.max) - low));
+        return 10 ** (low + share * (Math.log10(scale.max) - low));
     }
 
     return scale.min + share * (scale.max - scale.min);
+}
+
+/** The value held inside the range, whichever way round an author's fixed ends put it. */
+export function within(scale: Scale, value: number): number {
+    return Math.min(Math.max(value, Math.min(scale.min, scale.max)), Math.max(scale.min, scale.max));
 }
 
 /** Where the value stands across the plot. */
@@ -92,7 +101,10 @@ export function plotBottom(plot: Plot): number {
     return plot.top + plot.height;
 }
 
-/** The step a range of this kind is marked at, aiming for the given number of marks. */
+/**
+ * The step a range of this kind is marked at, aiming for the given number of marks. A logarithmic range is marked at the powers of
+ * ten, and answers with the power at its low end — the finest mark a label has to write.
+ */
 export function step(kind: AxisKind, min: number, max: number, count: number): number {
     const target = (max - min) / Math.max(1, count);
 
@@ -101,6 +113,9 @@ export function step(kind: AxisKind, min: number, max: number, count: number): n
 
     if (kind === "Category")
         return 1;
+
+    if (kind === "Logarithmic")
+        return min > 0 ? 10 ** Math.floor(Math.log10(min)) : 1;
 
     if (kind !== "Time")
         return decimalStep(target);
@@ -122,15 +137,41 @@ export function ticks(kind: AxisKind, scale: Scale, count: number): number[] {
     if (kind === "Logarithmic")
         return powersOfTen(scale);
 
-    const size = step(kind, scale.min, scale.max, count);
+    let size = step(kind, scale.min, scale.max, count);
+    const slack = size * 1e-9;
+    const months = kind === "Time" ? monthsOf(size) : 0;
+
+    if (months > 0)
+        return calendarMarks(scale, months, slack);
+
+    // Past the most marks an axis carries, the names are thinned by a stride rather than cut off after the two hundredth.
+    if (kind === "Category")
+        size = Math.max(1, Math.ceil((Math.floor(scale.max) - Math.ceil(scale.min) + 1) / MaximumTicks));
+
     // A step the range does not divide starts at the first multiple inside it, so the marks are round numbers, not the range's ends.
     const first = Math.ceil(scale.min / size) * size;
-    const slack = size * 1e-9;
     const values: number[] = [];
 
     // Never a negative zero, which a mark just under the low end can be and which would be written as "-0".
     for (let value = first; value <= scale.max + slack && values.length < MaximumTicks; value += size)
         values.push(value === 0 ? 0 : value);
+
+    return values;
+}
+
+/** The first of every month a step of whole months lands on inside the range: a quarter on January, April, July and October. */
+function calendarMarks(scale: Scale, months: number, slack: number): number[] {
+    let month = floorToStep(monthOf(scale.min), months);
+
+    if (monthStart(month) < scale.min - slack)
+        month += months;
+
+    const values: number[] = [];
+
+    for (let value = monthStart(month); value <= scale.max + slack && values.length < MaximumTicks; value = monthStart(month)) {
+        values.push(value === 0 ? 0 : value);
+        month += months;
+    }
 
     return values;
 }
@@ -153,7 +194,10 @@ export function defaultFormat(kind: AxisKind, size: number): string | null {
     if (size >= 1)
         return "N0";
 
-    return size >= 0.1 ? "N1" : size >= 0.01 ? "N2" : "N3";
+    // The place the step's first digit stands at; the nudge keeps a power of ten that log10 reads a hair low on its own place.
+    const decimals = -Math.floor(Math.log10(size) + 1e-9);
+
+    return `N${Math.min(MaximumDecimals, decimals)}`;
 }
 
 /**
@@ -177,32 +221,55 @@ export function resolveRange(axis: ChartAxis, dataMin: number, dataMax: number, 
 
     if (axis.kind === "Logarithmic") {
         // A logarithmic axis has no place for zero: it starts at the power of ten under the smallest value it was given.
-        const low = axis.min ?? Math.pow(10, Math.floor(Math.log10(min > 0 ? min : 1)));
-        const high = axis.max ?? Math.pow(10, Math.ceil(Math.log10(max > 0 ? max : 10)));
+        const low = axis.min ?? 10 ** Math.floor(Math.log10(min > 0 ? min : 1));
+        const high = axis.max ?? 10 ** Math.ceil(Math.log10(max > 0 ? max : 10));
         const bottom = low > 0 ? low : 1;
 
         return { min: bottom, max: high > bottom ? high : bottom * 10, logarithmic: true };
     }
 
     if (max - min <= 0) {
-        // One value, or a range flattened to a point: a band around it rather than a scale of no width.
-        const padding = Math.abs(min) > 0 ? Math.abs(min) / 8 : 1;
+        // One value, or a range flattened to a point: a band around it rather than a scale of no width. A moment's number counts
+        // from 1970, so an eighth of it would be years; a day either side of it is what one reading is read against.
+        const padding = axis.kind === "Time" ? Day : Math.abs(min) > 0 ? Math.abs(min) / 8 : 1;
 
-        return { min: axis.min ?? min - padding, max: axis.max ?? max + padding, logarithmic: false };
+        // An end the author fixed past the data leaves the open one built from it, so the range never runs backward.
+        return withinTime(axis.kind, axis.min ?? Math.min(min, max) - padding, axis.max ?? Math.max(min, max) + padding);
     }
 
     const size = step(axis.kind, min, max, axis.ticks);
+    const months = axis.kind === "Time" ? monthsOf(size) : 0;
 
-    return {
-        min: axis.min ?? Math.floor(min / size) * size,
-        max: axis.max ?? Math.ceil(max / size) * size,
-        logarithmic: false
-    };
+    if (months === 0)
+        return withinTime(axis.kind, axis.min ?? Math.floor(min / size) * size, axis.max ?? Math.ceil(max / size) * size);
+
+    // A step of whole months rounds out to the first of a month it marks, not to a multiple of days from the epoch.
+    let last = floorToStep(monthOf(max), months);
+
+    if (monthStart(last) < max)
+        last += months;
+
+    return withinTime(axis.kind, axis.min ?? monthStart(floorToStep(monthOf(min), months)), axis.max ?? monthStart(last));
+}
+
+/** A time axis stays inside the moments the server's `DateTime` can name, so no mark on it is one nothing can write. */
+function withinTime(kind: AxisKind, min: number, max: number): Scale {
+    if (kind !== "Time")
+        return { min, max, logarithmic: false };
+
+    const low = Math.min(Math.max(min, MinTime), MaxTime);
+    const high = Math.min(Math.max(max, MinTime), MaxTime);
+
+    // A range pressed flat against an end keeps a day's width inside it.
+    if (high > low)
+        return { min: low, max: high, logarithmic: false };
+
+    return low > MinTime ? { min: low - Day, max: low, logarithmic: false } : { min: low, max: low + Day, logarithmic: false };
 }
 
 /** The nearest round number at or above the target: one, two or five times a power of ten. */
 function decimalStep(target: number): number {
-    const magnitude = Math.pow(10, Math.floor(Math.log10(target)));
+    const magnitude = 10 ** Math.floor(Math.log10(target));
     const normalized = target / magnitude;
 
     return normalized <= 1 ? magnitude : normalized <= 2 ? 2 * magnitude : normalized <= 5 ? 5 * magnitude : 10 * magnitude;
@@ -222,7 +289,7 @@ function powersOfTen(scale: Scale): number[] {
     const values: number[] = [];
 
     for (let i = 0; i < Math.min(MaximumTicks, last - first + 1); i++)
-        values.push(Math.pow(10, first + i));
+        values.push(10 ** (first + i));
 
     return values;
 }

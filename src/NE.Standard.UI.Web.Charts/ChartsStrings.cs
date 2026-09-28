@@ -11,7 +11,11 @@ namespace NE.Standard.UI.Web.Charts;
 /// </summary>
 public sealed class ChartsStrings : IUIStringsSource
 {
+    /// <summary>What a chart with no rows says in its plot.</summary>
     public const string Empty = "ui.chart.empty";
+
+    /// <summary>What a chart's canvas is announced as where it has no series or rows to name.</summary>
+    public const string Chart = "ui.chart.label";
 
     /// <summary>What a gauge says where it has no reading at all.</summary>
     public const string NoReading = "ui.chart.no-reading";
@@ -20,6 +24,7 @@ public sealed class ChartsStrings : IUIStringsSource
     public IReadOnlyDictionary<string, string> English { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [Empty] = "Nothing to draw",
+        [Chart] = "Chart",
         [NoReading] = "—"
     }.ToFrozenDictionary(StringComparer.Ordinal);
 }

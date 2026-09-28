@@ -4,7 +4,10 @@ using NE.Standard.UI.Web.Abstractions.Html;
 
 namespace NE.Standard.UI.Web.Charts;
 
-/// <summary>The one canvas every drawing of the package opens: a picture the browser re-lays out at its real size, taking no focus.</summary>
+/// <summary>
+/// The one canvas every drawing of the package opens: a picture the browser re-lays out at its real size, taking no focus. A
+/// canvas with a label is announced as a picture by it; one without is the drawing beside words that already say what it shows.
+/// </summary>
 internal static class ChartSvg
 {
     /// <summary>The custom properties the contract's <c>.ui-arc-cut()</c> and <c>.ui-arc-cap()</c> cut a circle down by.</summary>
@@ -14,12 +17,22 @@ internal static class ChartSvg
     public const string ArcToVariable = "--ui-arc-to";
     public const string ArcOriginVariable = "--ui-arc-origin";
 
-    public static void Render(IHtmlElementBuilder parent, string className, double width, double height, Action<IHtmlElementBuilder> draw)
+    public static void Render(IHtmlElementBuilder parent, string className, double width, double height, string? label, Action<IHtmlElementBuilder> draw)
         => parent.Element("svg", svg =>
         {
             _ = svg.Class(className);
             _ = svg.Attribute("viewBox", $"0 0 {ChartPath.Coord(width)} {ChartPath.Coord(height)}");
-            _ = svg.Attribute("role", "img");
+
+            if (label is null)
+            {
+                _ = svg.Attribute("aria-hidden", "true");
+            }
+            else
+            {
+                _ = svg.Attribute("role", "img");
+                _ = svg.Attribute("aria-label", label);
+            }
+
             _ = svg.Attribute("focusable", "false");
             draw(svg);
         });

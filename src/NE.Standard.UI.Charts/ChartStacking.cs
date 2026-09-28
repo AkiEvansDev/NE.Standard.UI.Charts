@@ -10,14 +10,19 @@ namespace NE.Standard.UI.Charts;
 public static class ChartStacking
 {
     /// <summary>
-    /// The series with the ones before them added under them, in the order given. A point with no value stays missing, so the
-    /// stack breaks where the data does.
+    /// The series with the ones before them added under them, in the order given: a point's value is its top, and
+    /// <see cref="ChartPoint.Base"/> where it starts. A point with no value stays missing, so the stack breaks where the data does.
     /// </summary>
+    /// <remarks>
+    /// Positive and negative values stack apart, each from zero outward, so a part below zero is never drawn over by one above
+    /// it; a point stands on its own side's total, not on the series under it, which may hold nothing at that x.
+    /// </remarks>
     public static List<ChartPoint>[] Stack(IReadOnlyList<IReadOnlyList<ChartPoint>> series)
     {
         ArgumentNullException.ThrowIfNull(series);
 
-        Dictionary<double, double> totals = [];
+        Dictionary<double, double> above = [];
+        Dictionary<double, double> below = [];
         List<ChartPoint>[] stacked = new List<ChartPoint>[series.Count];
 
         for (var i = 0; i < series.Count; i++)
@@ -35,29 +40,16 @@ public static class ChartStacking
                     continue;
                 }
 
-                var total = (totals.TryGetValue(point.X, out var running) ? running : 0) + value;
+                Dictionary<double, double> totals = value < 0 ? below : above;
+                var stands = totals.TryGetValue(point.X, out var running) ? running : 0;
 
-                totals[point.X] = total;
-                result.Add(point with { Y = total });
+                totals[point.X] = stands + value;
+                result.Add(point with { Y = stands + value, Base = stands });
             }
 
             stacked[i] = result;
         }
 
         return stacked;
-    }
-
-    /// <summary>What the series below holds at this x; zero where it holds nothing, which is where a stack starts.</summary>
-    public static double ValueAt(IReadOnlyList<ChartPoint> series, double x)
-    {
-        ArgumentNullException.ThrowIfNull(series);
-
-        for (var i = 0; i < series.Count; i++)
-        {
-            if (series[i].X == x)
-                return series[i].Y ?? 0;
-        }
-
-        return 0;
     }
 }

@@ -4,6 +4,71 @@ One section per release of this slice, headed `## X.Y.Z` and named by the tag �
 workflow cuts the matching section out to become the body of the GitHub release, and a tag with no section
 fails the release before anything is published.
 
+## 1.0.1
+
+- **The first stable release.** No `--prerelease` is needed any more. Until 2.0.0 the public surface may still move
+  between versions; every such change is marked **Breaking:** in this file.
+- **A time axis marks months on the calendar.** A step of a month or more landed on multiples of days counted from 1970, which
+  drift off the month; the marks and the rounded range now stand on the first of a month, a quarter or a year
+  (`ChartCalendar`, `chart-calendar.ts`, the same arithmetic on both sides). The browser counts a moment's clock by hand, since
+  `Date.UTC` reads the years 0 to 99 as 1900 to 1999.
+- **A time axis stays inside the moments a `DateTime` can name**, so no mark is one the server cannot write, and **a single
+  moment is drawn with a day either side of it** — an eighth of its number, as a value axis pads, was years.
+- **A chart with no `SetX` places a row by where it stands, patches included.** The server numbered the rows by their place and
+  the browser read the text the row came with; a row inserted or removed now moves the ones after it in the browser, as a
+  render would.
+- **A text `"NaN"` or `"Infinity"` is not a value** — nor a number too large to hold: they are a gap, as a null is. **Text is
+  read as a moment only on a time axis**; on a value axis a date turned into a number no one wrote.
+- **The legend follows the data.** The server wrote it for the first frame and the browser never touched it again, so a series
+  or a sector that arrived later had no entry and one that left kept its own; it is kept in step now, left alone while it
+  names the same entries, and an entry put aside stays aside. A series the legend put aside no longer holds a step in a stack
+  or a gap among bars.
+- **A chart's canvas is announced by what it draws.** It was a picture with no name; it is labelled with the series the legend
+  names, a pie with its sectors, or the new `ui.chart.label` string (*Chart*) where there is nothing to name. A gauge's arc is
+  hidden from a reader, beside the reading and caption laid over it.
+- **The wheel zooms by how far it turned**, not once per event: a trackpad sent dozens of small deltas for one gesture and zoomed
+  dozens of steps. No event zooms by more than three notches. A double press on a chart already showing the whole says
+  nothing to the server.
+- **A zoomable chart starts on the window the server drew it at** — bound, or written by the author — rather than the whole of
+  the data at the first wheel; **the server's first frame of a narrowed window cuts the lines at the plot's edge**, as the
+  browser's drawing already did, instead of drawing them over the axes.
+- **A burst of changes draws once.** Every change, drag move and wheel notch redrew the chart at once; they are gathered to the
+  next frame, the drawing is built off the page and put in place in one step, and a shared tooltip's words are written when
+  the pointer first reaches a column. The nearest column is found by halving.
+- **A category axis with more names than it carries marks thins them by a stride** rather than cutting them off after the two
+  hundredth.
+- **The package's stylesheet and script are served under `/_ne/css/` and `/_ne/js/`** with the framework's own paths (see the
+  core's changelog).
+- **A point's tooltip names its series as the legend does.** The per-point tooltip the server writes for a line, bar or
+  scatter chart carried the raw caption; it is translated now, through the same read the legend uses.
+- The README names every piece of arithmetic the two ports share, the pie, the bubbles and the window included.
+- **The package checks the plugin contract it was built for.** The framework's client says which contract it implements
+  (`GlobalApi.contractVersion`), and the package refuses to register against another one, with an error naming both
+  numbers, instead of working in part.
+- **Both packages bring their namespaces as global usings.** Installing the package is enough to write against it; a
+  project that would rather write its own `using` lines sets `NEStandardUIImplicitUsings` to `false`.
+- **The demo draws Orvane Cloud's revenue, plans and servers**, and every sample shows its source.
+- **The mirror's demo builds against the framework's packages.** It reached this slice's own namespaces only through
+  the monorepo's usings, and this slice's sources wrote `using` lines the framework's packages now bring, which is
+  IDE0005; `Directory.Build.targets` travels to the mirror and a package's sources keep their own lines.
+- The README's licence link names the mirror, so it resolves on nuget.org too.
+- **The packages carry their symbols and sources inside their assemblies**, so a debugger steps into them.
+- **A stacked part stands on everything under it.** A bar or a band started from the series just below, so where that series
+  held nothing at an x the part dropped to zero and covered the ones under it; each point now carries where it starts
+  (`ChartPoint.Base`). **Values below zero stack downward apart from those above it** rather than being drawn over by them.
+- **A window as wide as the data no longer fails the server's render**, where the width's rounding put its start a hair before
+  the data's; nor does an end the author fixed past all of the data — the open end is built from the fixed one rather than a
+  range running backward — nor a category name wider than the first frame.
+- **A logarithmic axis below one writes its marks with the decimals they need**: 0.001 read "0.0". A linear axis marked finer
+  than a thousandth writes its decimals too.
+- **Bars on their side zoom, pan and share a tooltip down the chart**, where the wheel, the drag and the shared tooltip's line
+  read across it; **a zoomed bar chart widens its bars** to share the band among the places on show, not every place in the
+  data.
+- **A press on a sector names the pie's series as `series`**, as for every other point; it named the row twice.
+- **An x reads the same on both sides.** The server read a value and the browser its text, so a blank, a hex, a flag or a date
+  on a value axis placed a point on one side and not the other; both now read the x's text by .NET's invariant rule, a
+  moment only on a time axis, and a number on a time axis as its milliseconds.
+
 ## 1.0.0-rc.3
 
 The first version: `NE.Standard.UI.Charts` (the components) and `NE.Standard.UI.Web.Charts` (the web

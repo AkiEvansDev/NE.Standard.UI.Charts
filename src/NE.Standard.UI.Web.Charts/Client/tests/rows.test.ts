@@ -141,3 +141,27 @@ test("a move takes the row by its key to where the source moved it", () => {
 
     assert.deepEqual(rows.map(row => row.key), ["b", "c", "a"]);
 });
+
+test("with no x path a row stands at its place, and a row taken off the front moves the rest along as a render would", () => {
+    const numbered = model({ xPath: null, series: [series("value", "Value")] });
+    const rows: ChartRow[] = [{ key: "a", x: "0", values: [5], series: null, sizes: [] }, { key: "b", x: "1", values: [6], series: null, sizes: [] }];
+
+    applyChange(rows, "Insert", [{ key: "c", oldKey: null, index: null, item: { value: 7 } }], [], numbered, read);
+    applyChange(rows, "Remove", [{ key: "a", oldKey: "a", index: 0, item: null }], [], numbered, read);
+
+    const data = buildData(rows, numbered, parse);
+
+    assert.deepEqual(data.series[0].points.map(point => [point.key, point.x, point.y]), [["b", 0, 6], ["c", 1, 7]]);
+});
+
+test("an insert of many rows keeps their order and holds each key once", () => {
+    const rows: ChartRow[] = [];
+    const single = model({ series: [series("value", "Value")] });
+    const items = Array.from({ length: 1000 }, (_, i) => ({ key: `k${i}`, oldKey: null, index: i, item: { time: i, value: i } }));
+
+    applyChange(rows, "Insert", [...items, { key: "k3", oldKey: null, index: 0, item: { time: 3, value: 30 } }], [], single, read);
+
+    assert.equal(rows.length, 1000);
+    assert.equal(rows[999].key, "k999");
+    assert.deepEqual(rows[3].values, [30]);
+});

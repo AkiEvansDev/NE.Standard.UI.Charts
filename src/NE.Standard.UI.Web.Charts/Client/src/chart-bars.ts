@@ -1,6 +1,7 @@
 // Where a bar stands within the band one x owns. The port of `ChartBars` in NE.Standard.UI.Charts.
 
 import type { ChartPoint } from "./chart-path.ts";
+import type { Scale } from "./chart-ticks.ts";
 
 /** How much of a band the bars take; the rest is the air that tells one x from the next. */
 const BandFill = 0.72;
@@ -14,13 +15,18 @@ export type Bar = {
     readonly thickness: number;
 };
 
-/** How many places along the band axis the bars share: one per x the data holds. */
-export function barSlots(series: readonly (readonly ChartPoint[])[]): number {
+/**
+ * How many places along the band axis the bars share: one per x the data holds inside the range the axis shows, so a window zoomed
+ * in widens the bars it keeps.
+ */
+export function barSlots(series: readonly (readonly ChartPoint[])[], band: Scale): number {
     const places = new Set<number>();
 
     for (const points of series) {
-        for (const point of points)
-            places.add(point.x);
+        for (const point of points) {
+            if (point.x >= band.min && point.x <= band.max)
+                places.add(point.x);
+        }
     }
 
     return places.size;

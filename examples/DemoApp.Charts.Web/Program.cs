@@ -2,8 +2,6 @@ using DemoApp.Charts;
 using DemoApp.Charts.Web;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.Logging;
-using NE.Standard.UI.Web.Hosting;
-using NE.Standard.UI.Web.Startup;
 
 WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 

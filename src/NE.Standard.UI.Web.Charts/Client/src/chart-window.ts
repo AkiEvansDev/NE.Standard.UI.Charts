@@ -13,7 +13,7 @@ export type Span = {
 };
 
 /** How much of the axis a stretch covers. */
-export function spanWidth(span: Span): number {
+function spanWidth(span: Span): number {
     return span.to - span.from;
 }
 
@@ -28,8 +28,13 @@ export function clampWindow(span: Span, min: number, max: number): Span {
     const whole = max - min;
     const smallest = whole * SmallestShare;
     const width = Math.min(Math.max(Number.isFinite(spanWidth(span)) && spanWidth(span) > 0 ? spanWidth(span) : whole, smallest), whole);
+
+    // As wide as the whole is the whole: max - width can land a hair under min, and the window would hang off the start.
+    if (width >= whole)
+        return { from: min, to: max };
+
     // Slid, not stretched: a window pushed past an end keeps the width the viewer zoomed to.
-    const from = Math.min(Math.max(Number.isFinite(span.from) ? span.from : min, min), max - width);
+    const from = Math.max(Math.min(Number.isFinite(span.from) ? span.from : min, max - width), min);
 
     return { from, to: from + width };
 }

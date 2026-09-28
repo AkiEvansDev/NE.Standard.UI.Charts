@@ -8,7 +8,7 @@ export const WindowAttribute = "data-ui-chart-window";
 export const PointAttribute = "data-ui-chart-point";
 
 export type AxisKind = "Linear" | "Time" | "Category" | "Logarithmic";
-export type LegendPlacement = "None" | "Top" | "Bottom" | "Start" | "End";
+type LegendPlacement = "None" | "Top" | "Bottom" | "Start" | "End";
 
 export type ChartAxis = {
     readonly kind: AxisKind;

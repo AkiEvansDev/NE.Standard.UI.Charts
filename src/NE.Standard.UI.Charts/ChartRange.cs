@@ -8,6 +8,8 @@ namespace NE.Standard.UI.Charts;
 /// </summary>
 public static class ChartRange
 {
+    private const double Day = 24 * 60 * 60 * 1000d;
+
     /// <summary>
     /// The range the axis covers over data of this extent. A chart whose marks stand on a baseline — an area, a bar — passes
     /// <paramref name="includeZero"/> so the range reaches zero.
@@ -44,14 +46,39 @@ public static class ChartRange
 
         if (max - min <= 0)
         {
-            // One value, or a range flattened to a point: a band around it rather than a scale of no width.
-            var padding = Math.Abs(min) > 0 ? Math.Abs(min) / 8 : 1;
+            // One value, or a range flattened to a point: a band around it rather than a scale of no width. A moment's number counts
+            // from 1970, so an eighth of it would be years; a day either side of it is what one reading is read against.
+            var padding = axis.Kind == UIChartAxisKind.Time ? Day : Math.Abs(min) > 0 ? Math.Abs(min) / 8 : 1;
 
-            return new ChartScale(axis.Min ?? (min - padding), axis.Max ?? (max + padding));
+            // An end the author fixed past the data leaves the open one built from it, so the range never runs backward.
+            return WithinTime(axis.Kind, axis.Min ?? (Math.Min(min, max) - padding), axis.Max ?? (Math.Max(min, max) + padding));
         }
 
         var step = ChartTicks.Step(axis.Kind, min, max, axis.TickCount);
+        var months = axis.Kind == UIChartAxisKind.Time ? ChartCalendar.MonthsOf(step) : 0;
 
-        return new ChartScale(axis.Min ?? (Math.Floor(min / step) * step), axis.Max ?? (Math.Ceiling(max / step) * step));
+        if (months == 0)
+            return WithinTime(axis.Kind, axis.Min ?? (Math.Floor(min / step) * step), axis.Max ?? (Math.Ceiling(max / step) * step));
+
+        // A step of whole months rounds out to the first of a month it marks, not to a multiple of days from the epoch.
+        var last = ChartCalendar.FloorToStep(ChartCalendar.MonthOf(max), months);
+
+        if (ChartCalendar.MonthStart(last) < max)
+            last += months;
+
+        return WithinTime(axis.Kind, axis.Min ?? ChartCalendar.MonthStart(ChartCalendar.FloorToStep(ChartCalendar.MonthOf(min), months)), axis.Max ?? ChartCalendar.MonthStart(last));
+    }
+
+    /// <summary>A time axis stays inside the moments a <see cref="DateTime"/> can name, so no mark on it is one nothing can write.</summary>
+    private static ChartScale WithinTime(UIChartAxisKind kind, double min, double max)
+    {
+        if (kind != UIChartAxisKind.Time)
+            return new ChartScale(min, max);
+
+        var low = Math.Clamp(min, ChartCalendar.MinTime, ChartCalendar.MaxTime);
+        var high = Math.Clamp(max, ChartCalendar.MinTime, ChartCalendar.MaxTime);
+
+        // A range pressed flat against an end keeps a day's width inside it.
+        return high > low ? new ChartScale(low, high) : low > ChartCalendar.MinTime ? new ChartScale(low - Day, low) : new ChartScale(low, low + Day);
     }
 }

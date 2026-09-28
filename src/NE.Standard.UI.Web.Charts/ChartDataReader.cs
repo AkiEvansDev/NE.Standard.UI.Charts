@@ -36,13 +36,14 @@ internal static class ChartDataReader
 
         var key = ReadKey(item, index);
         var raw = spec.XPath is null ? index : ReadPath(item, spec.XPath);
+        var text = ChartValues.ToText(raw);
 
-        // A row whose x cannot be read is no point at all, rather than a point at zero.
-        if (!ChartValues.TryToNumber(raw, spec.XAxis.Kind, data.Categories, out var x))
+        // A row whose x cannot be read is no point at all, rather than a point at zero. It is read off the text the browser is
+        // told, not the value, so the point a first frame places is the one every redraw places.
+        if (raw is null || !ChartValues.TryToNumber(text, spec.XAxis.Kind, data.Categories, out var x))
             return;
 
         data.TrackX(x);
-        var text = ChartValues.ToText(raw);
 
         if (spec.IsLongForm)
         {

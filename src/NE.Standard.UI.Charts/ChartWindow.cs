@@ -24,10 +24,12 @@ public static class ChartWindow
         var whole = max - min;
         var smallest = whole * SmallestShare;
         var width = Math.Clamp(double.IsFinite(span.Width) && span.Width > 0 ? span.Width : whole, smallest, whole);
-        var from = double.IsFinite(span.From) ? span.From : min;
+        // As wide as the whole is the whole: max - width can land a hair under min, and the window would hang off the start.
+        if (width >= whole)
+            return new UIChartWindow(min, max);
 
         // Slid, not stretched: a window pushed past an end keeps the width the viewer zoomed to.
-        from = Math.Clamp(from, min, max - width);
+        var from = Math.Max(Math.Min(double.IsFinite(span.From) ? span.From : min, max - width), min);
 
         return new UIChartWindow(from, from + width);
     }

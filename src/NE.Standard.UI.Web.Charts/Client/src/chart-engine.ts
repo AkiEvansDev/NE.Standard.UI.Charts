@@ -10,7 +10,7 @@ import type { ChartModel } from "./chart-model.ts";
 import { applyChange, readRows } from "./chart-rows.ts";
 import type { ChartRow } from "./chart-rows.ts";
 import { valueOf } from "./chart-ticks.ts";
-import { followWindow, panWindow, zoomWindow } from "./chart-window.ts";
+import { panWindow, zoomWindow } from "./chart-window.ts";
 import type { Span } from "./chart-window.ts";
 
 const RootSelector = ".ui-chart";
@@ -27,6 +27,13 @@ const WindowChangeEvent = "window-change";
 const SettleDelay = 250;
 /** How much of the window one notch of the wheel takes away, or gives back. */
 const WheelStep = 1.2;
+/** The pixels one notch of a mouse wheel scrolls by, which is what a delta is measured against: a trackpad sends many small ones. */
+const NotchPixels = 100;
+/** The pixels a line and a page of a wheel's delta stand for, where the browser counts it in those. */
+const LinePixels = NotchPixels / 3;
+const PagePixels = 800;
+/** No single event zooms by more than this many notches, however large a delta the device reports. */
+const MostNotches = 3;
 /** A press that moved this far was a drag, and the point under it is not what the viewer meant to press. */
 const DragSlack = 3;
 const LegendEntrySelector = ".ui-chart__legend-entry";
@@ -50,6 +57,8 @@ type ChartEntry = {
     frame: ChartFrame | null;
     /** Whether the window stands at the far end of the data, which is what makes it follow a point arriving past it. */
     anchored: boolean;
+    /** Whether a point arrived while the window stood at the far end, for the next draw to slide it along. */
+    follow: boolean;
     /** The box the chart was last drawn at, so a size that did not really change draws nothing. */
     width: number;
     height: number;
@@ -57,10 +66,10 @@ type ChartEntry = {
     release: (() => void) | null;
 };
 
-/** The drag in hand: the chart, where the press started, and the window it started from. */
+/** The drag in hand: the chart, where the press started along its band axis, and the window it started from. */
 type Drag = {
     readonly root: HTMLElement;
-    readonly clientX: number;
+    readonly start: number;
     readonly window: Span;
     moved: number;
 };
@@ -73,6 +82,11 @@ export class ChartEngine {
     private readonly readPath: (item: unknown, path: string) => unknown;
     /** The chart whose shared tooltip is up, so it is taken down when the pointer goes elsewhere. */
     private shared: HTMLElement | null = null;
+    /** The column that tooltip names, so a pointer moving within one column does not show the same words again. */
+    private sharedColumn: ChartColumn | null = null;
+    /** The charts waiting to be drawn at the next frame: a burst of changes, a drag's moves and a wheel's notches draw once. */
+    private readonly dirty = new Set<HTMLElement>();
+    private frameRequested = false;
     private drag: Drag | null = null;
     /** Whether the press that just ended moved the window, which is what keeps a drag from reading as a click on a point. */
     private dragged = false;
@@ -122,7 +136,7 @@ export class ChartEngine {
 
         entry.release ??= this.observeSize(root, () => this.onResize(root));
 
-        this.redraw(root);
+        this.schedule(root);
     }
 
     /**
@@ -156,8 +170,10 @@ export class ChartEngine {
             hidden: existing?.hidden ?? new Set<string>(),
             modelText,
             rowsText,
-            view: existing?.view ?? null,
+            // A chart first taken in hand starts on the window the server drew it at, bound or written by the author.
+            view: existing === undefined ? readWindowValue(readChartWindow(root.querySelector(WindowSelector) ?? root)) : existing.view,
             anchored: existing?.anchored ?? true,
+            follow: false,
             frame: null,
             width: 0,
             height: 0,
@@ -169,19 +185,47 @@ export class ChartEngine {
         return entry;
     }
 
+    /** Draws a chart at the next frame, once however many times it was asked for before then. */
+    private schedule(root: HTMLElement): void {
+        this.dirty.add(root);
+
+        if (this.frameRequested)
+            return;
+
+        this.frameRequested = true;
+        requestAnimationFrame(() => this.flush());
+    }
+
+    private flush(): void {
+        this.frameRequested = false;
+
+        const roots = [...this.dirty];
+
+        this.dirty.clear();
+
+        for (const root of roots)
+            this.redraw(root);
+    }
+
     private redraw(root: HTMLElement): void {
         const entry = this.charts.get(root);
 
-        if (entry === undefined)
+        if (entry === undefined || !root.isConnected)
             return;
 
         const box = measure(root);
+        const following = entry.follow && entry.view !== null;
 
         entry.width = box.width;
         entry.height = box.height;
         entry.frame = drawChart(entry, this.formatting);
         // The canvas is new, and the pointer that stood on a bar of the old one has not moved to say so again.
         markBar(root, root.querySelector(HoveredBarSelector));
+
+        // The window slid along with the data, diverging from what the controller holds; settling coalesces a burst of readings
+        // into one message.
+        if (following)
+            this.settle(root);
     }
 
     /**
@@ -206,7 +250,7 @@ export class ChartEngine {
         if (box.width === entry.width && box.height === entry.height)
             return;
 
-        this.redraw(root);
+        this.schedule(root);
     }
 
     /**
@@ -236,16 +280,11 @@ export class ChartEngine {
         // writes a new one.
         applyChange(entry.rows, change.action, change.items, change.moves, entry.model, this.readPath);
 
-        this.redraw(change.component);
+        // A point arrived: a window at the far end follows it, which the draw works out from the data it draws.
+        if (entry.model.followLatest && entry.view !== null && entry.anchored)
+            entry.follow = true;
 
-        // A point arrived: a window at the far end follows it, diverging from what the controller holds. Settling coalesces a
-        // burst of readings into one message.
-        if (!entry.model.followLatest || entry.view === null || !entry.anchored || entry.frame === null)
-            return;
-
-        entry.view = followWindow(entry.view, entry.frame.whole.from, entry.frame.whole.to);
-        this.redraw(change.component);
-        this.settle(change.component);
+        this.schedule(change.component);
     }
 
     /**
@@ -266,7 +305,8 @@ export class ChartEngine {
             return;
 
         entry.view = wire === null ? null : { from: wire.from, to: wire.to };
-        this.redraw(root);
+        entry.follow = false;
+        this.schedule(root);
         anchor(entry);
     }
 
@@ -296,11 +336,18 @@ export class ChartEngine {
         if (canvas === null || rule === null)
             return;
 
-        const column = nearestColumn(frame.columns, domEvent.clientX - canvas.getBoundingClientRect().left);
+        const box = canvas.getBoundingClientRect();
+        const horizontal = entry.model.horizontal;
+        const column = nearestColumn(frame.columns, horizontal ? domEvent.clientY - box.top : domEvent.clientX - box.left);
 
-        rule.setAttribute("x", String(Math.round(column.at * 100) / 100));
+        // The same column as the last move: the words and the line are already where they belong.
+        if (this.shared === root && this.sharedColumn === column)
+            return;
+
+        rule.setAttribute(horizontal ? "y" : "x", String(Math.round(column.at * 100) / 100));
         rule.classList.add(RuleOnClass);
         this.shared = root;
+        this.sharedColumn = column;
         this.tooltips.show(rule, column.text);
     }
 
@@ -310,6 +357,7 @@ export class ChartEngine {
 
         this.shared.querySelector<SVGElement>(RuleSelector)?.classList.remove(RuleOnClass);
         this.shared = null;
+        this.sharedColumn = null;
         this.tooltips.hide();
     }
 
@@ -327,7 +375,10 @@ export class ChartEngine {
         return target.closest(AreaSelector) === null ? null : { root, entry, frame: entry.frame };
     }
 
-    /** A notch of the wheel: the window narrows or widens about the value under the pointer, which stays where it is. */
+    /**
+     * The wheel: the window narrows or widens about the value under the pointer, which stays where it is. By how far the wheel
+     * turned, not once per event, since a trackpad sends dozens of small ones for a gesture a mouse sends as one notch.
+     */
     private onWheel(domEvent: Event): void {
         const found = this.zoomable(domEvent.target);
 
@@ -337,11 +388,15 @@ export class ChartEngine {
         domEvent.preventDefault();
 
         const { entry, frame } = found;
-        const at = valueOf(frame.x, share(domEvent.clientX, found.root, frame));
-        const moved = zoomWindow(entry.view ?? frame.whole, at, domEvent.deltaY > 0 ? WheelStep : 1 / WheelStep, frame.whole.from, frame.whole.to);
+        // Read against the window as it now stands, which a notch since the last frame may already have moved.
+        const current = entry.view ?? frame.whole;
+        const at = valueOf({ ...frame.x, min: current.from, max: current.to }, share(domEvent, found.root, frame, entry.model.horizontal));
+        const notches = Math.min(Math.max(wheelPixels(domEvent) / NotchPixels, -MostNotches), MostNotches);
+        const moved = zoomWindow(current, at, WheelStep ** notches, frame.whole.from, frame.whole.to);
 
         entry.view = narrowed(moved, frame.whole);
-        this.redraw(found.root);
+        entry.follow = false;
+        this.schedule(found.root);
         anchor(entry);
         this.settle(found.root);
     }
@@ -389,7 +444,7 @@ export class ChartEngine {
         if (found === null || !(domEvent instanceof PointerEvent) || domEvent.button !== 0)
             return;
 
-        this.drag = { root: found.root, clientX: domEvent.clientX, window: found.entry.view ?? found.frame.whole, moved: 0 };
+        this.drag = { root: found.root, start: along(domEvent, found.entry.model.horizontal), window: found.entry.view ?? found.frame.whole, moved: 0 };
 
         const move = (event: Event): void => this.onDragMove(event);
         const end = (): void => {
@@ -411,13 +466,17 @@ export class ChartEngine {
         if (drag === null || entry === undefined || entry.frame === null || !(domEvent instanceof PointerEvent))
             return;
 
-        const width = entry.frame.plot.width;
+        // Along the band axis: across the plot, or down it where the chart lies on its side.
+        const horizontal = entry.model.horizontal;
+        const length = horizontal ? entry.frame.plot.height : entry.frame.plot.width;
         const span = drag.window.to - drag.window.from;
-        const by = width > 0 ? ((drag.clientX - domEvent.clientX) / width) * span : 0;
+        const at = along(domEvent, horizontal);
+        const by = length > 0 ? ((drag.start - at) / length) * span : 0;
 
-        drag.moved = Math.max(drag.moved, Math.abs(domEvent.clientX - drag.clientX));
+        drag.moved = Math.max(drag.moved, Math.abs(at - drag.start));
         entry.view = panWindow(drag.window, by, entry.frame.whole.from, entry.frame.whole.to);
-        this.redraw(drag.root);
+        entry.follow = false;
+        this.schedule(drag.root);
         anchor(entry);
     }
 
@@ -431,16 +490,17 @@ export class ChartEngine {
         this.drag = null;
     }
 
-    /** Two presses give the whole of the data back. */
+    /** Two presses give the whole of the data back; on a chart already showing the whole, they change nothing and say nothing. */
     private onReset(domEvent: Event): void {
         const found = this.zoomable(domEvent.target);
 
-        if (found === null)
+        if (found === null || found.entry.view === null)
             return;
 
         found.entry.view = null;
         found.entry.anchored = true;
-        this.redraw(found.root);
+        found.entry.follow = false;
+        this.schedule(found.root);
         this.send(found.root);
     }
 
@@ -508,7 +568,8 @@ export class ChartEngine {
         if (point === null || root === null)
             return;
 
-        const series = point.closest<Element>(SeriesSelector)?.getAttribute(SeriesAttribute) ?? "";
+        // A sector names its series itself, its group being named by its row.
+        const series = point.getAttribute(SeriesAttribute) ?? point.closest<Element>(SeriesSelector)?.getAttribute(SeriesAttribute) ?? "";
 
         root.dispatchEvent(new CustomEvent(PointClickEvent, {
             bubbles: true,
@@ -545,7 +606,7 @@ export class ChartEngine {
         button.setAttribute("aria-pressed", hidden ? "false" : "true");
         button.classList.toggle(LegendOffClass, hidden);
 
-        this.redraw(root);
+        this.schedule(root);
 
         return true;
     }
@@ -583,16 +644,32 @@ function safeParse(text: string): unknown {
     }
 }
 
-/** The column nearest the pointer, which is the x the viewer means whether or not a point of it is under them. */
+/**
+ * The column nearest the pointer, which is the x the viewer means whether or not a point of it is under them. The columns stand
+ * in order across the plot, so the search halves them.
+ */
 function nearestColumn(columns: readonly ChartColumn[], at: number): ChartColumn {
-    let nearest = columns[0];
+    let low = 0;
+    let high = columns.length - 1;
 
-    for (const column of columns) {
-        if (Math.abs(column.at - at) < Math.abs(nearest.at - at))
-            nearest = column;
+    while (low < high) {
+        const middle = (low + high) >> 1;
+
+        if (columns[middle].at < at)
+            low = middle + 1;
+        else
+            high = middle;
     }
 
-    return nearest;
+    return low > 0 && Math.abs(columns[low - 1].at - at) <= Math.abs(columns[low].at - at) ? columns[low - 1] : columns[low];
+}
+
+/** How far a wheel event turned, in pixels whatever unit the browser counted it in. */
+function wheelPixels(domEvent: WheelEvent): number {
+    if (domEvent.deltaMode === WheelEvent.DOM_DELTA_LINE)
+        return domEvent.deltaY * LinePixels;
+
+    return domEvent.deltaMode === WheelEvent.DOM_DELTA_PAGE ? domEvent.deltaY * PagePixels : domEvent.deltaY;
 }
 
 /**
@@ -615,16 +692,23 @@ function narrowed(view: Span, whole: Span): Span | null {
     return view.to - view.from >= whole.to - whole.from - slack ? null : view;
 }
 
-/** Where a pointer stands across the plot, from none of it to all of it. */
-function share(clientX: number, root: HTMLElement, frame: ChartFrame): number {
+/** Where a pointer stands along the band axis of the plot, from none of it to all of it. */
+function share(domEvent: MouseEvent, root: HTMLElement, frame: ChartFrame, horizontal: boolean): number {
     const canvas = root.querySelector<SVGSVGElement>(CanvasSelector);
+    const length = horizontal ? frame.plot.height : frame.plot.width;
 
-    if (canvas === null || frame.plot.width <= 0)
+    if (canvas === null || length <= 0)
         return 0.5;
 
     const box = canvas.getBoundingClientRect();
+    const start = horizontal ? box.top + frame.plot.top : box.left + frame.plot.left;
 
-    return Math.min(Math.max((clientX - box.left - frame.plot.left) / frame.plot.width, 0), 1);
+    return Math.min(Math.max((along(domEvent, horizontal) - start) / length, 0), 1);
+}
+
+/** The pointer's place along the band axis: across the page, or down it where the chart lies on its side. */
+function along(domEvent: MouseEvent, horizontal: boolean): number {
+    return horizontal ? domEvent.clientY : domEvent.clientX;
 }
 
 function measure(root: HTMLElement): { width: number; height: number } {
@@ -643,4 +727,3 @@ function markBar(root: HTMLElement, bar: Element | null): void {
     for (const each of root.querySelectorAll<SVGElement>(BarSelector))
         each.classList.toggle(FrontBarClass, each === bar);
 }
-

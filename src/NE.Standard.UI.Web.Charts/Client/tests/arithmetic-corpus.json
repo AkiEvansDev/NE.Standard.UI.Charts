@@ -12,6 +12,19 @@
         { "case": "a moment with a tail that is neither a clock nor a zone is no moment", "text": "2026-09-13XYZ", "expected": null },
         { "case": "a field outside its own range names no moment, rather than the day it would roll on to", "text": "2026-02-30T10:00", "expected": null }
     ],
+    "texts": [
+        { "case": "a number as itself", "text": "12.5", "kind": "Linear", "expected": 12.5 },
+        { "case": "blanks either side", "text": " 12 ", "kind": "Linear", "expected": 12 },
+        { "case": "a sign, a bare point and an exponent", "text": "-.5e1", "kind": "Linear", "expected": -5 },
+        { "case": "nothing written", "text": "", "kind": "Linear", "expected": null },
+        { "case": "only blanks", "text": " ", "kind": "Linear", "expected": null },
+        { "case": "a hex", "text": "0x10", "kind": "Linear", "expected": null },
+        { "case": "a thousands separator", "text": "1,500", "kind": "Linear", "expected": null },
+        { "case": "a flag", "text": "true", "kind": "Linear", "expected": null },
+        { "case": "a number too large to hold", "text": "1e999", "kind": "Linear", "expected": null },
+        { "case": "a moment on a value axis", "text": "2026-01-01T00:00:00.000", "kind": "Linear", "expected": null },
+        { "case": "a number on a time axis is its milliseconds", "text": "10000", "kind": "Time", "expected": 10000 }
+    ],
     "ranges": [
         { "case": "both ends open follow the data, rounded outward to the step", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": 3, "dataMax": 47, "categories": 0, "includeZero": false, "expected": { "min": 0, "max": 50, "logarithmic": false } },
         { "case": "an end the author fixed stands", "kind": "Linear", "min": 2, "max": 48, "ticks": 5, "dataMin": 3, "dataMax": 47, "categories": 0, "includeZero": false, "expected": { "min": 2, "max": 48, "logarithmic": false } },
@@ -22,7 +35,13 @@
         { "case": "a logarithmic axis runs between powers of ten", "kind": "Logarithmic", "min": null, "max": null, "ticks": 5, "dataMin": 3, "dataMax": 4000, "categories": 0, "includeZero": false, "expected": { "min": 1, "max": 10000, "logarithmic": true } },
         { "case": "a bar's range reaches zero", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": 12, "dataMax": 47, "categories": 0, "includeZero": true, "expected": { "min": 0, "max": 50, "logarithmic": false } },
         { "case": "zero is the end the author left open, never the one they fixed", "kind": "Linear", "min": 10, "max": null, "ticks": 5, "dataMin": 12, "dataMax": 47, "categories": 0, "includeZero": true, "expected": { "min": 10, "max": 50, "logarithmic": false } },
-        { "case": "values below zero reach up to it", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": -8, "dataMax": -2, "categories": 0, "includeZero": true, "expected": { "min": -8, "max": 0, "logarithmic": false } }
+        { "case": "values below zero reach up to it", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": -8, "dataMax": -2, "categories": 0, "includeZero": true, "expected": { "min": -8, "max": 0, "logarithmic": false } },
+        { "case": "a step of a month rounds out to the first of a month", "kind": "Time", "min": null, "max": null, "ticks": 5, "dataMin": 1800403200000, "dataMax": 1812585600000, "categories": 0, "includeZero": false, "expected": { "min": 1798761600000, "max": 1814400000000, "logarithmic": false } },
+        { "case": "a time axis reaching the first year stops at the first moment a DateTime names", "kind": "Time", "min": null, "max": null, "ticks": 5, "dataMin": -62135596800000, "dataMax": 1767225600000, "categories": 0, "includeZero": false, "expected": { "min": -62135596800000, "max": 16725225600000, "logarithmic": false } },
+        { "case": "one moment is read against a day either side of it, not an eighth of the years since 1970", "kind": "Time", "min": null, "max": null, "ticks": 5, "dataMin": 1789257600000, "dataMax": 1789257600000, "categories": 0, "includeZero": false, "expected": { "min": 1789171200000, "max": 1789344000000, "logarithmic": false } },
+        { "case": "one moment at the end of the calendar keeps its day inside it", "kind": "Time", "min": null, "max": null, "ticks": 5, "dataMin": 253402300799999, "dataMax": 253402300799999, "categories": 0, "includeZero": false, "expected": { "min": 253402214399999, "max": 253402300799999, "logarithmic": false } },
+        { "case": "a low end fixed over the data builds the open high end from itself, so the range never runs backward", "kind": "Linear", "min": 20, "max": null, "ticks": 5, "dataMin": 5, "dataMax": 15, "categories": 0, "includeZero": true, "expected": { "min": 20, "max": 22.5, "logarithmic": false } },
+        { "case": "and a high end fixed under the data the open low end", "kind": "Linear", "min": null, "max": 10, "ticks": 5, "dataMin": 15, "dataMax": 15, "categories": 0, "includeZero": false, "expected": { "min": 8.125, "max": 10, "logarithmic": false } }
     ],
     "steps": [
         { "case": "a linear step is one, two or five times a power of ten", "kind": "Linear", "min": 0, "max": 100, "count": 5, "expected": 20 },
@@ -31,19 +50,30 @@
         { "case": "no width at all", "kind": "Linear", "min": 0, "max": 0, "count": 5, "expected": 1 },
         { "case": "a time step is an interval a clock is read at", "kind": "Time", "min": 0, "max": 300000, "count": 5, "expected": 60000 },
         { "case": "half an hour rather than twenty minutes", "kind": "Time", "min": 0, "max": 5400000, "count": 5, "expected": 1800000 },
-        { "case": "six hours rather than five", "kind": "Time", "min": 0, "max": 86400000, "count": 5, "expected": 21600000 }
+        { "case": "six hours rather than five", "kind": "Time", "min": 0, "max": 86400000, "count": 5, "expected": 21600000 },
+        { "case": "a logarithmic range answers with the power of ten at its low end, its finest mark", "kind": "Logarithmic", "min": 0.001, "max": 1, "count": 5, "expected": 0.001 },
+        { "case": "however many powers it spans", "kind": "Logarithmic", "min": 0.1, "max": 10, "count": 5, "expected": 0.1 }
     ],
     "ticks": [
         { "case": "the round numbers inside the range", "kind": "Linear", "scale": { "min": 0, "max": 100, "logarithmic": false }, "count": 5, "expected": [0, 20, 40, 60, 80, 100] },
         { "case": "a category is marked at every place", "kind": "Category", "scale": { "min": -0.5, "max": 2.5, "logarithmic": false }, "count": 5, "expected": [0, 1, 2] },
         { "case": "a range of no width is marked nowhere", "kind": "Linear", "scale": { "min": 5, "max": 5, "logarithmic": false }, "count": 5, "expected": [] },
         { "case": "a logarithmic axis is marked at the powers of ten", "kind": "Logarithmic", "scale": { "min": 1, "max": 10000, "logarithmic": true }, "count": 5, "expected": [1, 10, 100, 1000, 10000] },
-        { "case": "a mark just under zero is never a negative zero", "kind": "Linear", "scale": { "min": -8, "max": 0, "logarithmic": false }, "count": 5, "expected": [-8, -6, -4, -2, 0] }
+        { "case": "a mark just under zero is never a negative zero", "kind": "Linear", "scale": { "min": -8, "max": 0, "logarithmic": false }, "count": 5, "expected": [-8, -6, -4, -2, 0] },
+        { "case": "a step of a month marks the first of every month, not every thirty days", "kind": "Time", "scale": { "min": 1800403200000, "max": 1812585600000, "logarithmic": false }, "count": 5, "expected": [1801440000000, 1803859200000, 1806537600000, 1809129600000, 1811808000000] },
+        { "case": "a step of a quarter marks January, April, July and October", "kind": "Time", "scale": { "min": 1768435200000, "max": 1799539200000, "logarithmic": false }, "count": 5, "expected": [1775001600000, 1782864000000, 1790812800000, 1798761600000] },
+        { "case": "a step of two years marks the first of January of the even years", "kind": "Time", "scale": { "min": 1583020800000, "max": 1777593600000, "logarithmic": false }, "count": 5, "expected": [1640995200000, 1704067200000, 1767225600000] },
+        { "case": "more names than an axis marks are thinned by a stride, not cut off", "kind": "Category", "scale": { "min": -0.5, "max": 399.5, "logarithmic": false }, "count": 5, "expected": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 168, 170, 172, 174, 176, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 200, 202, 204, 206, 208, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 232, 234, 236, 238, 240, 242, 244, 246, 248, 250, 252, 254, 256, 258, 260, 262, 264, 266, 268, 270, 272, 274, 276, 278, 280, 282, 284, 286, 288, 290, 292, 294, 296, 298, 300, 302, 304, 306, 308, 310, 312, 314, 316, 318, 320, 322, 324, 326, 328, 330, 332, 334, 336, 338, 340, 342, 344, 346, 348, 350, 352, 354, 356, 358, 360, 362, 364, 366, 368, 370, 372, 374, 376, 378, 380, 382, 384, 386, 388, 390, 392, 394, 396, 398] }
     ],
     "formats": [
         { "kind": "Linear", "step": 20, "expected": "N0" },
         { "kind": "Linear", "step": 0.2, "expected": "N1" },
         { "kind": "Linear", "step": 0.02, "expected": "N2" },
+        { "kind": "Linear", "step": 0.001, "expected": "N3" },
+        { "kind": "Linear", "step": 0.0005, "expected": "N4" },
+        { "kind": "Linear", "step": 1e-30, "expected": "N15" },
+        { "kind": "Logarithmic", "step": 0.001, "expected": "N3" },
+        { "kind": "Logarithmic", "step": 100, "expected": "N0" },
         { "kind": "Time", "step": 30000, "expected": "HH:mm:ss" },
         { "kind": "Time", "step": 3600000, "expected": "HH:mm" },
         { "kind": "Time", "step": 604800000, "expected": "dd MMM" },
@@ -60,6 +90,11 @@
         { "scale": { "min": 10, "max": 50, "logarithmic": false }, "share": 1, "expected": 50 },
         { "scale": { "min": 10, "max": 50, "logarithmic": false }, "share": 0.25, "expected": 20 },
         { "scale": { "min": 1, "max": 1000, "logarithmic": true }, "share": 0.3333333333333333, "expected": 10 }
+    ],
+    "withins": [
+        { "case": "a value inside the range is itself", "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": 5, "expected": 5 },
+        { "case": "one outside it is the nearer end", "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": -5, "expected": 0 },
+        { "case": "whichever way round the author fixed the ends", "scale": { "min": 20, "max": 17.5, "logarithmic": false }, "value": 0, "expected": 17.5 }
     ],
     "coords": [
         { "value": 12, "expected": "12" },
@@ -115,14 +150,12 @@
         {
             "case": "an area closes on the axis's zero",
             "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }],
-            "baseline": null,
             "stepped": false, "smooth": false,
             "expected": "M0 100 L50 50 L100 0 L100 100 L0 100 Z"
         },
         {
-            "case": "an area closes on the series below it in a stack",
-            "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }],
-            "baseline": [{ "x": 0, "y": 2 }, { "x": 5, "y": 2 }, { "x": 10, "y": 2 }],
+            "case": "an area in a stack closes on its points' own bases",
+            "points": [{ "x": 0, "y": 0, "base": 2 }, { "x": 5, "y": 5, "base": 2 }, { "x": 10, "y": 10, "base": 2 }],
             "stepped": false, "smooth": false,
             "expected": "M0 100 L50 50 L100 0 L100 80 L50 80 L0 80 Z"
         }
@@ -131,18 +164,27 @@
         {
             "case": "every series is drawn from the running total at its x",
             "series": [[{ "x": 0, "y": 1 }, { "x": 5, "y": 2 }], [{ "x": 0, "y": 3 }, { "x": 5, "y": 4 }]],
-            "expected": [[1, 2], [4, 6]]
+            "expected": [[1, 2], [4, 6]],
+            "bases": [[0, 0], [1, 2]]
         },
         {
             "case": "a point with no value adds nothing and stays missing",
             "series": [[{ "x": 0, "y": 1 }, { "x": 5, "y": null }], [{ "x": 0, "y": 2 }, { "x": 5, "y": 2 }]],
-            "expected": [[1, null], [3, 2]]
+            "expected": [[1, null], [3, 2]],
+            "bases": [[0, null], [1, 0]]
+        },
+        {
+            "case": "a series with nothing at an x leaves the one above it on the total under it, not on zero",
+            "series": [[{ "x": 0, "y": 5 }], [{ "x": 0, "y": null }], [{ "x": 0, "y": 3 }]],
+            "expected": [[5], [null], [8]],
+            "bases": [[0], [null], [5]]
+        },
+        {
+            "case": "values below zero stack apart from those above it, each side from zero outward",
+            "series": [[{ "x": 0, "y": -3 }], [{ "x": 0, "y": 5 }], [{ "x": 0, "y": -2 }]],
+            "expected": [[-3], [5], [-5]],
+            "bases": [[0], [0], [-3]]
         }
-    ],
-    "baselines": [
-        { "case": "the value the series below holds there", "points": [{ "x": 0, "y": 4 }, { "x": 5, "y": 6 }], "at": 5, "expected": 6 },
-        { "case": "nothing there is nothing added", "points": [{ "x": 0, "y": 4 }], "at": 5, "expected": 0 },
-        { "case": "a point with no value is nothing added", "points": [{ "x": 5, "y": null }], "at": 5, "expected": 0 }
     ],
     "bands": [
         { "case": "a band is a share of the plot", "length": 100, "slots": 4, "expected": 25 },
@@ -150,7 +192,8 @@
         { "case": "no slots at all still has a band", "length": 100, "slots": 0, "expected": 100 }
     ],
     "slots": [
-        { "case": "one slot per x the data holds", "series": [[{ "x": 0, "y": 1 }, { "x": 5, "y": 1 }], [{ "x": 0, "y": 2 }, { "x": 9, "y": 2 }]], "expected": 3 }
+        { "case": "one slot per x the data holds", "series": [[{ "x": 0, "y": 1 }, { "x": 5, "y": 1 }], [{ "x": 0, "y": 2 }, { "x": 9, "y": 2 }]], "band": { "min": -1, "max": 10, "logarithmic": false }, "expected": 3 },
+        { "case": "only the places inside the window the axis shows", "series": [[{ "x": 0, "y": 1 }, { "x": 5, "y": 1 }], [{ "x": 0, "y": 2 }, { "x": 9, "y": 2 }]], "band": { "min": 4, "max": 10, "logarithmic": false }, "expected": 2 }
     ],
     "bars": [
         { "case": "the first of two side by side", "center": 50, "band": 25, "index": 0, "count": 2, "stacked": false, "expected": { "start": 41, "thickness": 9 } },
@@ -179,6 +222,7 @@
     "windows": [
         { "case": "a window is no wider than the whole", "op": "clamp", "from": -20, "to": 200, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } },
         { "case": "a window with no width is no window", "op": "clamp", "from": 50, "to": 50, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } },
+        { "case": "a window as wide as a whole whose width rounds is the whole, not a hair off its start", "op": "clamp", "from": -1, "to": 1, "min": -0.4, "max": 0.2, "expected": { "from": -0.4, "to": 0.2 } },
         { "case": "no narrower than a fraction of the whole", "op": "clamp", "from": 10, "to": 10.05, "min": 0, "max": 100, "expected": { "from": 10, "to": 10.2 } },
         { "case": "one pushed past the far end is slid back", "op": "clamp", "from": 90, "to": 130, "min": 0, "max": 100, "expected": { "from": 60, "to": 100 } },
         { "case": "one pushed past the near end is slid back", "op": "clamp", "from": -30, "to": 10, "min": 0, "max": 100, "expected": { "from": 0, "to": 40 } },

@@ -21,9 +21,12 @@ would be a second rendering path with a data protocol of its own; it comes back 
 ## Install
 
 ```
-dotnet add package NE.Standard.UI.Charts --prerelease
-dotnet add package NE.Standard.UI.Web.Charts --prerelease
+dotnet add package NE.Standard.UI.Charts
+dotnet add package NE.Standard.UI.Web.Charts
 ```
+
+Both packages bring their namespaces as global usings, so the code below needs no `using` line for them; a project that
+sets `NEStandardUIImplicitUsings` to `false` writes its own.
 
 Register the web rendering beside the framework's renderers:
 
@@ -60,16 +63,30 @@ new LineChartComponent()
 
 A series the data names and the author did not draws a line of its own, captioned by its key and coloured by the
 next colour of the theme's categorical run. `AddSeries` for a key that does appear in the data gives that series its
-caption, its colour and its own line style.
+caption and its colour.
+
+A series with a line style of its own is a `UIChartSeries`, passed to the other `AddSeries` overload: its `Stepped`,
+`Smooth` and `ShowMarkers`, left unset, take the chart's.
+
+```csharp
+new LineChartComponent()
+    .BindItems(nameof(Controller.Samples))
+    .SetX(nameof(Sample.Time))
+    .SetSmooth(true)
+    .AddSeries("cpu", "CPU", nameof(Sample.Cpu))
+    .AddSeries(new UIChartSeries { Key = "limit", Caption = "Limit", ValuePath = nameof(Sample.Limit), Stepped = true, ShowMarkers = false })
+```
 
 Every item of the collection is keyed — `IBindableItem.Id` — because that is how a patch finds the point it moves.
-The rows are drawn in the collection's own order; `SortBy` on the component orders them where the source does not.
+The rows are drawn in the collection's own order; `SortBy` on the component orders them where the source does not. A chart
+that names no `SetX` reads a row's x off its place in the collection, on both sides: a row inserted or removed moves the ones
+after it, as a render would.
 
 ### The kinds
 
 | Component | Draws | Its own |
 |---|---|---|
-| `LineChartComponent` | a line per series | `Stepped`, `Smooth`, `ShowMarkers` — a series may say otherwise |
+| `LineChartComponent` | a line per series | `Stepped`, `Smooth`, `ShowMarkers` — a series added as a `UIChartSeries` may say otherwise |
 | `AreaChartComponent` | the same lines with a band under each | `Stacked`, and the line chart's own; no marks are painted, though a point still answers the pointer |
 | `BarChartComponent` | a bar per series at every x | `Stacked` — otherwise the bars share the x's band side by side; `Horizontal` lays them on their side, the values across the box and a band per x down it |
 | `PieChartComponent` | one series' points as sectors of a turn | `SetDonut(share)` for a hole, `CentreCaption` for the words in it; no axes, and the legend names the sectors |
@@ -80,7 +97,9 @@ The rows are drawn in the collection's own order; `SortBy` on the component orde
 An area's band and a bar's length are read against zero, so those two take zero into the range whether the data
 does or not; a line chart follows its data. `Stacked` puts the series on one another in the order they were added:
 the top of the stack is the total, each part is what its own series added, and a tooltip still says what the series
-itself holds. A series the legend puts aside leaves the stack rather than holding a gap in it.
+itself holds. A part stands on everything stacked under it at its x, whether or not the series just below holds a value
+there, and values below zero stack downward apart from those above it, so neither side is drawn over the other. A series
+the legend puts aside leaves the stack rather than holding a gap in it.
 
 ### The axes
 
@@ -89,28 +108,41 @@ itself holds. A series the legend puts aside leaves the stack rather than holdin
 | `UIChartAxis.Linear` | a number | a standard .NET format — `N0`, `N2`, `P`, `F1` — or as many decimals as the step needs |
 | `UIChartAxis.Time` | a `DateTime` | a pattern of the framework's shared token subset (`HH:mm`, `dd MMM`), or the part of a clock the step moves |
 | `UIChartAxis.Category` | a name, one place per name in the order the rows arrive | the name itself |
-| `UIChartAxis.Logarithmic` | a number above zero, on a base-ten scale | as a linear axis, marked at the powers of ten |
+| `UIChartAxis.Logarithmic` | a number above zero, on a base-ten scale | a standard .NET format, or as many decimals as its smallest mark needs; marked at the powers of ten |
 
 A range the author leaves open follows the data, rounded outward to the axis's own round step; `Min`/`Max` fix
-either end. `ShowGridLines` and `TickCount` are the axis's, and a caption stands beside it.
+either end, and an end fixed past all of the data leaves the open one built from it rather than a range running backward. `ShowGridLines` and `TickCount` are the axis's, and a caption stands beside it. A category axis with more names
+than an axis carries marks (two hundred) thins them by a stride rather than cutting the rest off.
+
+A value an axis cannot place is no value: a text `"NaN"` or `"Infinity"`, or a number too large to hold, is a gap, as a null
+is. A number written as text is read as .NET's invariant culture reads one — a hex, a blank or a thousands separator is no
+number. A moment, or its text, is placed only on a time axis — on a value axis a date would turn into a number no one wrote.
+An x is read off the text the browser is told, on both sides, so a point the first frame places is the one every redraw
+places.
 
 A time axis reads the moment it is given as the wall clock it is written with, never shifted into another zone, so
 pass a local or unspecified `DateTime` — and a `DateTimeOffset` or a text carrying a zone is read by the clock on its
 face, the zone dropped. The browser reads it the same way, so a tick, a point and a bound range are one number on both
-sides and a round step lands on a round clock reading.
+sides and a round step lands on a round clock reading. A step of a month or more is marked on the calendar — the first of a
+month, a quarter or a year — rather than every so many days from 1970, which drifts off the month. The axis stays inside the
+moments a `DateTime` can name, and a single moment is drawn with a day either side of it.
 
 ### Where the drawing happens
-
-Both ports are held to one corpus: `Client/tests/arithmetic-corpus.json` carries the cases and their answers, the
-browser's own tests read it against the TypeScript, and the framework repository's `NE.Test.Standard.UI.Charts` reads the same file
-against the C#. A change one side got and the other did not fails on both.
 
 The server writes a correct first frame with no measurement — the ranges, the round ticks and their labels in the
 page's culture, a path per series — at a nominal size the `viewBox` carries. The browser then re-draws the chart at
 the size it really got, which is the only way text can be placed properly, and again whenever the collection
-changes or the viewer puts a series aside. Both sides run the same arithmetic: `ChartRange`, `ChartTicks`,
-`ChartPath`, `ChartStacking`, `ChartBars` and `ChartValues` here, `chart-ticks.ts`, `chart-path.ts`,
-`chart-stack.ts`, `chart-bars.ts` and `chart-moment.ts` there.
+changes or the viewer puts a series aside — once per frame, however many changes, drags or wheel notches arrived before
+it. Both sides run the same arithmetic: `ChartRange`, `ChartTicks`, `ChartScale`, `ChartPlot`, `ChartCalendar`,
+`ChartPath`, `ChartStacking`, `ChartBars`, `ChartPie`, `ChartBubbles`, `ChartWindow` and `ChartValues` here,
+`chart-ticks.ts` (the range, the ticks, the scale and the plot), `chart-calendar.ts`, `chart-path.ts`, `chart-stack.ts`,
+`chart-bars.ts`, `chart-pie.ts`, `chart-bubbles.ts`, `chart-window.ts`, `chart-moment.ts` and `chart-rows.ts`'s reading of an
+x there — held to one corpus of cases both test suites read.
+
+The legend follows the data: the server writes it for the first frame, and a series or a sector that arrives or goes later
+arrives or goes in the legend too, an entry the viewer put aside staying aside. The canvas is announced as a picture named
+by what the legend names — or by the `ui.chart.label` string (*Chart*) where there is nothing to name; a gauge's arc is left
+unannounced beside the words laid over it.
 
 ### What the viewer can do
 
@@ -124,13 +156,18 @@ changes or the viewer puts a series aside. Both sides run the same arithmetic: `
 - **Hover a bar** and that bar alone is read: every other bar goes back, the ones stacked with it in its own
   column among them, since a stacked column is several values and not one.
 - **Zoom and pan** where the author set `Zoomable`: the wheel narrows the stretch of the x axis on show about the
-  pointer, a drag moves it along, and a double press gives the whole of the data back. The window is bound
+  pointer — by how far it turned, so a trackpad's many small deltas zoom as far as a mouse's one notch — a drag moves it
+  along, and a double press gives the whole of the data back — down the chart rather than across it where bars lie on their
+  side, the shared tooltip's line with them. Zoomed in, bars widen to share the band among the places on show. The window
+  starts where the server drew it, bound or written by the author. The window is bound
   (`BindVisibleRange`), so a controller hears where the viewer is reading and can move the chart itself;
+  `OnWindowChange(command)` runs a command once the viewer has moved it, with the bound range already on the server;
   `FollowLatest` keeps a window standing at the far end on the newest point.
 - **Click a legend entry** to put its series aside and bring it back; the range then follows what is left. The
   choice stays in the browser and is never sent.
 - **Click a point** — a mark, a bar or a sector — where the author wired `OnPointClick(command)`: the command is
-  handed the key of the row the point was read from as `point` and the key of its series as `series`.
+  handed the key of the row the point was read from as `point` and the key of its series as `series` — a sector's series
+  being the pie's one series.
 - The legend stands under the plot, over it, or at either edge (`SetLegend`).
 
 ### Its size
@@ -162,4 +199,13 @@ the framework's own engines take; it lets go of a chart the page let go of.
 
 ## Licence
 
-The framework's own — see `LICENSE.md`.
+The framework's: **the Prosperity Public License 3.0.0** — free for noncommercial use, with a thirty-day trial
+for commercial use. See [LICENSE.md](https://github.com/AkiEvansDev/NE.Standard.UI.Charts/blob/main/LICENSE.md).
+
+## Contributing
+
+This repository is a **read-only mirror**. Development happens in a private repository alongside the
+framework — that is how the charts stay in step with the renderer they plug into — and everything here is
+generated from it, so pull requests are switched off.
+
+Issues are open and welcome.

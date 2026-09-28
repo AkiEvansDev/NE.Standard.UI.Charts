@@ -1,10 +1,6 @@
 using System;
 using System.Globalization;
 using System.Linq;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Charts;
-using NE.Standard.UI.Controllers;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Charts;
 
@@ -39,7 +35,7 @@ internal sealed partial class ChartsController : UIControllerBase
     [RecursiveMember]
     public partial string Status { get; set; } = "The live chart holds forty readings. Take one and the line follows it.";
 
-    /// <summary>What the bars page notes under its chart of countries.</summary>
+    /// <summary>What the bars page notes under its chart of servers.</summary>
     [RecursiveMember]
     public partial string BarStatus { get; set; } = "Press a bar for its value.";
 

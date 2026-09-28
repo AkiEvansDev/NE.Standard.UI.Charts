@@ -20,7 +20,7 @@ public abstract partial class SparklineComponent<T> : LineChartComponent<T>
     /// <summary>
     /// Gets or sets whether the values are drawn as a run of bars rather than a line.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     public bool Bars { get; set; }
 }
 

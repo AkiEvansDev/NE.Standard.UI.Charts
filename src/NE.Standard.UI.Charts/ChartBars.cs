@@ -19,8 +19,11 @@ public static class ChartBars
     /// <summary>No bar is thinner than this, however many of them share a band.</summary>
     private const double MinimumThickness = 1;
 
-    /// <summary>How many places along the band axis the bars share: one per x the data holds.</summary>
-    public static int Slots(IReadOnlyList<IReadOnlyList<ChartPoint>> series)
+    /// <summary>
+    /// How many places along the band axis the bars share: one per x the data holds inside the range the axis shows, so a window
+    /// zoomed in widens the bars it keeps.
+    /// </summary>
+    public static int Slots(IReadOnlyList<IReadOnlyList<ChartPoint>> series, ChartScale band)
     {
         ArgumentNullException.ThrowIfNull(series);
 
@@ -29,7 +32,12 @@ public static class ChartBars
         for (var i = 0; i < series.Count; i++)
         {
             for (var j = 0; j < series[i].Count; j++)
-                _ = places.Add(series[i][j].X);
+            {
+                var x = series[i][j].X;
+
+                if (x >= band.Min && x <= band.Max)
+                    _ = places.Add(x);
+            }
         }
 
         return places.Count;

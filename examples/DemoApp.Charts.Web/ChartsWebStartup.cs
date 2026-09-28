@@ -1,9 +1,5 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
-using NE.Standard.UI.Web.Charts;
-using NE.Standard.UI.Web.Icons.Material;
-using NE.Standard.UI.Web.Renderers.DI;
-using NE.Standard.UI.Web.Startup;
 
 namespace DemoApp.Charts.Web;
 
@@ -14,8 +10,9 @@ internal sealed class ChartsWebStartup : WebStartupBase<ChartsAppStartup>
         ArgumentNullException.ThrowIfNull(services);
 
         _ = services.AddStandardRenderers();
+        _ = services.AddCodeInput();
         _ = services.AddCharts();
-        // Only the two glyphs the theme switcher wears: registering a whole Material style costs megabytes.
-        _ = services.AddMaterialWebIcons(MaterialIconStyle.Outlined, ChartsDemoView.LightIcon, ChartsDemoView.DarkIcon);
+        // Only the glyphs the shell wears: registering a whole Material style costs megabytes.
+        _ = services.AddMaterialWebIcons(MaterialIconStyle.Outlined, ChartsDemoView.LightIcon, ChartsDemoView.DarkIcon, ChartsDemoView.CodeIcon, ChartsDemoView.CopyIcon);
     }
 }

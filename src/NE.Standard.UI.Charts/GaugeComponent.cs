@@ -25,20 +25,20 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
     /// <summary>
     /// Gets the low end of the range, set by <see cref="SetRange"/>.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = 0d)]
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = 0d)]
     public double Min { get; private set; }
 
     /// <summary>
     /// Gets the high end of the range, set by <see cref="SetRange"/>.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = 100d)]
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = 100d)]
     public double Max { get; private set; } = 100;
 
     /// <summary>
     /// Gets the bands along the arc, in the order they were added.
     /// </summary>
     /// <remarks>Render-time only: the bands are how the gauge is built.</remarks>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = null)]
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public IReadOnlyList<UIGaugeBand> Bands => _bands;
 
     /// <summary>
@@ -51,7 +51,7 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
     /// <summary>
     /// Gets or sets how the reading is written: a standard number format in the page's culture.
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = "N0")]
+    [UIComponentProperty(IsBindable = false, DefaultValue = "N0")]
     public string? Format { get; set; } = "N0";
 
     /// <summary>

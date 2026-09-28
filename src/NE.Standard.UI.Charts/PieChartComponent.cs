@@ -12,16 +12,16 @@ public abstract partial class PieChartComponent<T>(string? id = null) : ChartCom
     where T : PieChartComponent<T>, IUIComponentDefinition
 {
     /// <summary>
-    /// Gets or sets how much of the radius the hole in the middle takes, from none (a pie) to nearly all of it (a thin ring).
+    /// Gets how much of the radius the hole in the middle takes, set by <c>SetDonut</c>: from none (a pie) to nearly all of it (a thin ring).
     /// </summary>
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = 0d)]
+    [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = 0d)]
     public double Donut { get; private set; }
 
     /// <summary>
     /// Gets or sets the words in the middle of a donut — a total, a name. Nothing is written where there is no hole to write it in.
     /// </summary>
     [Translatable]
-    [UIComponentProperty(IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
     public string? CentreCaption { get; set; }
 
     /// <summary>

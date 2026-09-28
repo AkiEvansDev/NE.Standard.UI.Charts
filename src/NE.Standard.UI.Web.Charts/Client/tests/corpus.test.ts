@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import type { WrittenMoment } from "ne-standard-ui";
 
 import { bandWidth, barOf, barSlots } from "../src/chart-bars.ts";
 import { PlainRadius, bubbleRadius, pointReach } from "../src/chart-bubbles.ts";
@@ -14,13 +15,73 @@ import type { MomentParser } from "../src/chart-moment.ts";
 import { areaPath, coord, linePath } from "../src/chart-path.ts";
 import type { ChartPoint } from "../src/chart-path.ts";
 import { sectorsOf } from "../src/chart-pie.ts";
+import { xNumber } from "../src/chart-rows.ts";
 import type { ChartSeriesData } from "../src/chart-rows.ts";
-import { stackSeries, valueAt } from "../src/chart-stack.ts";
-import { defaultFormat, plotDown, plotX, plotY, resolveRange, step, ticks, valueOf } from "../src/chart-ticks.ts";
+import { stackSeries } from "../src/chart-stack.ts";
+import { defaultFormat, plotDown, plotX, plotY, resolveRange, step, ticks, valueOf, within } from "../src/chart-ticks.ts";
 import type { Plot, Scale } from "../src/chart-ticks.ts";
 import { clampWindow, followWindow, panWindow, windowExtent, zoomWindow } from "../src/chart-window.ts";
+import type { Span } from "../src/chart-window.ts";
 
-const corpus = JSON.parse(readFileSync(fileURLToPath(new URL("./arithmetic-corpus.json", import.meta.url)), "utf8"));
+type CorpusPoint = { readonly x: number; readonly y: number | null; readonly base?: number };
+
+type CorpusWindow = { readonly case: string; readonly from: number; readonly to: number; readonly min: number; readonly max: number; readonly expected: Span }
+    & ({ readonly op: "clamp" | "follow" } | { readonly op: "zoom"; readonly at: number; readonly factor: number } | { readonly op: "pan"; readonly by: number });
+
+type Corpus = {
+    readonly moments: readonly { readonly case: string; readonly text: string; readonly written: WrittenMoment; readonly expected: number | null }[];
+    readonly texts: readonly { readonly case: string; readonly text: string; readonly kind: AxisKind; readonly expected: number | null }[];
+    readonly ranges: readonly {
+        readonly case: string;
+        readonly kind: AxisKind;
+        readonly min: number | null;
+        readonly max: number | null;
+        readonly ticks: number;
+        readonly dataMin: number | null;
+        readonly dataMax: number | null;
+        readonly categories: number;
+        readonly includeZero: boolean;
+        readonly expected: Scale;
+    }[];
+    readonly steps: readonly { readonly case: string; readonly kind: AxisKind; readonly min: number; readonly max: number; readonly count: number; readonly expected: number }[];
+    readonly ticks: readonly { readonly case: string; readonly kind: AxisKind; readonly scale: Scale; readonly count: number; readonly expected: readonly number[] }[];
+    readonly formats: readonly { readonly kind: AxisKind; readonly step: number; readonly expected: string | null }[];
+    readonly places: readonly { readonly plot: Plot; readonly scale: Scale; readonly value: number; readonly expectedX: number; readonly expectedY: number; readonly expectedDown: number }[];
+    readonly shares: readonly { readonly scale: Scale; readonly share: number; readonly expected: number }[];
+    readonly withins: readonly { readonly case: string; readonly scale: Scale; readonly value: number; readonly expected: number }[];
+    readonly coords: readonly { readonly value: number; readonly expected: string }[];
+    readonly lines: readonly { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: string }[];
+    readonly areas: readonly { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: string }[];
+    readonly stacks: readonly {
+        readonly case: string;
+        readonly series: readonly (readonly CorpusPoint[])[];
+        readonly expected: readonly (readonly (number | null)[])[];
+        readonly bases: readonly (readonly (number | null)[])[];
+    }[];
+    readonly bands: readonly { readonly case: string; readonly length: number; readonly slots: number; readonly expected: number }[];
+    readonly slots: readonly { readonly case: string; readonly series: readonly (readonly CorpusPoint[])[]; readonly band: Scale; readonly expected: number }[];
+    readonly bars: readonly {
+        readonly case: string;
+        readonly center: number;
+        readonly band: number;
+        readonly index: number;
+        readonly count: number;
+        readonly stacked: boolean;
+        readonly expected: { readonly start: number; readonly thickness: number };
+    }[];
+    readonly sectors: readonly { readonly case: string; readonly values: readonly (number | null)[]; readonly expectedShares: readonly number[] }[];
+    readonly radii: readonly { readonly case: string; readonly size: number | null; readonly min: number; readonly max: number; readonly expected: number }[];
+    readonly reaches: readonly { readonly radius: number; readonly expected: number }[];
+    readonly windows: readonly CorpusWindow[];
+    readonly extents: readonly {
+        readonly case: string;
+        readonly series: readonly (readonly CorpusPoint[])[];
+        readonly window: Span | null;
+        readonly expected: { readonly min: number; readonly max: number };
+    }[];
+};
+
+const corpus = JSON.parse(readFileSync(fileURLToPath(new URL("./arithmetic-corpus.json", import.meta.url)), "utf8")) as Corpus;
 
 /** The box and the scales every path case is drawn in, so a case carries only what it is about. */
 const plot: Plot = { left: 0, top: 0, width: 100, height: 100 };
@@ -31,15 +92,15 @@ function close(actual: number, expected: number, name: string): void {
     assert.ok(Math.abs(actual - expected) <= Tolerance, `${name}: ${actual} is not ${expected}`);
 }
 
-function axisOf(entry: { kind: string; min: number | null; max: number | null; ticks: number }): ChartAxis {
-    return { kind: entry.kind as AxisKind, min: entry.min, max: entry.max, format: null, grid: true, ticks: entry.ticks, caption: null };
+function axisOf(entry: { kind: AxisKind; min: number | null; max: number | null; ticks: number }): ChartAxis {
+    return { kind: entry.kind, min: entry.min, max: entry.max, format: null, grid: true, ticks: entry.ticks, caption: null };
 }
 
-function pointsOf(entries: readonly { x: number; y: number | null }[]): ChartPoint[] {
-    return entries.map(entry => ({ key: `p${entry.x}`, x: entry.x, y: entry.y, size: null }));
+function pointsOf(entries: readonly CorpusPoint[]): ChartPoint[] {
+    return entries.map(entry => ({ key: `p${entry.x}`, x: entry.x, y: entry.y, size: null, base: entry.base ?? null }));
 }
 
-function seriesOf(entries: readonly { x: number; y: number | null }[], index: number): ChartSeriesData {
+function seriesOf(entries: readonly CorpusPoint[], index: number): ChartSeriesData {
     const points = pointsOf(entries);
 
     return {
@@ -52,7 +113,7 @@ function seriesOf(entries: readonly { x: number; y: number | null }[], index: nu
 
 // The text is read by the framework's `temporal.parse`, whose own tests hold the corpus's moments; here the numbering of what it
 // read is the chart's, so the corpus carries the fields beside the text for this side.
-const parse: MomentParser = text => corpus.moments.find((entry: { text: string }) => entry.text === text)?.written ?? null;
+const parse: MomentParser = text => corpus.moments.find(entry => entry.text === text)?.written ?? null;
 
 test("corpus: the number a moment is read as", () => {
     for (const entry of corpus.moments) {
@@ -60,6 +121,11 @@ test("corpus: the number a moment is read as", () => {
 
         assert.equal(moment === null ? null : momentNumber(moment), entry.expected, entry.case);
     }
+});
+
+test("corpus: the number an x's text is read as", () => {
+    for (const entry of corpus.texts)
+        assert.equal(xNumber(entry.text, entry.kind, [], parse), entry.expected, entry.case);
 });
 
 test("corpus: the range an axis covers over the data it was given", () => {
@@ -80,24 +146,27 @@ test("corpus: the range an axis covers over the data it was given", () => {
 
 test("corpus: the step a range is marked at, and the marks themselves", () => {
     for (const entry of corpus.steps)
-        close(step(entry.kind as AxisKind, entry.min, entry.max, entry.count), entry.expected, entry.case);
+        close(step(entry.kind, entry.min, entry.max, entry.count), entry.expected, entry.case);
 
     for (const entry of corpus.ticks)
-        assert.deepEqual(ticks(entry.kind as AxisKind, entry.scale as Scale, entry.count), entry.expected, entry.case);
+        assert.deepEqual(ticks(entry.kind, entry.scale, entry.count), entry.expected, entry.case);
 
     for (const entry of corpus.formats)
-        assert.equal(defaultFormat(entry.kind as AxisKind, entry.step), entry.expected, `${entry.kind} ${entry.step}`);
+        assert.equal(defaultFormat(entry.kind, entry.step), entry.expected, `${entry.kind} ${entry.step}`);
 });
 
 test("corpus: where a value lands in the plot, and what stands at a share of the range", () => {
     for (const entry of corpus.places) {
-        close(plotX(entry.plot as Plot, entry.scale as Scale, entry.value), entry.expectedX, "x");
-        close(plotY(entry.plot as Plot, entry.scale as Scale, entry.value), entry.expectedY, "y");
-        close(plotDown(entry.plot as Plot, entry.scale as Scale, entry.value), entry.expectedDown, "down");
+        close(plotX(entry.plot, entry.scale, entry.value), entry.expectedX, "x");
+        close(plotY(entry.plot, entry.scale, entry.value), entry.expectedY, "y");
+        close(plotDown(entry.plot, entry.scale, entry.value), entry.expectedDown, "down");
     }
 
     for (const entry of corpus.shares)
-        close(valueOf(entry.scale as Scale, entry.share), entry.expected, "value");
+        close(valueOf(entry.scale, entry.share), entry.expected, "value");
+
+    for (const entry of corpus.withins)
+        close(within(entry.scale, entry.value), entry.expected, entry.case);
 
     for (const entry of corpus.coords)
         assert.equal(coord(entry.value), entry.expected, `coord ${entry.value}`);
@@ -107,24 +176,19 @@ test("corpus: the path a series is drawn as", () => {
     for (const entry of corpus.lines)
         assert.equal(linePath(pointsOf(entry.points), scale, scale, plot, entry.stepped, entry.smooth), entry.expected, entry.case);
 
-    for (const entry of corpus.areas) {
-        const baseline = entry.baseline === null ? null : pointsOf(entry.baseline);
-
-        assert.equal(areaPath(pointsOf(entry.points), baseline, scale, scale, plot, entry.stepped, entry.smooth), entry.expected, entry.case);
-    }
+    for (const entry of corpus.areas)
+        assert.equal(areaPath(pointsOf(entry.points), scale, scale, plot, entry.stepped, entry.smooth), entry.expected, entry.case);
 });
 
 test("corpus: the stack a series stands on", () => {
     for (const entry of corpus.stacks) {
-        const series = (entry.series as { x: number; y: number | null }[][]).map(seriesOf);
+        const series = entry.series.map(seriesOf);
 
         stackSeries(series);
 
         assert.deepEqual(series.map(one => one.drawn.map(point => point.y)), entry.expected, entry.case);
+        assert.deepEqual(series.map(one => one.drawn.map(point => point.base ?? null)), entry.bases, entry.case);
     }
-
-    for (const entry of corpus.baselines)
-        close(valueAt(pointsOf(entry.points), entry.at), entry.expected, entry.case);
 });
 
 test("corpus: the band one x owns and the bar's place in it", () => {
@@ -132,7 +196,7 @@ test("corpus: the band one x owns and the bar's place in it", () => {
         close(bandWidth(entry.length, entry.slots), entry.expected, entry.case);
 
     for (const entry of corpus.slots)
-        assert.equal(barSlots((entry.series as { x: number; y: number | null }[][]).map(pointsOf)), entry.expected, entry.case);
+        assert.equal(barSlots(entry.series.map(pointsOf), entry.band), entry.expected, entry.case);
 
     for (const entry of corpus.bars) {
         const bar = barOf(entry.center, entry.band, entry.index, entry.count, entry.stacked);
@@ -179,7 +243,7 @@ test("corpus: the window the viewer reads, and what the series reach inside it",
     }
 
     for (const entry of corpus.extents) {
-        const extent = windowExtent((entry.series as { x: number; y: number | null }[][]).map(pointsOf), entry.window);
+        const extent = windowExtent(entry.series.map(pointsOf), entry.window);
 
         close(extent.min, entry.expected.min, `${entry.case} (min)`);
         close(extent.max, entry.expected.max, `${entry.case} (max)`);

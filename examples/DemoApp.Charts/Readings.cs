@@ -1,13 +1,10 @@
 using System;
 using System.Collections.Generic;
-using NE.Standard.UI.Abstractions.Binding;
-using NE.Standard.UI.Abstractions.Recursive;
-using NE.Standard.UI.Primitives.Annotations;
 
 namespace DemoApp.Charts;
 
 /// <summary>
-/// One reading of the machine: a moment with a number per series, which is the shape a chart reads when its series each name a
+/// One reading of a server: a moment with a number per series, which is the shape a chart reads when its series each name a
 /// property of the row.
 /// </summary>
 internal sealed partial class Sample(string id, DateTime time, double cpu, double memory) : RecursiveObservable, IBindableItem
@@ -44,7 +41,8 @@ internal sealed partial class Reading(string id, int hour, string metric, double
 }
 
 /// <summary>
-/// A quarter's revenue by region: a row of a chart the page holds whole, with a name along the x axis rather than a number.
+/// A quarter's revenue in the three largest regions: a row of a chart the page holds whole, with a name along the x axis rather
+/// than a number.
 /// </summary>
 internal sealed class Quarter : IBindableItem
 {
@@ -52,42 +50,44 @@ internal sealed class Quarter : IBindableItem
 
     public required string Name { get; init; }
 
-    public required double North { get; init; }
+    public required double EuropeWest { get; init; }
 
-    public required double South { get; init; }
+    public required double EuropeCentral { get; init; }
+
+    public required double UsEast { get; init; }
 }
 
 /// <summary>
-/// One share of a whole: a row of a pie, named by its own words.
+/// One plan's share of a month's revenue: a row of a pie, named by its own words.
 /// </summary>
-internal sealed class Share : IBindableItem
+internal sealed class PlanShare : IBindableItem
 {
     public required string Id { get; init; }
 
     public required string Name { get; init; }
 
-    public required double Visits { get; init; }
+    public required double Revenue { get; init; }
 }
 
 /// <summary>
-/// A country as a bubble: two numbers to place it and a third to size it.
+/// A server as a bubble or a bar: the requests it serves and how busy it is to place it, and what it costs a month to size it.
 /// </summary>
-internal sealed class Country : IBindableItem
+internal sealed class Server : IBindableItem
 {
     public required string Id { get; init; }
 
     public required string Name { get; init; }
 
-    public required double Income { get; init; }
+    public required double Cost { get; init; }
 
-    public required double Life { get; init; }
+    public required double Cpu { get; init; }
 
-    public required double People { get; init; }
+    public required double Requests { get; init; }
 }
 
 /// <summary>
-/// The numbers the demo draws: a day of machine readings, a day of requests by kind, two years of revenue by quarter, and a
-/// day's visits by where they came from.
+/// The numbers the demo draws, after <c>docs/DEMO-THEME.md</c>: a server's readings, a day of requests by kind, two years of
+/// revenue by quarter, a month's revenue by plan, and a dozen servers.
 /// </summary>
 internal static class Catalogue
 {
@@ -128,55 +128,57 @@ internal static class Catalogue
         return readings;
     }
 
-    /// <summary>Eight quarters of revenue in two regions, in millions.</summary>
+    /// <summary>The eight quarters up to the present one, in thousands of euros: about forty in all at the start, a hundred and sixty now.</summary>
     public static List<Quarter> Quarters()
     {
         List<Quarter> quarters = [];
 
         for (var i = 0; i < 8; i++)
         {
-            var year = 2024 + (i / 4);
-            var quarter = (i % 4) + 1;
+            // From the last quarter of 2024 to the third of 2026.
+            var year = 2024 + ((i + 3) / 4);
+            var quarter = ((i + 3) % 4) + 1;
 
             quarters.Add(new Quarter
             {
                 Id = $"q{i}",
                 Name = $"Q{quarter} {year}",
-                North = Math.Round(12 + (i * 1.8) + (quarter == 4 ? 6 : 0), 1),
-                South = Math.Round(9 + (i * 1.1) + (quarter == 1 ? 4 : 0), 1)
+                // Europe West the largest, and the end of a year its busiest quarter.
+                EuropeWest = Math.Round(20 + (i * 7.6) + (quarter == 4 ? 3 : 0), 1),
+                EuropeCentral = Math.Round(14 + (i * 5.1), 1),
+                UsEast = Math.Round(6 + (i * 4.3) + (quarter == 1 ? 1.5 : 0), 1)
             });
         }
 
         return quarters;
     }
 
-    /// <summary>Where a day's visits came from — five sources that add up to a round number.</summary>
-    public static List<Share> Sources()
+    /// <summary>What the four plans brought in this month, in thousands of euros: Standard the most, Starter the least.</summary>
+    public static List<PlanShare> Plans()
         =>
         [
-            new Share { Id = "search", Name = "Search", Visits = 4_820 },
-            new Share { Id = "direct", Name = "Direct", Visits = 2_640 },
-            new Share { Id = "social", Name = "Social", Visits = 1_310 },
-            new Share { Id = "mail", Name = "Mail", Visits = 780 },
-            new Share { Id = "other", Name = "Elsewhere", Visits = 450 }
+            new PlanShare { Id = "starter", Name = "Starter", Revenue = 9.8 },
+            new PlanShare { Id = "standard", Name = "Standard", Revenue = 26.4 },
+            new PlanShare { Id = "pro", Name = "Pro", Revenue = 21.1 },
+            new PlanShare { Id = "dedicated", Name = "Dedicated", Revenue = 11.6 }
         ];
 
-    /// <summary>A dozen countries: income across, years of life up, and how many people in the size of the bubble.</summary>
-    public static List<Country> Countries()
+    /// <summary>A dozen of the fleet's servers: the plan's price a month, the average CPU over the day, and the requests a minute.</summary>
+    public static List<Server> Servers()
         =>
         [
-            new Country { Id = "no", Name = "Norway", Income = 78_000, Life = 83.2, People = 5_400_000 },
-            new Country { Id = "de", Name = "Germany", Income = 53_000, Life = 81.1, People = 83_200_000 },
-            new Country { Id = "pl", Name = "Poland", Income = 35_000, Life = 78.0, People = 37_800_000 },
-            new Country { Id = "pt", Name = "Portugal", Income = 34_000, Life = 81.6, People = 10_300_000 },
-            new Country { Id = "jp", Name = "Japan", Income = 42_000, Life = 84.6, People = 125_700_000 },
-            new Country { Id = "kr", Name = "Korea", Income = 44_000, Life = 83.4, People = 51_700_000 },
-            new Country { Id = "br", Name = "Brazil", Income = 15_000, Life = 75.9, People = 214_300_000 },
-            new Country { Id = "in", Name = "India", Income = 7_000, Life = 70.1, People = 1_407_600_000 },
-            new Country { Id = "za", Name = "South Africa", Income = 13_000, Life = 64.9, People = 59_400_000 },
-            new Country { Id = "mx", Name = "Mexico", Income = 19_000, Life = 75.1, People = 126_700_000 },
-            new Country { Id = "us", Name = "United States", Income = 64_000, Life = 77.2, People = 331_900_000 },
-            new Country { Id = "vn", Name = "Viet Nam", Income = 11_000, Life = 75.4, People = 97_500_000 }
+            new Server { Id = "api-eu-west-1", Name = "api-eu-west-1", Cost = 64, Cpu = 58, Requests = 4_200 },
+            new Server { Id = "api-eu-west-2", Name = "api-eu-west-2", Cost = 64, Cpu = 46, Requests = 3_600 },
+            new Server { Id = "web-eu-west-1", Name = "web-eu-west-1", Cost = 18, Cpu = 34, Requests = 2_900 },
+            new Server { Id = "db-eu-west-1", Name = "db-eu-west-1", Cost = 290, Cpu = 71, Requests = 1_800 },
+            new Server { Id = "cache-eu-west-1", Name = "cache-eu-west-1", Cost = 18, Cpu = 22, Requests = 5_100 },
+            new Server { Id = "api-eu-central-1", Name = "api-eu-central-1", Cost = 64, Cpu = 52, Requests = 3_100 },
+            new Server { Id = "db-eu-central-1", Name = "db-eu-central-1", Cost = 290, Cpu = 63, Requests = 1_200 },
+            new Server { Id = "queue-eu-central-1", Name = "queue-eu-central-1", Cost = 18, Cpu = 28, Requests = 900 },
+            new Server { Id = "web-eu-north-1", Name = "web-eu-north-1", Cost = 6, Cpu = 17, Requests = 640 },
+            new Server { Id = "api-us-east-1", Name = "api-us-east-1", Cost = 64, Cpu = 67, Requests = 3_900 },
+            new Server { Id = "storage-us-east-1", Name = "storage-us-east-1", Cost = 18, Cpu = 12, Requests = 1_500 },
+            new Server { Id = "api-ap-south-1", Name = "api-ap-south-1", Cost = 18, Cpu = 81, Requests = 2_200 }
         ];
 
     private static double CpuAt(int index)

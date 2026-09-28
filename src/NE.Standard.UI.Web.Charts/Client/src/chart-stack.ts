@@ -4,9 +4,14 @@
 import type { ChartPoint } from "./chart-path.ts";
 import type { ChartSeriesData } from "./chart-rows.ts";
 
-/** Gives every series the points it is drawn from: its own with the ones before it added under them. */
+/**
+ * Gives every series the points it is drawn from: its own with the ones before it added under them, a point's value its top and
+ * its `base` where it starts. Positive and negative values stack apart, each from zero outward, so a part below zero is never
+ * drawn over by one above it; a point stands on its own side's total, not on the series under it, which may hold nothing there.
+ */
 export function stackSeries(series: readonly ChartSeriesData[]): void {
-    const totals = new Map<number, number>();
+    const above = new Map<number, number>();
+    const below = new Map<number, number>();
 
     for (const entry of series) {
         const drawn: ChartPoint[] = [];
@@ -18,29 +23,13 @@ export function stackSeries(series: readonly ChartSeriesData[]): void {
                 continue;
             }
 
-            const total = (totals.get(point.x) ?? 0) + point.y;
+            const totals = point.y < 0 ? below : above;
+            const stands = totals.get(point.x) ?? 0;
 
-            totals.set(point.x, total);
-            drawn.push({ ...point, y: total });
+            totals.set(point.x, stands + point.y);
+            drawn.push({ ...point, y: stands + point.y, base: stands });
         }
 
         entry.drawn = drawn;
     }
-}
-
-/** What a series holds at each x, for the series above it to stand on: built once per series, read once per point. */
-export type Baseline = ReadonlyMap<number, number>;
-
-export function baselineOf(series: readonly ChartPoint[]): Baseline {
-    const values = new Map<number, number>();
-
-    for (const point of series)
-        values.set(point.x, point.y ?? 0);
-
-    return values;
-}
-
-/** What the series below holds at this x; zero where it holds nothing, which is where a stack starts. The corpus pins this reading. */
-export function valueAt(series: readonly ChartPoint[], x: number): number {
-    return baselineOf(series).get(x) ?? 0;
 }

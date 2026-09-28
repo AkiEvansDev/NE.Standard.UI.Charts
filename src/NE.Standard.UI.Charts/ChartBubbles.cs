@@ -11,8 +11,10 @@ public static class ChartBubbles
     /// <summary>The radius a point with no third value takes.</summary>
     public const double PlainRadius = 4;
 
-    /// <summary>The smallest and the largest a sized point is drawn at.</summary>
+    /// <summary>The smallest a sized point is drawn at.</summary>
     public const double SmallestRadius = 3;
+
+    /// <summary>The largest a sized point is drawn at.</summary>
     public const double LargestRadius = 18;
 
     /// <summary>The least a point answers the pointer over: a mark of three is hard to hit, and every kind of point is worth the same reach.</summary>

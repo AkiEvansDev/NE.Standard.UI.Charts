@@ -12,10 +12,10 @@ import type { Sector, Spot } from "./chart-pie.ts";
 import type { ChartPoint } from "./chart-path.ts";
 import { buildData } from "./chart-rows.ts";
 import type { ChartData, ChartRow, ChartSeriesData } from "./chart-rows.ts";
-import { baselineOf, stackSeries } from "./chart-stack.ts";
-import { clampWindow, windowExtent } from "./chart-window.ts";
+import { stackSeries } from "./chart-stack.ts";
+import { clampWindow, followWindow, windowExtent } from "./chart-window.ts";
 import type { Span } from "./chart-window.ts";
-import { defaultFormat, plotBottom, plotDown, plotRight, plotX, plotY, resolveRange, step, ticks } from "./chart-ticks.ts";
+import { defaultFormat, plotBottom, plotDown, plotRight, plotX, plotY, resolveRange, step, ticks, within } from "./chart-ticks.ts";
 import type { Plot, Scale } from "./chart-ticks.ts";
 import type { ClientStrings, NumberCulturePack, NumberFormatting, TemporalCulturePack, TemporalFormatting } from "ne-standard-ui";
 
@@ -31,6 +31,13 @@ const BareMarkerClass = "ui-chart__marker--bare";
 const HitClass = "ui-chart__hit";
 const RuleClass = "ui-chart__rule";
 const EmptyKey = "ui.chart.empty";
+const LabelKey = "ui.chart.label";
+const LegendClass = "ui-chart__legend";
+const LegendEntryClass = "ui-chart__legend-entry";
+const LegendOffClass = "ui-chart__legend-entry--off";
+const LegendMarkClass = "ui-chart__legend-mark";
+const LegendCaptionClass = "ui-chart__legend-caption";
+const SeriesColorVariable = "--ui-chart-series-color";
 
 /** The air around the plot: a line of labels under it, a line more for a caption, and a hair of room at the far edges. */
 const PlotInset = 12;
@@ -56,6 +63,8 @@ export type ChartState = {
     readonly hidden: Set<string>;
     /** The stretch of the x axis the viewer moved to, or null for the whole of what the data reaches. */
     view: Span | null;
+    /** Whether a point arrived while the window stood at the far end: the next draw slides it along before drawing, and clears this. */
+    follow: boolean;
 };
 
 /** What a draw settled on, so a wheel and a drag can be read against the picture they land on. */
@@ -68,10 +77,20 @@ export type ChartFrame = {
     readonly columns: readonly ChartColumn[];
 };
 
-/** One x as a shared tooltip reads it: where it stands across the plot, and what every series drawn says there. */
+/**
+ * One x as a shared tooltip reads it: where it stands along the band axis — across the plot, or down it where the chart lies on its
+ * side — and what every series drawn says there, written when first read.
+ */
 export type ChartColumn = {
     readonly at: number;
     readonly text: string;
+};
+
+/** One entry of the legend: the key it hides and shows by, what it says, and the colour its mark takes. */
+type LegendEntry = {
+    readonly key: string;
+    readonly caption: string;
+    readonly color: string;
 };
 
 /** One mark of an axis: where it stands, the words under it, and how wide they are in this chart's own type. */
@@ -109,9 +128,15 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     if (model.stacked)
         stackSeries(visible);
 
-    // The window is the x axis this draw uses; a draw never moves it itself — following the latest happens when a point
-    // arrives, not when drawing.
+    // The window is the x axis this draw uses. It moves only when a point arrived while it stood at the far end: it slides along
+    // before this draw, so the frame is drawn once, where it ends up.
     const whole = resolveRange(model.x, data.xMin, data.xMax, data.categories.length);
+
+    if (state.follow && state.view !== null)
+        state.view = followWindow(state.view, whole.min, whole.max);
+
+    state.follow = false;
+
     const window = state.view === null ? null : clampWindow(state.view, whole.min, whole.max);
     const extent = windowExtent(visible.map(series => series.drawn), window);
     const x = window === null ? whole : { ...whole, min: window.from, max: window.to };
@@ -125,20 +150,34 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
 
     canvas.setAttribute("viewBox", `0 0 ${coord(width)} ${coord(height)}`);
 
+    // Drawn off the page and put in place in one step: every element appended to the live canvas would be a mutation of its own
+    // for every observer of the page.
+    const drawing = document.createElementNS(SvgNamespace, "svg");
+    const colors = readSeriesColorCount(state.root);
+
     // A turn shared out has no axes to lay out, and no labels to measure: the sectors are the whole drawing.
     if (model.kind === PieKind) {
-        clear(canvas);
-        drawPie(canvas, state, data, width, height, formats, numbers, dates, formatting);
+        const sectors = sectorEntries(model, data, formats, numbers, dates, formatting, colors);
+
+        drawPie(drawing, state, data, width, height, formats, numbers, dates, formatting, colors);
+        canvas.replaceChildren(...drawing.childNodes);
+        syncLegend(state, sectors);
+        labelCanvas(canvas, sectors, formatting);
 
         return null;
     }
+
+    const entries = data.series.map(entry => ({ key: entry.series.key, caption: entry.series.caption, color: colorOf(entry, colors) }));
+
+    syncLegend(state, entries);
+    labelCanvas(canvas, entries, formatting);
 
     // A chart with nothing around it has no ticks to write and no gutters to leave: the plot is the box, less a hair of air.
     if (model.bare) {
         const bare = { left: 2, top: 2, width: width - 4, height: height - 4 };
 
-        clear(canvas);
-        drawSeries(canvas, state, data.series, bare, x, y, data.categories, formats, numbers, dates, formatting);
+        drawSeries(drawing, state, visible, bare, x, y, data.categories, formats, numbers, dates, formatting, colors);
+        canvas.replaceChildren(...drawing.childNodes);
 
         return { plot: bare, x, whole: { from: whole.min, to: whole.max }, columns: [] };
     }
@@ -157,81 +196,114 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
 
     const plot = resolvePlot(model, width, height, widest);
 
-    clear(canvas);
-
-    drawGrid(canvas, model, plot, x, y, xLabels, yLabels);
-    drawAxes(canvas, model, plot, x, y, xLabels, yLabels, width, height);
-    drawSeries(canvas, state, data.series, plot, x, y, data.categories, formats, numbers, dates, formatting, { min: data.sizeMin, max: data.sizeMax });
+    drawGrid(drawing, model, plot, x, y, xLabels, yLabels);
+    drawAxes(drawing, model, plot, x, y, xLabels, yLabels, width, height);
+    drawSeries(drawing, state, visible, plot, x, y, data.categories, formats, numbers, dates, formatting, colors, { min: data.sizeMin, max: data.sizeMax });
 
     if (state.rows.length === 0)
-        drawEmpty(canvas, plot, formatting);
+        drawEmpty(drawing, plot, formatting);
 
     const columns = model.sharedTooltip
         ? buildColumns(model, visible, plot, x, data.categories, formats, numbers, dates, formatting)
         : [];
 
     if (columns.length > 0)
-        drawRule(canvas, plot);
+        drawRule(drawing, plot, model.horizontal);
+
+    canvas.replaceChildren(...drawing.childNodes);
 
     return { plot, x, whole: { from: whole.min, to: whole.max }, columns };
 }
 
-/**
- * Every x the drawn series hold, with what one shared tooltip says there. Composed once per draw, so the pointer only has to
- * find the nearest.
- */
-function buildColumns(
+/** A pie's legend: an entry per sector rather than per series, named by the row's x as the x axis writes it, coloured by its place. */
+function sectorEntries(
     model: ChartModel,
-    series: readonly ChartSeriesData[],
-    plot: Plot,
-    x: Scale,
-    categories: readonly string[],
+    data: ChartData,
     formats: ChartFormats,
     numbers: NumberCulturePack,
     dates: TemporalCulturePack,
-    formatting: ChartFormatting
-): ChartColumn[] {
-    const places: number[] = [];
-    const seen = new Set<number>();
+    formatting: ChartFormatting,
+    colors: number
+): LegendEntry[] {
+    const points = data.series.length > 0 ? data.series[0].points : [];
 
-    for (const entry of series) {
-        for (const point of entry.points) {
-            if (point.y !== null && !seen.has(point.x)) {
-                seen.add(point.x);
-                places.push(point.x);
-            }
-        }
+    return points.map((point, index) => ({
+        key: point.key,
+        caption: formatValue(model.x, formats.x, point.x, data.categories, numbers, dates, formatting),
+        color: seriesColorVar(index, colors)
+    }));
+}
+
+/**
+ * The legend kept in step with the data: the server wrote it for the rows of the first frame, and a series or a sector that
+ * arrives or goes later has to arrive or go here too. Left alone while it already names the same entries, so a press or a hover
+ * on it is never lost to a redraw; an entry the viewer put aside stays aside.
+ */
+function syncLegend(state: ChartState, entries: readonly LegendEntry[]): void {
+    if (state.model.legend === "None")
+        return;
+
+    const root = state.root;
+    let legend: Element | null = null;
+
+    for (const child of root.children) {
+        if (child.classList.contains(LegendClass))
+            legend = child;
     }
 
-    places.sort((left, right) => left - right);
+    if (entries.length === 0) {
+        legend?.remove();
+        return;
+    }
 
-    return places.map(place => {
-        const lines = [formatValue(model.x, formats.x, place, categories, numbers, dates, formatting)];
+    const buttons = legend === null ? [] : [...legend.children];
 
-        for (const entry of series) {
-            const point = entry.points.find(candidate => candidate.x === place && candidate.y !== null);
+    if (buttons.length === entries.length && entries.every((entry, i) => sameEntry(buttons[i], entry)))
+        return;
 
-            if (point !== undefined)
-                lines.push(`${entry.series.caption}: ${formatValue(model.y, formats.y, point.y as number, categories, numbers, dates, formatting)}`);
-        }
+    if (legend === null) {
+        legend = document.createElement("div");
+        legend.className = LegendClass;
+        root.append(legend);
+    }
 
-        return { at: plotX(plot, x, place), text: lines.join("\n") };
-    });
+    legend.replaceChildren(...entries.map(entry => legendButton(entry, state.hidden.has(entry.key))));
 }
 
-/** The line a shared tooltip is read against: one x, marked while the pointer names it. The engine is what moves and shows it. */
-function drawRule(canvas: SVGSVGElement, plot: Plot): void {
-    const rule = append(canvas, "rect", RuleClass);
+/** What the canvas is announced as, as the server wrote it: the entries the legend names, or the chart's own word where there are none. */
+function labelCanvas(canvas: SVGSVGElement, entries: readonly LegendEntry[], formatting: ChartFormatting): void {
+    const label = entries.length > 0 ? entries.map(entry => entry.caption).join(", ") : formatting.strings.text(LabelKey);
 
-    rule.setAttribute("x", "0");
-    rule.setAttribute("y", coord(plot.top));
-    rule.setAttribute("width", "1");
-    rule.setAttribute("height", coord(plot.height));
+    if (canvas.getAttribute("aria-label") !== label)
+        canvas.setAttribute("aria-label", label);
 }
 
-function clear(canvas: SVGSVGElement): void {
-    while (canvas.firstChild !== null)
-        canvas.removeChild(canvas.firstChild);
+/** Whether a button the legend holds names this entry, in these words and this colour. */
+function sameEntry(button: Element, entry: LegendEntry): boolean {
+    return button instanceof HTMLElement
+        && button.getAttribute(SeriesAttribute) === entry.key
+        && button.querySelector(`.${LegendCaptionClass}`)?.textContent === entry.caption
+        && button.style.getPropertyValue(SeriesColorVariable) === entry.color;
+}
+
+/** One entry as the server writes it: a small ghost button, pressed until the viewer puts its series aside. */
+function legendButton(entry: LegendEntry, hidden: boolean): HTMLButtonElement {
+    const button = document.createElement("button");
+    const mark = document.createElement("span");
+    const caption = document.createElement("span");
+
+    button.className = `${LegendEntryClass} ui-button ui-button--ghost ui-button--small`;
+    button.type = "button";
+    button.setAttribute(SeriesAttribute, entry.key);
+    button.setAttribute("aria-pressed", hidden ? "false" : "true");
+    button.classList.toggle(LegendOffClass, hidden);
+    button.style.setProperty(SeriesColorVariable, entry.color);
+    mark.className = LegendMarkClass;
+    caption.className = LegendCaptionClass;
+    caption.textContent = entry.caption;
+    button.append(mark, caption);
+
+    return button;
 }
 
 /**
@@ -247,7 +319,8 @@ function drawPie(
     formats: ChartFormats,
     numbers: NumberCulturePack,
     dates: TemporalCulturePack,
-    formatting: ChartFormatting
+    formatting: ChartFormatting,
+    colors: number
 ): void {
     const model = state.model;
     const points = data.series.length > 0 ? data.series[0].points : [];
@@ -263,7 +336,6 @@ function drawPie(
     const radius = Math.min(width, height) / 2 - PlotInset;
     const inner = radius * model.donut;
     const group = append(canvas, "g", "ui-chart__plot");
-    const colors = readSeriesColorCount(state.root);
 
     for (let i = 0; i < shown.length; i++) {
         if (sectors[i].sweep <= 0 || radius <= 0)
@@ -285,6 +357,8 @@ function drawPie(
         sector.style.setProperty("--ui-arc-start", degrees(sectors[i].start));
         sector.style.setProperty("--ui-arc-sweep", degrees(sectors[i].sweep));
         sector.setAttribute(PointAttribute, point.key);
+        // The group is named by its row, so the sector itself says which series a press on it belongs to.
+        sector.setAttribute(SeriesAttribute, data.series[0].series.key);
 
         if (!model.tooltip)
             continue;
@@ -542,6 +616,10 @@ function clipPlot(canvas: SVGSVGElement, group: SVGElement, root: HTMLElement, p
     group.setAttribute("clip-path", `url(#${id})`);
 }
 
+/**
+ * The series the viewer has not put aside, each in its own group. A stack is of the ones drawn, and bars share the band among the
+ * ones drawn, so a series the legend hid leaves neither a step in the stack nor a gap in the band.
+ */
 function drawSeries(
     canvas: SVGSVGElement,
     state: ChartState,
@@ -554,39 +632,32 @@ function drawSeries(
     numbers: NumberCulturePack,
     dates: TemporalCulturePack,
     formatting: ChartFormatting,
+    colors: number,
     sizes: { readonly min: number; readonly max: number } = { min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY }
 ): void {
     const group = append(canvas, "g", "ui-chart__plot");
-    const colors = readSeriesColorCount(state.root);
     const model = state.model;
 
     if (state.view !== null)
         clipPlot(canvas, group, state.root, plot);
+
     // Bars share the band one x owns; a line and an area own the whole width and need none of this.
     const band = model.kind === BarKind
-        ? bandWidth(model.horizontal ? plot.height : plot.width, barSlots(series.map(entry => entry.drawn)))
+        ? bandWidth(model.horizontal ? plot.height : plot.width, barSlots(series.map(entry => entry.drawn), x))
         : 0;
-    const zero = valueCoord(model, plot, y, Math.min(Math.max(0, y.min), y.max));
 
     for (let index = 0; index < series.length; index++) {
         const entry = series[index];
-
-        // A series the legend put aside is not drawn at all; its colour lives on the legend's own entry.
-        if (state.hidden.has(entry.series.key))
-            continue;
-
         const stepped = entry.series.stepped ?? model.stepped;
         const smooth = entry.series.smooth ?? model.smooth;
         const markers = entry.series.markers ?? model.markers;
         const shape = append(group, "g", "ui-chart__series");
-        // What this series stands on: the series under it in a stack, or the axis's own zero.
-        const baseline = model.stacked && index > 0 ? series[index - 1].drawn : null;
 
         shape.setAttribute(SeriesAttribute, entry.series.key);
         shape.style.setProperty("--ui-chart-series-color", colorOf(entry, colors));
 
         if (model.kind === BarKind) {
-            drawBars(shape, entry, index, series.length, baseline, plot, x, y, band, zero, categories, formats, numbers, dates, formatting, model);
+            drawBars(shape, entry, index, series.length, plot, x, y, band, categories, formats, numbers, dates, formatting, model);
             continue;
         }
 
@@ -601,7 +672,7 @@ function drawSeries(
         if (model.kind === AreaKind) {
             const fill = append(shape, "path", "ui-chart__fill");
 
-            fill.setAttribute("d", areaPath(entry.drawn, baseline, x, y, plot, stepped, smooth));
+            fill.setAttribute("d", areaPath(entry.drawn, x, y, plot, stepped, smooth));
         }
 
         const drawn = linePath(entry.drawn, x, y, plot, stepped, smooth);
@@ -677,18 +748,16 @@ function drawMarker(
     );
 }
 
-/** A bar per point, from the baseline to the value, in its own place across the band. */
+/** A bar per point, from what it stands on — its place in a stack, or zero — to the value, in its own place across the band. */
 function drawBars(
     shape: SVGElement,
     entry: ChartSeriesData,
     index: number,
     count: number,
-    baseline: readonly ChartPoint[] | null,
     plot: Plot,
     x: Scale,
     y: Scale,
     band: number,
-    zero: number,
     categories: readonly string[],
     formats: ChartFormats,
     numbers: NumberCulturePack,
@@ -697,8 +766,6 @@ function drawBars(
     model: ChartModel
 ): void {
     const sideways = model.horizontal;
-    // Once per series, not once per bar: the series below is read by x for every bar of this one.
-    const below = baseline === null ? null : baselineOf(baseline);
 
     for (let i = 0; i < entry.drawn.length; i++) {
         const point = entry.drawn[i];
@@ -708,7 +775,7 @@ function drawBars(
 
         const bar = barOf(bandCoord(model, plot, x, point.x), band, index, count, model.stacked);
         const reading = valueCoord(model, plot, y, point.y);
-        const stands = below === null ? zero : valueCoord(model, plot, y, below.get(point.x) ?? 0);
+        const stands = valueCoord(model, plot, y, within(y, point.base ?? 0));
         const near = Math.min(reading, stands);
         // A value of zero still draws a hair, so the bar is there to point at.
         const length = Math.max(1, Math.abs(reading - stands));
@@ -761,6 +828,82 @@ function drawEmpty(canvas: SVGSVGElement, plot: Plot, formatting: ChartFormattin
         return;
 
     text(canvas, "ui-chart__empty", word, plot.left + plot.width / 2, plot.top + plot.height / 2, "middle");
+}
+
+/**
+ * Every x the drawn series hold inside the window, with what one shared tooltip says there. The points are bucketed by x in one
+ * pass, and a column's words are written the first time the pointer reaches it rather than for every x on every draw.
+ */
+function buildColumns(
+    model: ChartModel,
+    series: readonly ChartSeriesData[],
+    plot: Plot,
+    x: Scale,
+    categories: readonly string[],
+    formats: ChartFormats,
+    numbers: NumberCulturePack,
+    dates: TemporalCulturePack,
+    formatting: ChartFormatting
+): ChartColumn[] {
+    // What each series holds at every x in view, the first value a series has there as the tooltip has always read it.
+    const byPlace = new Map<number, (number | null)[]>();
+
+    for (let index = 0; index < series.length; index++) {
+        for (const point of series[index].points) {
+            if (point.y === null || point.x < x.min || point.x > x.max)
+                continue;
+
+            let values = byPlace.get(point.x);
+
+            if (values === undefined) {
+                values = new Array<number | null>(series.length).fill(null);
+                byPlace.set(point.x, values);
+            }
+
+            values[index] ??= point.y;
+        }
+    }
+
+    const places = [...byPlace.keys()].sort((left, right) => left - right);
+
+    return places.map(place => {
+        const values = byPlace.get(place) ?? [];
+        let text: string | null = null;
+
+        return {
+            at: bandCoord(model, plot, x, place),
+            get text(): string {
+                if (text !== null)
+                    return text;
+
+                const lines = [formatValue(model.x, formats.x, place, categories, numbers, dates, formatting)];
+
+                for (let index = 0; index < series.length; index++) {
+                    const value = values[index];
+
+                    if (value !== null && value !== undefined)
+                        lines.push(`${series[index].series.caption}: ${formatValue(model.y, formats.y, value, categories, numbers, dates, formatting)}`);
+                }
+
+                text = lines.join("\n");
+
+                return text;
+            }
+        };
+    });
+}
+
+/**
+ * The line a shared tooltip is read against: one x, marked while the pointer names it — down the plot, or across it where the
+ * chart lies on its side. The engine is what moves and shows it.
+ */
+function drawRule(canvas: SVGSVGElement, plot: Plot, horizontal: boolean): void {
+    const rule = append(canvas, "rect", RuleClass);
+
+    rule.setAttribute("x", horizontal ? coord(plot.left) : "0");
+    rule.setAttribute("y", horizontal ? "0" : coord(plot.top));
+    rule.setAttribute("width", horizontal ? coord(plot.width) : "1");
+    rule.setAttribute("height", horizontal ? "1" : coord(plot.height));
 }
 
 /** The colour of a series: the one the author gave, or its place in the theme's categorical run, cycled by the run's length. */

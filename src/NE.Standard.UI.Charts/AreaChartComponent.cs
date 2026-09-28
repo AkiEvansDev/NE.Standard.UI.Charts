@@ -16,7 +16,7 @@ public abstract partial class AreaChartComponent<T> : LineChartComponent<T>, ISt
     }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IStackedChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IStackedChartComponent), IsBindable = false, DefaultValue = false)]
     public bool Stacked { get; set; }
 }
 

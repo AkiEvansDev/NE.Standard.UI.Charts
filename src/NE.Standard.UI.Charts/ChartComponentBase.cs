@@ -20,69 +20,69 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
 
     /// <inheritdoc/>
     /// <remarks>Render-time only: the series are how the chart is built.</remarks>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public IReadOnlyList<UIChartSeries> Series => _series;
 
     /// <summary>
     /// Gets the row property the x axis reads, set by <see cref="SetX"/>.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public string? XPath { get; private set; }
 
     /// <summary>
     /// Gets the row property naming which series a row belongs to, set by <see cref="SetSeriesPath"/>; unset, a row carries a value
     /// per series instead, each series naming its own property.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public string? SeriesPath { get; private set; }
 
     /// <summary>
     /// Gets the row property every series that names none of its own reads, set by <see cref="SetValuePath"/>.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public string? ValuePath { get; private set; }
 
     /// <summary>
     /// Gets or sets the x axis; unset, a linear one that follows the data.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = null)]
     public UIChartAxis? XAxis { get; set; }
 
     /// <summary>
     /// Gets or sets the y axis; unset, a linear one that follows the data.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = null)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = null)]
     public UIChartAxis? YAxis { get; set; }
 
     /// <summary>
     /// Gets or sets where the legend stands; a click on an entry there hides and shows its series, in the browser alone.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = UIChartLegendPlacement.Bottom)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = UIChartLegendPlacement.Bottom)]
     public UIChartLegendPlacement Legend { get; set; } = UIChartLegendPlacement.Bottom;
 
     /// <summary>
     /// Gets or sets whether a point names its series, its x and its value on hover, through the framework's tooltip.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = true)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = true)]
     public bool ShowTooltip { get; set; } = true;
 
     /// <summary>
     /// Gets or sets whether one tooltip names every series at the x under the pointer, instead of one per point.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = false)]
     public bool SharedTooltip { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the viewer may zoom and pan the x axis with wheel, drag and double press. Off by default; a shared
-    /// or bare chart never zooms whatever this says.
+    /// Gets or sets whether the viewer may zoom and pan the x axis with wheel, drag and double press. Off by default; a pie or a
+    /// bare chart never zooms whatever this says.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = false)]
     public bool Zoomable { get; set; }
 
     /// <summary>
     /// Gets or sets whether a window narrower than the data stays pinned to the latest end as new data arrives.
     /// </summary>
-    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateBinder = false, DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = false)]
     public bool FollowLatest { get; set; }
 
     /// <summary>
@@ -98,7 +98,7 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
 
     /// <inheritdoc/>
     /// <remarks>A chart has no components inside an item template, so a change to a point has to reach it as a replace of the row.</remarks>
-    [UIComponentProperty(Contract = typeof(IItemValuesComponent), IsBindable = false, GenerateBinder = false, GenerateSetter = false, DefaultValue = false)]
+    [UIComponentProperty(Contract = typeof(IItemValuesComponent), IsBindable = false, GenerateSetter = false, DefaultValue = false)]
     public bool TakesItemValues => true;
 
     /// <summary>

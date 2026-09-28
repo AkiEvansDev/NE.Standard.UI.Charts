@@ -1,12 +1,3 @@
-using NE.Standard.UI.Abstractions.Styling;
-using NE.Standard.UI.Authoring.Components;
-using NE.Standard.UI.Authoring.Views;
-using NE.Standard.UI.Charts;
-using NE.Standard.UI.Components.BuiltIns.Actions;
-using NE.Standard.UI.Components.BuiltIns.Layouts;
-using NE.Standard.UI.Extensions;
-using NE.Standard.UI.Primitives.Styling;
-
 namespace DemoApp.Charts;
 
 /// <summary>
@@ -26,18 +17,19 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
     protected override IVisualComponent[] CreateSections()
         =>
         [
-            UIPage.Section("Eight quarters the page holds",
+            Example("Eight quarters the page holds",
                 "A chart of rows the page holds whole: the x axis is a name rather than a number, and each series names the row property it reads. The ranges follow the data, rounded outward to the axis's own step, and the labels are written in the page's culture.",
                 new LineChartComponent("revenue")
                     .SetItems(Catalogue.Quarters())
                     .SetX(nameof(Quarter.Name))
                     .SetXAxis(UIChartAxis.Category("Quarter"))
-                    .SetYAxis(UIChartAxis.Linear("Revenue, €m", format: "N0"))
-                    .AddSeries("north", "North", nameof(Quarter.North))
-                    .AddSeries("south", "South", nameof(Quarter.South))
+                    .SetYAxis(UIChartAxis.Linear("Revenue, €k", format: "N0"))
+                    .AddSeries("eu-west", "Europe West", nameof(Quarter.EuropeWest))
+                    .AddSeries("eu-central", "Europe Central", nameof(Quarter.EuropeCentral))
+                    .AddSeries("us-east", "US East", nameof(Quarter.UsEast))
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
-            UIPage.Section("Forty readings, and the ones that arrive",
+            Example("Forty readings, and the ones that arrive",
                 "A bound collection over a clock: the server drew the first frame, and every change after it reaches the browser as values through the chart's sink. Take a reading and the line follows it; change the last one and that point alone moves. The wheel narrows the stretch of the clock on show about the pointer, a drag moves it, and a double press gives the whole of it back — the window is bound, so the line under the chart is the controller reading what the viewer settled on, and the button sets it the other way round. Zoomed in, the chart follows the latest reading as it arrives.",
                 new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
@@ -74,9 +66,13 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
                         .OnPointClick(nameof(ChartsController.PointClicked))
                         .SetMinHeight(UILayoutLength.Absolute(280))
                     )
-                    .AddChild(CreateStatus(nameof(ChartsController.Status)))
+                    .AddChild(new TextComponent()
+                        .BindTitle(nameof(ChartsController.Status))
+                        .SetTitleType(UITextAppearance.Caption)
+                        .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
+                    )
             ),
-            UIPage.Section("A day of requests, whose series are the data's own",
+            Example("A day of requests, whose series are the data's own",
                 "The same component read the other way round: the chart names the row property that says which series a row belongs to, so the series are whatever the rows name — a kind that appears draws a line of its own, in the next colour of the theme's run. Stepped, because a count belongs to its hour rather than to the slope between two of them; the step is centred on the hour it holds, so a point's own mark sits in the middle of its step instead of on a corner. One tooltip names every kind at the hour under the pointer, with a line marking which hour that is, rather than one tooltip per point.",
                 new LineChartComponent("requests")
                     .BindItems(nameof(ChartsController.Requests))
@@ -90,7 +86,7 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
                     .SetLegend(UIChartLegendPlacement.End)
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
-            UIPage.Section("A chart with nothing in it",
+            Example("A chart with nothing in it",
                 "A bound collection with no rows: the frame is drawn and the chart says so, rather than showing an empty box.",
                 new LineChartComponent("empty")
                     .BindItems(nameof(ChartsController.Nothing))

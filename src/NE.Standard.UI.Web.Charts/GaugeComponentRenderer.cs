@@ -17,8 +17,10 @@ public class GaugeComponentRenderer : WebComponentRendererBase
     /// <summary>The operation the package's client writes the reading's words under.</summary>
     public const string ValueOperationKind = "chart-gauge-value";
 
-    /// <summary>On the reading: how it is written, and the unit after it.</summary>
+    /// <summary>On the reading: how it is written.</summary>
     public const string FormatAttribute = "data-ui-gauge-format";
+
+    /// <summary>On the reading: the unit written after it.</summary>
     public const string UnitAttribute = "data-ui-gauge-unit";
 
     protected const string FrameClassName = "ui-gauge__frame";
@@ -99,9 +101,12 @@ public class GaugeComponentRenderer : WebComponentRendererBase
     private static string Percent(double share)
         => ChartPath.Coord(share * 100) + "%";
 
-    /// <summary>The arc: the whole three quarters as the ground it is read against, each band's own stretch of it, and the reading's share on top.</summary>
+    /// <summary>
+    /// The arc: the whole three quarters as the ground it is read against, each band's own stretch of it, and the reading's share
+    /// on top. The reading and the caption are words laid over it, so the arc is left unannounced beside them.
+    /// </summary>
     private static void RenderArc(WebRenderContext context, IHtmlElementBuilder frame, IReadOnlyList<UIGaugeBand> bands, double low, double high)
-        => ChartSvg.Render(frame, CanvasClassName, Width, Height, svg =>
+        => ChartSvg.Render(frame, CanvasClassName, Width, Height, null, svg =>
         {
             // The stylesheet cuts each circle to its stretch and turns the round ends into place, both from these three.
             _ = svg.Style(ChartSvg.ArcStartVariable, ChartSvg.Degrees(Start));

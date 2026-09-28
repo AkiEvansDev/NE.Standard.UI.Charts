@@ -7,6 +7,7 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Charts;
 
+/// <summary>Registers the charts' web rendering.</summary>
 public static class ChartsWebExtensions
 {
     private const string AssemblyName = "NE.Standard.UI.Web.Charts";

@@ -25,7 +25,10 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     /// <summary>On the root: the rows the first frame was drawn from, which the browser then keeps and patches.</summary>
     public const string RowsAttribute = "data-ui-chart-rows";
 
-    /// <summary>On a series' group and on its legend entry: the series' key.</summary>
+    /// <summary>
+    /// On a series' group and on its legend entry: the series' key. A pie's sector groups and entries are named by their rows
+    /// instead, and the sector itself carries the series'.
+    /// </summary>
     public const string SeriesAttribute = "data-ui-chart-series";
 
     /// <summary>On a point's mark: the key of the row it came from.</summary>
@@ -33,6 +36,8 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
 
     /// <summary>The window on a hidden element of its own, which is the chart's one writable value.</summary>
     public const string WindowValueKind = "chart-window";
+
+    /// <summary>On the window's element: the window the chart shows, as its two ends.</summary>
     public const string WindowAttribute = "data-ui-chart-window";
 
     /// <summary>The kinds the browser draws, which is also what decides whether a range has to hold zero.</summary>
@@ -163,12 +168,12 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         IReadOnlyList<ChartLabel> yTicks = spec.Bare ? [] : BuildTicks(spec.YAxis, formats.Y, y, data.Categories, culture, data.Rows.Count > 0);
         ChartPlot plot = spec.Bare ? new ChartPlot(2, 2, NominalWidth - 4, NominalHeight - 4) : ResolvePlot(spec, spec.Horizontal ? xTicks : yTicks);
 
-        RenderCanvas(context, root, spec, data, plot, x, y, xTicks, yTicks, formats, culture);
+        RenderCanvas(context, root, spec, data, plot, x, y, window is not null, xTicks, yTicks, formats, culture);
         RenderWindowValue(context, root);
         RenderLegend(context, root, spec, data);
     }
 
-    /// <summary>The chart's settings, read off the component once; a shared or bare chart never zooms regardless.</summary>
+    /// <summary>The chart's settings, read off the component once; a pie or a bare chart never zooms regardless.</summary>
     private ChartSpec ReadSpec(WebRenderContext context)
     {
         ChartLineOptions lines = ReadLineOptions(context);

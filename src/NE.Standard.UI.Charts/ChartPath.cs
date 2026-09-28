@@ -42,14 +42,14 @@ public static class ChartPath
     }
 
     /// <summary>
-    /// The band between a series' line and its baseline — the series below it in a stack, or the axis's zero when there is
-    /// none — closed like the line.
+    /// The band between a series' line and what it stands on — each point's own <see cref="ChartPoint.Base"/> in a stack, or the
+    /// axis's zero — closed like the line.
     /// </summary>
-    public static string Area(IReadOnlyList<ChartPoint> points, IReadOnlyList<ChartPoint>? baseline, ChartScale x, ChartScale y, ChartPlot plot, bool stepped, bool smooth)
+    public static string Area(IReadOnlyList<ChartPoint> points, ChartScale x, ChartScale y, ChartPlot plot, bool stepped, bool smooth)
     {
         ArgumentNullException.ThrowIfNull(points);
 
-        var zero = plot.Y(y, Math.Clamp(0, y.Min, y.Max));
+        var zero = plot.Y(y, y.Within(0));
         StringBuilder builder = new();
         var start = -1;
 
@@ -64,7 +64,7 @@ public static class ChartPath
             }
 
             if (start >= 0)
-                AppendBand(builder, points, start, i - 1, baseline, x, y, plot, stepped, smooth, zero);
+                AppendBand(builder, points, start, i - 1, x, y, plot, stepped, smooth, zero);
 
             start = -1;
         }
@@ -153,8 +153,8 @@ public static class ChartPath
             .Append(' ').Append(Coord(run[index].X)).Append(' ').Append(Coord(run[index].Y));
     }
 
-    /// <summary>One unbroken stretch of the band: the tops from <paramref name="from"/> to <paramref name="to"/>, then the baseline back.</summary>
-    private static void AppendBand(StringBuilder builder, IReadOnlyList<ChartPoint> points, int from, int to, IReadOnlyList<ChartPoint>? baseline, ChartScale x, ChartScale y, ChartPlot plot, bool stepped, bool smooth, double zero)
+    /// <summary>One unbroken stretch of the band: the tops from <paramref name="from"/> to <paramref name="to"/>, then the bases back.</summary>
+    private static void AppendBand(StringBuilder builder, IReadOnlyList<ChartPoint> points, int from, int to, ChartScale x, ChartScale y, ChartPlot plot, bool stepped, bool smooth, double zero)
     {
         List<(double X, double Y)> top = new(to - from + 1);
 
@@ -164,7 +164,7 @@ public static class ChartPath
         AppendRun(builder, top, stepped, smooth);
 
         // Nothing under it: the band closes on the axis's zero, which is one straight edge whatever the line did.
-        if (baseline is null)
+        if (points[from].Base is null)
         {
             _ = builder
                 .Append(" L").Append(Coord(top[^1].X)).Append(' ').Append(Coord(zero))
@@ -177,7 +177,7 @@ public static class ChartPath
         List<(double X, double Y)> bottom = new(top.Count);
 
         for (var i = to; i >= from; i--)
-            bottom.Add((plot.X(x, points[i].X), plot.Y(y, ChartStacking.ValueAt(baseline, points[i].X))));
+            bottom.Add((plot.X(x, points[i].X), plot.Y(y, points[i].Base ?? 0)));
 
         _ = builder.Append(" L").Append(Coord(bottom[0].X)).Append(' ').Append(Coord(bottom[0].Y));
 
