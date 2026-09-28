@@ -171,10 +171,16 @@ public abstract partial class ChartComponentRendererBase
         if (point.Y is not double value)
             return;
 
-        var left = ChartPath.Coord(plot.X(x, point.X));
-        var top = ChartPath.Coord(plot.Y(y, value));
         var tooltip = TooltipText(spec, data, caption, point.X, RawValue(series, index), formats, culture);
-        var key = point.Key;
+
+        RenderPointMark(group, point.Key, plot.X(x, point.X), plot.Y(y, value), radius, painted, tooltip);
+    }
+
+    /// <summary>A point's two circles where it stands: the mark, and the fixed-size one the pointer answers, carrying the tooltip.</summary>
+    private static void RenderPointMark(IHtmlElementBuilder group, string key, double x, double y, double radius, bool painted, string? tooltip)
+    {
+        var left = ChartPath.Coord(x);
+        var top = ChartPath.Coord(y);
 
         _ = group.Element("g", element =>
         {
@@ -385,6 +391,190 @@ public abstract partial class ChartComponentRendererBase
     /// <summary>What a sector is called: its row's x, written as the x axis would write it.</summary>
     private static string SectorLabel(ChartSpec spec, ChartRenderData data, ChartPoint point, ChartFormats formats, CultureInfo culture)
         => FormatValue(spec.XAxis.Kind, formats.X, point.X, data.Categories, culture);
+
+    /// <summary>
+    /// The spokes round a centre, a ring at every mark of the y axis, and each series closed into a filled outline over them: the
+    /// biggest radius the box holds with room beside the rim for the spokes' names.
+    /// </summary>
+    private static void RenderRadar(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartScale y, ChartFormats formats, CultureInfo culture)
+    {
+        var spokes = ChartRadar.Spokes(DrawnSeries(data));
+        var names = new string[spokes.Length];
+        var widest = 0;
+
+        for (var i = 0; i < spokes.Length; i++)
+        {
+            names[i] = FormatValue(spec.XAxis.Kind, formats.X, spokes[i], data.Categories, culture);
+            widest = Math.Max(widest, names[i].Length);
+        }
+
+        ChartSpot centre = new(NominalWidth / 2, NominalHeight / 2);
+        var radius = ChartRadar.Radius(NominalWidth, NominalHeight, (widest * LabelCharacterWidth) + LabelGap + PlotInset, LabelHeight + LabelGap + PlotInset);
+        IReadOnlyList<ChartLabel> rings = BuildTicks(spec.YAxis, formats.Y, y, [], culture, data.Rows.Count > 0);
+
+        _ = root.Element("div", area =>
+        {
+            _ = area.Class(AreaClassName);
+
+            ChartSvg.Render(area, CanvasClassName, NominalWidth, NominalHeight, CanvasLabel(context, data), svg =>
+            {
+                if (spokes.Length > 0 && radius > 0)
+                    RenderRadarFrame(svg, spec, names, rings, y, centre, radius);
+
+                _ = svg.Element("g", group =>
+                {
+                    _ = group.Class(PlotClassName);
+
+                    for (var i = 0; i < data.Series.Count; i++)
+                        RenderRadarSeries(context, group, spec, data, i, spokes, y, centre, radius, formats, culture);
+                });
+
+                if (data.Rows.Count == 0)
+                    RenderEmpty(context, svg, new ChartPlot(0, 0, NominalWidth, NominalHeight));
+            });
+        });
+    }
+
+    /// <summary>
+    /// What the series are read against: a ring at every mark of the y axis that asked for them, with its value beside the top
+    /// spoke; the rim; a spoke to every name where the x axis asked for them, and the name beyond its tip.
+    /// </summary>
+    private static void RenderRadarFrame(IHtmlElementBuilder svg, ChartSpec spec, string[] names, IReadOnlyList<ChartLabel> rings, ChartScale y, ChartSpot centre, double radius)
+    {
+        var count = names.Length;
+
+        if (spec.YAxis.ShowGridLines)
+        {
+            _ = svg.Element("g", grid =>
+            {
+                _ = grid.Class(GridClassName);
+
+                for (var i = 0; i < rings.Count; i++)
+                {
+                    var reach = ChartRadar.Reach(y, rings[i].Value, radius);
+
+                    if (reach > 0 && reach < radius)
+                        RenderRadarRing(grid, GridLineClassName, count, centre, reach);
+                }
+            });
+        }
+
+        _ = svg.Element("g", axes =>
+        {
+            _ = axes.Class("ui-chart__axes");
+
+            RenderRadarRing(axes, AxisLineClassName, count, centre, radius);
+
+            for (var i = 0; i < count; i++)
+            {
+                var angle = ChartRadar.Angle(i, count);
+                ChartSpot tip = ChartPie.At(centre, radius, angle);
+                ChartSpot name = ChartPie.At(centre, radius + LabelGap, angle);
+
+                if (spec.XAxis.ShowGridLines)
+                    RenderLine(axes, AxisLineClassName, centre.X, centre.Y, tip.X, tip.Y);
+
+                RenderText(axes, LabelClassName, names[i], name.X, SpokeNameBaseline(angle, name.Y), ChartRadar.Anchor(angle));
+            }
+
+            // A ring's value beside the top spoke, clear of a mark on it and just inside the ring; one that would sit on the one written
+            // before it is left out.
+            var last = double.NaN;
+
+            for (var i = 0; i < rings.Count; i++)
+            {
+                var reach = ChartRadar.Reach(y, rings[i].Value, radius);
+
+                if (reach <= 0 || (double.IsFinite(last) && Math.Abs(reach - last) < LabelHeight))
+                    continue;
+
+                last = reach;
+                RenderText(axes, LabelClassName, rings[i].Text, centre.X + LabelGap, centre.Y - reach + 12, "start");
+            }
+        });
+    }
+
+    /// <summary>One ring: the shape through every spoke at the same reach.</summary>
+    private static void RenderRadarRing(IHtmlElementBuilder parent, string className, int count, ChartSpot centre, double reach)
+    {
+        ChartSpot[] spots = new ChartSpot[count];
+
+        for (var i = 0; i < count; i++)
+            spots[i] = ChartPie.At(centre, reach, ChartRadar.Angle(i, count));
+
+        _ = parent.Element("path", ring =>
+        {
+            _ = ring.Class(className);
+            _ = ring.Attribute("d", ChartRadar.Outline(spots));
+        });
+    }
+
+    /// <summary>Where a spoke's name sits for its tip: above one at the top of the turn, under one at the bottom, level beside the rest.</summary>
+    private static double SpokeNameBaseline(double angle, double y)
+    {
+        var down = Math.Sin(angle);
+
+        return down < -0.3 ? y : down > 0.3 ? y + 12 : y + 4;
+    }
+
+    /// <summary>
+    /// One series closed into a shape over the spokes: its band, its outline, and a mark where it meets each spoke it has a value
+    /// on. A spoke it has no value on holds its outline at the centre.
+    /// </summary>
+    private static void RenderRadarSeries(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, int index, double[] spokes, ChartScale y, ChartSpot centre, double radius, ChartFormats formats, CultureInfo culture)
+    {
+        ChartRenderSeries series = data.Series[index];
+        var caption = ReadCaption(context, series.Series);
+        var markers = series.Series.ShowMarkers ?? spec.Markers;
+        ChartPoint?[] points = new ChartPoint?[spokes.Length];
+        ChartSpot[] spots = new ChartSpot[spokes.Length];
+
+        foreach (ChartPoint point in series.Drawn)
+        {
+            var spoke = Array.BinarySearch(spokes, point.X);
+
+            if (spoke >= 0)
+                points[spoke] ??= point;
+        }
+
+        for (var i = 0; i < spokes.Length; i++)
+            spots[i] = ChartPie.At(centre, ChartRadar.Reach(y, points[i]?.Y, radius), ChartRadar.Angle(i, spokes.Length));
+
+        var outline = ChartRadar.Outline(spots);
+
+        _ = plotGroup.Element("g", group =>
+        {
+            _ = group.Class(SeriesClassName);
+            _ = group.Attribute(SeriesAttribute, series.Series.Key);
+            _ = group.Style(SeriesColorVariable, SeriesColor(context, series));
+
+            _ = group.Element("path", fill =>
+            {
+                _ = fill.Class(FillClassName);
+                _ = fill.Attribute("d", outline);
+            });
+
+            _ = group.Element("path", line =>
+            {
+                _ = line.Class(LineClassName);
+                _ = line.Attribute("d", outline);
+            });
+
+            // As on a line: a chart that draws no marks still needs something for a tooltip to anchor on.
+            if (!markers && !spec.Tooltip)
+                return;
+
+            for (var i = 0; i < spokes.Length; i++)
+            {
+                if (points[i] is not ChartPoint point || point.Y is not double value)
+                    continue;
+
+                var tooltip = TooltipText(spec, data, caption, point.X, value, formats, culture);
+
+                RenderPointMark(group, point.Key, spots[i].X, spots[i].Y, markers ? ChartBubbles.PlainRadius - 1 : ChartBubbles.PlainRadius + 1, markers, tooltip);
+            }
+        });
+    }
 
     /// <summary>A chart with no rows keeps its frame and says there is nothing in it.</summary>
     private static void RenderEmpty(WebRenderContext context, IHtmlElementBuilder svg, ChartPlot plot)

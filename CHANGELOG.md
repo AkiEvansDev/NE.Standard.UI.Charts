@@ -4,6 +4,13 @@ One section per release of this slice, headed `## X.Y.Z` and named by the tag â€
 workflow cuts the matching section out to become the body of the GitHub release, and a tag with no section
 fails the release before anything is published.
 
+## 1.2.0
+
+- **`RadarChartComponent`, a new kind.** A row's x names a spoke, and each series' values along the spokes close into a
+  filled outline: the y axis is the scale every spoke shares, its ticks the rings, its low end the centre. The legend puts a
+  series aside, a corner answers the pointer with its value and a press reaches `OnPointClick`, as on a line chart; the
+  arithmetic is `ChartRadar` and `chart-radar.ts`, held to the shared corpus. Built on the framework's 1.2.0.
+
 ## 1.1.0
 
 - **Built on the framework's 1.1.0.** Nothing of this package's own changed; it moves with the framework, which now

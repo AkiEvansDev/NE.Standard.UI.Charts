@@ -11,6 +11,7 @@ public sealed class ChartsAppStartup : UIStartupBase
         _ = application.Route<LinesView, ChartsController>(ChartsDemoView.LinesRoute);
         _ = application.Route<AreasAndBarsView, ChartsController>(ChartsDemoView.AreasAndBarsRoute);
         _ = application.Route<PieAndScatterView>(ChartsDemoView.PieAndScatterRoute);
+        _ = application.Route<RadarView>(ChartsDemoView.RadarRoute);
         _ = application.Route<SparksAndGaugesView, ChartsController>(ChartsDemoView.SparksAndGaugesRoute);
     }
 }

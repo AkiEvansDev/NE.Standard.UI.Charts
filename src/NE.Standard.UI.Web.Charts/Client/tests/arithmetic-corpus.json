@@ -207,6 +207,32 @@
         { "case": "a set that adds up to nothing takes no angle", "values": [0, 0], "expectedShares": [0, 0] },
         { "case": "no values at all", "values": [], "expectedShares": [] }
     ],
+    "spokes": [
+        { "case": "every x any series holds, once, low to high", "series": [[{ "x": 2, "y": 1 }, { "x": 0, "y": null }], [{ "x": 1, "y": 3 }, { "x": 2, "y": 4 }]], "expected": [0, 1, 2] },
+        { "case": "no points, no spokes", "series": [[]], "expected": [] }
+    ],
+    "spokeAngles": [
+        { "case": "the first spoke stands at twelve o'clock", "index": 0, "count": 4, "expected": -1.5707963267948966, "anchor": "middle" },
+        { "case": "a quarter of the way round is three o'clock", "index": 1, "count": 4, "expected": 0, "anchor": "start" },
+        { "case": "halfway round is six o'clock", "index": 3, "count": 6, "expected": 1.5707963267948966, "anchor": "middle" },
+        { "case": "past six o'clock the name stands before its tip", "index": 4, "count": 6, "expected": 2.6179938779914944, "anchor": "end" },
+        { "case": "no spokes at all stand at twelve o'clock", "index": 0, "count": 0, "expected": -1.5707963267948966, "anchor": "middle" }
+    ],
+    "radarReaches": [
+        { "case": "halfway up the range is halfway along the spoke", "scale": { "min": 0, "max": 100, "logarithmic": false }, "value": 50, "radius": 80, "expected": 40 },
+        { "case": "no value stays at the centre", "scale": { "min": 0, "max": 100, "logarithmic": false }, "value": null, "radius": 80, "expected": 0 },
+        { "case": "past the top of the range stops at the rim", "scale": { "min": 0, "max": 100, "logarithmic": false }, "value": 150, "radius": 80, "expected": 80 },
+        { "case": "under the bottom of the range stops at the centre", "scale": { "min": 0, "max": 100, "logarithmic": false }, "value": -10, "radius": 80, "expected": 0 },
+        { "case": "a logarithmic range reads by its powers", "scale": { "min": 1, "max": 100, "logarithmic": true }, "value": 10, "radius": 60, "expected": 30 }
+    ],
+    "radarRadii": [
+        { "case": "the shorter side wins, less the room for the names", "width": 640, "height": 280, "across": 80, "down": 36, "expected": 104 },
+        { "case": "a box too narrow for its names draws no radius", "width": 100, "height": 100, "across": 60, "down": 10, "expected": 0 }
+    ],
+    "outlines": [
+        { "case": "a closed shape through the places in order", "spots": [{ "x": 0, "y": -10 }, { "x": 10, "y": 0 }, { "x": 0, "y": 10 }], "expected": "M0 -10 L10 0 L0 10 Z" },
+        { "case": "no places draw nothing", "spots": [], "expected": "" }
+    ],
     "radii": [
         { "case": "no third value takes the plain radius", "size": null, "min": 0, "max": 400, "expected": 4 },
         { "case": "the smallest of the run", "size": 0, "min": 0, "max": 400, "expected": 3 },

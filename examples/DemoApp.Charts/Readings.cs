@@ -70,6 +70,22 @@ internal sealed class PlanShare : IBindableItem
 }
 
 /// <summary>
+/// One measure of a region's quarter, scored out of a hundred for three of the regions: a spoke of a radar, named by its own words.
+/// </summary>
+internal sealed class RegionScore : IBindableItem
+{
+    public required string Id { get; init; }
+
+    public required string Measure { get; init; }
+
+    public required double EuWest { get; init; }
+
+    public required double UsEast { get; init; }
+
+    public required double ApSouth { get; init; }
+}
+
+/// <summary>
 /// A server as a bubble or a bar: the requests it serves and how busy it is to place it, and what it costs a month to size it.
 /// </summary>
 internal sealed class Server : IBindableItem
@@ -87,7 +103,7 @@ internal sealed class Server : IBindableItem
 
 /// <summary>
 /// The numbers the demo draws, after <c>docs/DEMO-THEME.md</c>: a server's readings, a day of requests by kind, two years of
-/// revenue by quarter, a month's revenue by plan, and a dozen servers.
+/// revenue by quarter, a month's revenue by plan, a dozen servers, and three regions' scorecards.
 /// </summary>
 internal static class Catalogue
 {
@@ -179,6 +195,21 @@ internal static class Catalogue
             new Server { Id = "api-us-east-1", Name = "api-us-east-1", Cost = 64, Cpu = 67, Requests = 3_900 },
             new Server { Id = "storage-us-east-1", Name = "storage-us-east-1", Cost = 18, Cpu = 12, Requests = 1_500 },
             new Server { Id = "api-ap-south-1", Name = "api-ap-south-1", Cost = 18, Cpu = 81, Requests = 2_200 }
+        ];
+
+    /// <summary>
+    /// Three regions' quarter, each measure scored out of a hundred: Europe West the steady one, US East the busiest, Asia South
+    /// the newest — cheap and roomy, not yet as quick to answer.
+    /// </summary>
+    public static List<RegionScore> Scores()
+        =>
+        [
+            new RegionScore { Id = "uptime", Measure = "Uptime", EuWest = 96, UsEast = 91, ApSouth = 88 },
+            new RegionScore { Id = "latency", Measure = "Latency", EuWest = 84, UsEast = 78, ApSouth = 62 },
+            new RegionScore { Id = "headroom", Measure = "Headroom", EuWest = 58, UsEast = 34, ApSouth = 90 },
+            new RegionScore { Id = "cost", Measure = "Cost per seat", EuWest = 72, UsEast = 66, ApSouth = 85 },
+            new RegionScore { Id = "support", Measure = "Support", EuWest = 88, UsEast = 80, ApSouth = 70 },
+            new RegionScore { Id = "growth", Measure = "Growth", EuWest = 40, UsEast = 64, ApSouth = 94 }
         ];
 
     private static double CpuAt(int index)

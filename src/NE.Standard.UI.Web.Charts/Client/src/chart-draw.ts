@@ -9,6 +9,7 @@ import { momentDate } from "./chart-moment.ts";
 import { areaPath, coord, linePath } from "./chart-path.ts";
 import { sectorsOf, spotAt } from "./chart-pie.ts";
 import type { Sector, Spot } from "./chart-pie.ts";
+import { radarOutline, radarRadius, radarReach, radarSpokes, spokeAnchor, spokeAngle } from "./chart-radar.ts";
 import type { ChartPoint } from "./chart-path.ts";
 import { buildData } from "./chart-rows.ts";
 import type { ChartData, ChartRow, ChartSeriesData } from "./chart-rows.ts";
@@ -24,6 +25,7 @@ const AreaKind = "area";
 const BarKind = "bar";
 const PieKind = "pie";
 const ScatterKind = "scatter";
+const RadarKind = "radar";
 const TooltipAttribute = "data-ui-tooltip";
 const PointClass = "ui-chart__point";
 const MarkerClass = "ui-chart__marker";
@@ -140,7 +142,8 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     const window = state.view === null ? null : clampWindow(state.view, whole.min, whole.max);
     const extent = windowExtent(visible.map(series => series.drawn), window);
     const x = window === null ? whole : { ...whole, min: window.from, max: window.to };
-    const y = resolveRange(model.y, extent.min, extent.max, 0, model.kind === AreaKind || model.kind === BarKind);
+    // A radar's baseline is its centre, so zero is part of its range as it is of a bar's.
+    const y = resolveRange(model.y, extent.min, extent.max, 0, model.kind === AreaKind || model.kind === BarKind || model.kind === RadarKind);
     const numbers = formatting.numbers.readCulture(state.root);
     const dates = formatting.temporal.readCulture(state.root);
     const formats: ChartFormats = {
@@ -171,6 +174,14 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
 
     syncLegend(state, entries);
     labelCanvas(canvas, entries, formatting);
+
+    // Spokes round a centre rather than two axes along a box: the rings stand for the y axis, and nothing zooms or shares a tooltip.
+    if (model.kind === RadarKind) {
+        drawRadar(drawing, canvas, state, data, visible, y, width, height, formats, numbers, dates, formatting, colors);
+        canvas.replaceChildren(...drawing.childNodes);
+
+        return null;
+    }
 
     // A chart with nothing around it has no ticks to write and no gutters to leave: the plot is the box, less a hair of air.
     if (model.bare) {
@@ -399,6 +410,176 @@ function drawSectorEdges(group: SVGElement, sectors: readonly Sector[], centre: 
         line.setAttribute("y1", coord(from.y));
         line.setAttribute("x2", coord(to.x));
         line.setAttribute("y2", coord(to.y));
+    }
+}
+
+/**
+ * The spokes round a centre, a ring at every mark of the y axis, and each series the viewer kept closed into a filled outline over
+ * them: the biggest radius the box holds with room beside the rim for the spokes' names. The spokes are every series' — one the
+ * legend hid keeps its spokes, so the shape the rest make doesn't turn.
+ */
+function drawRadar(
+    drawing: SVGSVGElement,
+    canvas: SVGSVGElement,
+    state: ChartState,
+    data: ChartData,
+    visible: readonly ChartSeriesData[],
+    y: Scale,
+    width: number,
+    height: number,
+    formats: ChartFormats,
+    numbers: NumberCulturePack,
+    dates: TemporalCulturePack,
+    formatting: ChartFormatting,
+    colors: number
+): void {
+    const model = state.model;
+    const spokes = radarSpokes(data.series.map(entry => entry.drawn));
+    const names = spokes.map(spoke => formatValue(model.x, formats.x, spoke, data.categories, numbers, dates, formatting));
+    // Measured on the live canvas before it is cleared: a detached text has no length.
+    const measure = measurer(canvas);
+    const widest = names.reduce((longest, name) => Math.max(longest, measure.width(name)), 0);
+
+    measure.release();
+
+    const centre = { x: width / 2, y: height / 2 };
+    const radius = radarRadius(width, height, widest + LabelGap + PlotInset, LabelHeight + LabelGap + PlotInset);
+    const rings = state.rows.length > 0 || model.y.min !== null || model.y.max !== null ? ticks(model.y.kind, y, model.y.ticks) : [];
+
+    if (spokes.length > 0 && radius > 0)
+        drawRadarFrame(drawing, model, names, rings.map(value => ({ value, text: formatValue(model.y, formats.y, value, [], numbers, dates, formatting) })), y, centre, radius);
+
+    const group = append(drawing, "g", "ui-chart__plot");
+
+    for (const entry of visible)
+        drawRadarSeries(group, model, entry, spokes, y, centre, radius, data.categories, formats, numbers, dates, formatting, colors);
+
+    if (state.rows.length === 0)
+        drawEmpty(drawing, { left: 0, top: 0, width, height }, formatting);
+}
+
+/**
+ * What the series are read against: a ring at every mark of the y axis that asked for them, with its value beside the top spoke;
+ * the rim; a spoke to every name where the x axis asked for them, and the name beyond its tip.
+ */
+function drawRadarFrame(
+    canvas: SVGSVGElement,
+    model: ChartModel,
+    names: readonly string[],
+    rings: readonly { readonly value: number; readonly text: string }[],
+    y: Scale,
+    centre: Spot,
+    radius: number
+): void {
+    const count = names.length;
+
+    if (model.y.grid) {
+        const grid = append(canvas, "g", "ui-chart__grid");
+
+        for (const ring of rings) {
+            const reach = radarReach(y, ring.value, radius);
+
+            if (reach > 0 && reach < radius)
+                radarRing(grid, "ui-chart__grid-line", count, centre, reach);
+        }
+    }
+
+    const axes = append(canvas, "g", "ui-chart__axes");
+
+    radarRing(axes, "ui-chart__axis-line", count, centre, radius);
+
+    for (let i = 0; i < count; i++) {
+        const angle = spokeAngle(i, count);
+        const tip = spotAt(centre, radius, angle);
+        const name = spotAt(centre, radius + LabelGap, angle);
+
+        if (model.x.grid)
+            line(axes, "ui-chart__axis-line", centre.x, centre.y, tip.x, tip.y);
+
+        text(axes, "ui-chart__label", names[i], name.x, spokeNameBaseline(angle, name.y), spokeAnchor(angle));
+    }
+
+    // A ring's value beside the top spoke, just inside the ring; one that would sit on the one written before it is left out.
+    let last = Number.NaN;
+
+    for (const ring of rings) {
+        const reach = radarReach(y, ring.value, radius);
+
+        if (reach <= 0 || (Number.isFinite(last) && Math.abs(reach - last) < LabelHeight))
+            continue;
+
+        last = reach;
+        text(axes, "ui-chart__label", ring.text, centre.x + LabelGap, centre.y - reach + 12, "start");
+    }
+}
+
+/** One ring: the shape through every spoke at the same reach. */
+function radarRing(parent: SVGElement, className: string, count: number, centre: Spot, reach: number): void {
+    const spots: Spot[] = [];
+
+    for (let i = 0; i < count; i++)
+        spots.push(spotAt(centre, reach, spokeAngle(i, count)));
+
+    append(parent, "path", className).setAttribute("d", radarOutline(spots));
+}
+
+/** Where a spoke's name sits for its tip: above one at the top of the turn, under one at the bottom, level beside the rest. */
+function spokeNameBaseline(angle: number, y: number): number {
+    const down = Math.sin(angle);
+
+    return down < -0.3 ? y : down > 0.3 ? y + 12 : y + 4;
+}
+
+/**
+ * One series closed into a shape over the spokes: its band, its outline, and a mark where it meets each spoke it has a value on.
+ * A spoke it has no value on holds its outline at the centre.
+ */
+function drawRadarSeries(
+    group: SVGElement,
+    model: ChartModel,
+    entry: ChartSeriesData,
+    spokes: readonly number[],
+    y: Scale,
+    centre: Spot,
+    radius: number,
+    categories: readonly string[],
+    formats: ChartFormats,
+    numbers: NumberCulturePack,
+    dates: TemporalCulturePack,
+    formatting: ChartFormatting,
+    colors: number
+): void {
+    const markers = entry.series.markers ?? model.markers;
+    const byPlace = new Map<number, ChartPoint>();
+
+    for (const point of entry.drawn) {
+        if (!byPlace.has(point.x))
+            byPlace.set(point.x, point);
+    }
+
+    const points = spokes.map(spoke => byPlace.get(spoke) ?? null);
+    const spots = points.map((point, i) => spotAt(centre, radarReach(y, point?.y ?? null, radius), spokeAngle(i, spokes.length)));
+    const outline = radarOutline(spots);
+    const shape = append(group, "g", "ui-chart__series");
+
+    shape.setAttribute(SeriesAttribute, entry.series.key);
+    shape.style.setProperty(SeriesColorVariable, colorOf(entry, colors));
+    append(shape, "path", "ui-chart__fill").setAttribute("d", outline);
+    append(shape, "path", "ui-chart__line").setAttribute("d", outline);
+
+    // As on a line: a chart that draws no marks still needs something for a tooltip to anchor on.
+    if (!markers && !model.tooltip)
+        return;
+
+    for (let i = 0; i < points.length; i++) {
+        const point = points[i];
+
+        if (point === null || point.y === null)
+            continue;
+
+        const tooltip = model.tooltip ? tooltipText(model, entry, point.x, point.y, categories, formats, numbers, dates, formatting) : null;
+
+        drawPointMark(shape, point.key, spots[i].x, spots[i].y, markers ? PlainRadius - 1 : PlainRadius + 1, markers, tooltip);
     }
 }
 
@@ -720,10 +901,19 @@ function drawMarker(
     if (point.y === null)
         return;
 
-    const at = { x: coord(plotX(plot, x, point.x)), y: coord(plotY(plot, y, point.y)) };
+    const tooltip = !model.tooltip || model.sharedTooltip
+        ? null
+        : tooltipText(model, entry, point.x, rawValue(entry, index), categories, formats, numbers, dates, formatting);
+
+    drawPointMark(shape, point.key, plotX(plot, x, point.x), plotY(plot, y, point.y), radius, painted, tooltip);
+}
+
+/** A point's two circles where it stands: the mark, and the fixed-size one the pointer answers, carrying the tooltip. */
+function drawPointMark(shape: SVGElement, key: string, x: number, y: number, radius: number, painted: boolean, tooltip: string | null): void {
+    const at = { x: coord(x), y: coord(y) };
     const group = append(shape, "g", PointClass);
 
-    group.setAttribute(PointAttribute, point.key);
+    group.setAttribute(PointAttribute, key);
 
     const marker = append(group, "circle", painted ? MarkerClass : `${MarkerClass} ${BareMarkerClass}`);
 
@@ -739,13 +929,8 @@ function drawMarker(
     hit.setAttribute("cy", at.y);
     hit.setAttribute("r", coord(pointReach(radius)));
 
-    if (!model.tooltip || model.sharedTooltip)
-        return;
-
-    hit.setAttribute(
-        TooltipAttribute,
-        tooltipText(model, entry, point.x, rawValue(entry, index), categories, formats, numbers, dates, formatting)
-    );
+    if (tooltip !== null)
+        hit.setAttribute(TooltipAttribute, tooltip);
 }
 
 /** A bar per point, from what it stands on — its place in a stack, or zero — to the value, in its own place across the band. */

@@ -11,9 +11,10 @@ what the series now hold, and every mark is placed against them, which is one pa
 would be a second rendering path with a data protocol of its own; it comes back only when a case needs it.
 
 - **In this version:** the whole set — `LineChartComponent`, `AreaChartComponent`, `BarChartComponent`,
-  `PieChartComponent`, `ScatterChartComponent`, `SparklineComponent` and `GaugeComponent`: one or more series over a
-  linear, time, category or logarithmic x axis, stacked or side by side, bars on their side, a turn shared out as
-  sectors, a cloud of bubbles, a shape with nothing around it, and one reading on an arc. The viewer hovers a point
+  `PieChartComponent`, `RadarChartComponent`, `ScatterChartComponent`, `SparklineComponent` and `GaugeComponent`: one or
+  more series over a linear, time, category or logarithmic x axis, stacked or side by side, bars on their side, a turn
+  shared out as sectors, series closed into shapes over spokes, a cloud of bubbles, a shape with nothing around it, and one
+  reading on an arc. The viewer hovers a point
   or a whole x, puts a series aside at the legend, presses a point to reach a command, and zooms and pans along the
   x axis where the author allowed it.
 - **The stages to come:** the pinch on a touch device.
@@ -90,12 +91,15 @@ after it, as a render would.
 | `AreaChartComponent` | the same lines with a band under each | `Stacked`, and the line chart's own; no marks are painted, though a point still answers the pointer |
 | `BarChartComponent` | a bar per series at every x | `Stacked` — otherwise the bars share the x's band side by side; `Horizontal` lays them on their side, the values across the box and a band per x down it |
 | `PieChartComponent` | one series' points as sectors of a turn | `SetDonut(share)` for a hole, `CentreCaption` for the words in it; no axes, and the legend names the sectors |
+| `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre. No zoom, no window and no shared tooltip: there is no x to move along |
 | `SparklineComponent` | one series with nothing around it, a line of text high | `Bars` for a run of bars instead of a line; no axes, no grid, no legend, and no marks until the pointer finds one |
 | `ScatterChartComponent` | a mark per point and no line between them | a third value sizes each mark where the series names one: `AddSeries(key, caption, valuePath, sizePath)`, by area rather than by radius |
 | `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Caption`, `Format`, `Unit` |
 
-An area's band and a bar's length are read against zero, so those two take zero into the range whether the data
-does or not; a line chart follows its data. `Stacked` puts the series on one another in the order they were added:
+An area's band, a bar's length and a radar's reach from its centre are read against zero, so those take zero into the
+range whether the data does or not; a line chart follows its data. A radar's spokes are every x any series holds, once, in
+order, so a series with no value on one holds its outline at the centre there, and one the legend puts aside keeps its
+spokes — the shape the rest make does not turn. `Stacked` puts the series on one another in the order they were added:
 the top of the stack is the total, each part is what its own series added, and a tooltip still says what the series
 itself holds. A part stands on everything stacked under it at its x, whether or not the series just below holds a value
 there, and values below zero stack downward apart from those above it, so neither side is drawn over the other. A series
@@ -134,9 +138,9 @@ page's culture, a path per series — at a nominal size the `viewBox` carries. T
 the size it really got, which is the only way text can be placed properly, and again whenever the collection
 changes or the viewer puts a series aside — once per frame, however many changes, drags or wheel notches arrived before
 it. Both sides run the same arithmetic: `ChartRange`, `ChartTicks`, `ChartScale`, `ChartPlot`, `ChartCalendar`,
-`ChartPath`, `ChartStacking`, `ChartBars`, `ChartPie`, `ChartBubbles`, `ChartWindow` and `ChartValues` here,
+`ChartPath`, `ChartStacking`, `ChartBars`, `ChartPie`, `ChartRadar`, `ChartBubbles`, `ChartWindow` and `ChartValues` here,
 `chart-ticks.ts` (the range, the ticks, the scale and the plot), `chart-calendar.ts`, `chart-path.ts`, `chart-stack.ts`,
-`chart-bars.ts`, `chart-pie.ts`, `chart-bubbles.ts`, `chart-window.ts`, `chart-moment.ts` and `chart-rows.ts`'s reading of an
+`chart-bars.ts`, `chart-pie.ts`, `chart-radar.ts`, `chart-bubbles.ts`, `chart-window.ts`, `chart-moment.ts` and `chart-rows.ts`'s reading of an
 x there — held to one corpus of cases both test suites read.
 
 The legend follows the data: the server writes it for the first frame, and a series or a sector that arrives or goes later

@@ -46,6 +46,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string BarKind = "bar";
     protected const string PieKind = "pie";
     protected const string ScatterKind = "scatter";
+    protected const string RadarKind = "radar";
 
     protected const string AreaClassName = "ui-chart__area";
     protected const string CanvasClassName = "ui-chart__canvas";
@@ -86,6 +87,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     private const double LabelCharacterWidth = 6.5;
     private const double LabelGap = 8;
     private const double CaptionHeight = 16;
+    private const double LabelHeight = 16;
     private const double TickHeight = 22;
     private const double PlotInset = 12;
 
@@ -95,6 +97,9 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
 
     /// <summary>The kind the browser draws this chart as.</summary>
     protected abstract string ChartKind { get; }
+
+    /// <summary>The x axis this chart draws on where the author set none.</summary>
+    protected virtual UIChartAxis DefaultXAxis => UIChartAxis.Linear();
 
     /// <summary>The kind this instance draws as; a chart whose own properties decide it — a spark of bars — says so here.</summary>
     protected virtual string ReadKind(WebRenderContext context)
@@ -163,6 +168,16 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             return;
         }
 
+        // Spokes round a centre rather than two axes along a box: the rings stand for the y axis, and the legend names the series.
+        if (spec.Kind == RadarKind)
+        {
+            RenderRadar(context, root, spec, data, y, formats, culture);
+            RenderWindowValue(context, root);
+            RenderLegend(context, root, spec, data);
+
+            return;
+        }
+
         // A chart with nothing around it has no ticks to write and no gutters to leave: the plot is the box, less a hair of air.
         IReadOnlyList<ChartLabel> xTicks = spec.Bare ? [] : BuildTicks(spec.XAxis, formats.X, x, data.Categories, culture, data.Rows.Count > 0);
         IReadOnlyList<ChartLabel> yTicks = spec.Bare ? [] : BuildTicks(spec.YAxis, formats.Y, y, data.Categories, culture, data.Rows.Count > 0);
@@ -173,19 +188,23 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         RenderLegend(context, root, spec, data);
     }
 
-    /// <summary>The chart's settings, read off the component once; a pie or a bare chart never zooms regardless.</summary>
+    /// <summary>
+    /// The chart's settings, read off the component once. A pie, a radar or a bare chart never zooms regardless, and a radar has no
+    /// x to share a tooltip along or to narrow to a window.
+    /// </summary>
     private ChartSpec ReadSpec(WebRenderContext context)
     {
         ChartLineOptions lines = ReadLineOptions(context);
         ChartCentre centre = ReadCentre(context);
         var kind = ReadKind(context);
         var bare = ReadBare(context);
+        var radar = kind == RadarKind;
 
         return new ChartSpec
         {
             Kind = kind,
             Bare = bare,
-            XAxis = ReadRenderValue<UIChartAxis?>(context, IChartComponent.XAxisProperty, null) ?? UIChartAxis.Linear(),
+            XAxis = ReadRenderValue<UIChartAxis?>(context, IChartComponent.XAxisProperty, null) ?? DefaultXAxis,
             YAxis = ReadRenderValue<UIChartAxis?>(context, IChartComponent.YAxisProperty, null) ?? UIChartAxis.Linear(),
             Series = ReadRenderValue<IReadOnlyList<UIChartSeries>?>(context, IChartComponent.SeriesProperty, null) ?? [],
             XPath = ReadRenderValue<string?>(context, IChartComponent.XPathProperty, null),
@@ -197,10 +216,10 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             Smooth = lines.Smooth,
             Markers = lines.Markers,
             Stacked = ReadStacked(context),
-            SharedTooltip = ReadRenderValue(context, IChartComponent.SharedTooltipProperty, false),
-            Zoomable = kind != PieKind && !bare && ReadRenderValue(context, IChartComponent.ZoomableProperty, false),
+            SharedTooltip = !radar && ReadRenderValue(context, IChartComponent.SharedTooltipProperty, false),
+            Zoomable = kind != PieKind && !radar && !bare && ReadRenderValue(context, IChartComponent.ZoomableProperty, false),
             FollowLatest = ReadRenderValue(context, IChartComponent.FollowLatestProperty, false),
-            VisibleRange = ReadRenderValue<UIChartWindow?>(context, IChartComponent.VisibleRangeProperty, null),
+            VisibleRange = radar ? null : ReadRenderValue<UIChartWindow?>(context, IChartComponent.VisibleRangeProperty, null),
             Horizontal = ReadHorizontal(context),
             Donut = centre.Donut,
             CentreCaption = centre.Caption
@@ -254,9 +273,9 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         return drawn;
     }
 
-    /// <summary>Whether a chart of this kind draws from a baseline, which is what makes zero part of the range.</summary>
+    /// <summary>Whether a chart of this kind draws from a baseline — a radar's is its centre — which is what makes zero part of the range.</summary>
     private static bool StandsOnZero(string kind)
-        => kind is AreaKind or BarKind;
+        => kind is AreaKind or BarKind or RadarKind;
 
     /// <summary>
     /// The window on a hidden element of its own — the chart's one writable value, like an items component's query. Every chart

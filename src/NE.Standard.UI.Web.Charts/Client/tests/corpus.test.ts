@@ -15,6 +15,8 @@ import type { MomentParser } from "../src/chart-moment.ts";
 import { areaPath, coord, linePath } from "../src/chart-path.ts";
 import type { ChartPoint } from "../src/chart-path.ts";
 import { sectorsOf } from "../src/chart-pie.ts";
+import type { Spot } from "../src/chart-pie.ts";
+import { radarOutline, radarRadius, radarReach, radarSpokes, spokeAnchor, spokeAngle } from "../src/chart-radar.ts";
 import { xNumber } from "../src/chart-rows.ts";
 import type { ChartSeriesData } from "../src/chart-rows.ts";
 import { stackSeries } from "../src/chart-stack.ts";
@@ -70,6 +72,11 @@ type Corpus = {
         readonly expected: { readonly start: number; readonly thickness: number };
     }[];
     readonly sectors: readonly { readonly case: string; readonly values: readonly (number | null)[]; readonly expectedShares: readonly number[] }[];
+    readonly spokes: readonly { readonly case: string; readonly series: readonly (readonly CorpusPoint[])[]; readonly expected: readonly number[] }[];
+    readonly spokeAngles: readonly { readonly case: string; readonly index: number; readonly count: number; readonly expected: number; readonly anchor: string }[];
+    readonly radarReaches: readonly { readonly case: string; readonly scale: Scale; readonly value: number | null; readonly radius: number; readonly expected: number }[];
+    readonly radarRadii: readonly { readonly case: string; readonly width: number; readonly height: number; readonly across: number; readonly down: number; readonly expected: number }[];
+    readonly outlines: readonly { readonly case: string; readonly spots: readonly Spot[]; readonly expected: string }[];
     readonly radii: readonly { readonly case: string; readonly size: number | null; readonly min: number; readonly max: number; readonly expected: number }[];
     readonly reaches: readonly { readonly radius: number; readonly expected: number }[];
     readonly windows: readonly CorpusWindow[];
@@ -215,6 +222,25 @@ test("corpus: the turn shared out", () => {
         for (let i = 0; i < sectors.length; i++)
             close(sectors[i].sweep / (Math.PI * 2), entry.expectedShares[i], `${entry.case} (${i})`);
     }
+});
+
+test("corpus: a radar's spokes, how far a value reaches along one, and the shape through them", () => {
+    for (const entry of corpus.spokes)
+        assert.deepEqual(radarSpokes(entry.series.map(pointsOf)), entry.expected, entry.case);
+
+    for (const entry of corpus.spokeAngles) {
+        close(spokeAngle(entry.index, entry.count), entry.expected, entry.case);
+        assert.equal(spokeAnchor(spokeAngle(entry.index, entry.count)), entry.anchor, `${entry.case} (anchor)`);
+    }
+
+    for (const entry of corpus.radarReaches)
+        close(radarReach(entry.scale, entry.value, entry.radius), entry.expected, entry.case);
+
+    for (const entry of corpus.radarRadii)
+        close(radarRadius(entry.width, entry.height, entry.across, entry.down), entry.expected, entry.case);
+
+    for (const entry of corpus.outlines)
+        assert.equal(radarOutline(entry.spots), entry.expected, entry.case);
 });
 
 test("corpus: how wide a point is drawn and how far it answers the pointer", () => {

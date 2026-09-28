@@ -15,6 +15,7 @@ public abstract class ChartsDemoView : UIViewBase
     public const string AreasAndBarsRoute = "/areas-and-bars";
     public const string PieAndScatterRoute = "/pie-and-scatter";
     public const string SparksAndGaugesRoute = "/sparks-and-gauges";
+    public const string RadarRoute = "/radar";
 
     /// <summary>The two glyphs the theme switcher wears, which the host registers with the pack.</summary>
     public const string LightIcon = MaterialIcons.LightMode;
@@ -32,6 +33,7 @@ public abstract class ChartsDemoView : UIViewBase
         (LinesRoute, "Lines"),
         (AreasAndBarsRoute, "Areas and bars"),
         (PieAndScatterRoute, "Pie and scatter"),
+        (RadarRoute, "Radar"),
         (SparksAndGaugesRoute, "Sparks and gauges")
     ];
 

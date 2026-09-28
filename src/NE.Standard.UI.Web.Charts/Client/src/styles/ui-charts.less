@@ -39,13 +39,16 @@
     overflow: visible;
 }
 
-// The frame: the two axis lines read as the page's edges do, the grid a hair of the same ink.
+// The frame: the two axis lines read as the page's edges do, the grid a hair of the same ink. Never filled: a radar's rim and rings
+// are closed paths, not lines.
 .ui-chart__axis-line {
+    fill: none;
     stroke: color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent);
     stroke-width: 1;
 }
 
 .ui-chart__grid-line {
+    fill: none;
     stroke: color-mix(in srgb, var(--ui-color-on-surface) 10%, transparent);
     stroke-width: 1;
 }
