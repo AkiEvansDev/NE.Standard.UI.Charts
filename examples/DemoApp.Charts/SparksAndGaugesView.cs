@@ -10,10 +10,10 @@ internal sealed class SparksAndGaugesView : ChartsDemoView, IUIViewDefinition
 
     protected override string Route => SparksAndGaugesRoute;
 
-    public override string Title => "Sparks and gauges";
+    public override string Title => "charts.page.sparks-and-gauges";
 
     protected override string Description
-        => "The charts that stand in a cell or the corner of a tile; take a reading and watch the load's spark and its arc follow it.";
+        => "charts.page.sparks-and-gauges.description";
 
     protected override IVisualComponent[] CreateSections()
         =>
@@ -24,19 +24,20 @@ internal sealed class SparksAndGaugesView : ChartsDemoView, IUIViewDefinition
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
                     .AddChild(new ButtonComponent()
-                        .SetTitle("Take a reading")
+                        .SetTitle("charts.button.take-reading")
                         .OnClick(nameof(ChartsController.TakeReading))
                     )
                     .AddChild(new StackPanelComponent()
                         .SetOrientation(UIOrientation.Horizontal)
                         .SetSpacing(32)
+                        .SetWrap(true)
                         // A spark beside its own caption, which is how one is read: a shape, not a chart.
                         .AddChild(new StackPanelComponent()
                             .SetOrientation(UIOrientation.Vertical)
                             .SetSpacing(4)
                             .SetMinWidth(UILayoutLength.Absolute(280))
                             .AddChild(new TextComponent()
-                                .SetTitle("CPU of api-eu-west-1, the last forty readings")
+                                .SetTitle("charts.spark.cpu")
                                 .SetTitleType(UITextAppearance.Caption)
                                 .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                             )
@@ -44,7 +45,7 @@ internal sealed class SparksAndGaugesView : ChartsDemoView, IUIViewDefinition
                                 .BindItems(nameof(ChartsController.Samples))
                                 .SetX(nameof(Sample.Time))
                                 .SetXAxis(UIChartAxis.Time())
-                                .AddSeries("cpu", "CPU", nameof(Sample.Cpu))
+                                .AddSeries("cpu", "charts.cpu", nameof(Sample.Cpu))
                                 .SetSmooth(true)
                             )
                         )
@@ -53,7 +54,7 @@ internal sealed class SparksAndGaugesView : ChartsDemoView, IUIViewDefinition
                             .SetSpacing(4)
                             .SetMinWidth(UILayoutLength.Absolute(280))
                             .AddChild(new TextComponent()
-                                .SetTitle("Revenue in Europe West, by quarter")
+                                .SetTitle("charts.spark.revenue")
                                 .SetTitleType(UITextAppearance.Caption)
                                 .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                             )
@@ -61,34 +62,41 @@ internal sealed class SparksAndGaugesView : ChartsDemoView, IUIViewDefinition
                                 .SetItems(Catalogue.Quarters())
                                 .SetX(nameof(Quarter.Name))
                                 .SetXAxis(UIChartAxis.Category())
-                                .AddSeries("eu-west", "Europe West", nameof(Quarter.EuropeWest))
+                                .AddSeries("eu-west", "charts.eu-west", nameof(Quarter.EuropeWest))
                                 .SetBars(true)
                             )
                         )
                     )
             ),
             Example("A reading on an arc",
-                "A gauge is the one chart that binds a value rather than a collection: the reading, the range it is read in, and the bands that say what it means. Its arc is a dash of the whole path worked out by the stylesheet, so a value the server pushes moves it without a line of script — take a reading above and watch it follow.",
+                "A gauge is the one chart that binds a value rather than a collection: the reading, the range it is read in, and the bands that say what it means. Its arc is a whole circle the stylesheet cuts down to the reading, so a value the server pushes moves it without a line of script — take a reading above and watch it follow, the caption naming the reading's minute and the unit whether the load rose or fell, both bound and pushed with it. A gauge with no reading yet says so over an empty arc.",
                 new StackPanelComponent()
                     .SetOrientation(UIOrientation.Horizontal)
                     .SetSpacing(32)
+                    .SetWrap(true)
                     .AddChild(new GaugeComponent("gauge-load")
                         .BindValue(nameof(ChartsController.Load))
                         .SetRange(0, 100)
                         .AddBand(0, 60, UIThemeColor.FromStyle(UIColorStyle.Success))
                         .AddBand(60, 85, UIThemeColor.FromStyle(UIColorStyle.Warning))
                         .AddBand(85, 100, UIThemeColor.FromStyle(UIColorStyle.Danger))
-                        .SetCaption("Processor")
-                        .SetUnit("%")
+                        .BindCaption(nameof(ChartsController.LoadCaption))
+                        .BindUnit(nameof(ChartsController.LoadUnit))
                         .SetMinHeight(UILayoutLength.Absolute(200))
                     )
                     .AddChild(new GaugeComponent("gauge-disk")
                         .SetValue(61)
                         .SetRange(0, 100)
                         .AddBand(80, 100, UIThemeColor.FromStyle(UIColorStyle.Warning))
-                        .SetCaption("Disk used in Europe West")
+                        .SetCaption("charts.disk-eu-west")
                         .SetFormat("N0")
                         .SetUnit("%")
+                        .SetMinHeight(UILayoutLength.Absolute(200))
+                    )
+                    .AddChild(new GaugeComponent("gauge-outside")
+                        .SetRange(-20, 40)
+                        .SetCaption("charts.outside-asia-south")
+                        .SetUnit(" °C")
                         .SetMinHeight(UILayoutLength.Absolute(200))
                     )
             )

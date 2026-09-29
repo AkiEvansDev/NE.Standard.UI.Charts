@@ -1,16 +1,13 @@
-// The rows a chart holds, and the points they amount to: the server's first frame, then patched by the collection sink as
-// inserts, replaces and moves. The port of `ChartDataReader` in NE.Standard.UI.Web.Charts.
+// The rows a chart holds and their points, from the first frame and then the collection sink's patches; the port of `ChartDataReader`.
 
-import { RowsAttribute, isLongForm } from "./chart-model.ts";
+import { isLongForm } from "./chart-model.ts";
 import { momentNumber } from "./chart-moment.ts";
 import type { MomentParser } from "./chart-moment.ts";
 import type { ChartModel, ChartSeries } from "./chart-model.ts";
+import { ChartAttributes } from "./chart-names.ts";
 import type { ChartPoint } from "./chart-path.ts";
 
-/**
- * One row: its key, its x as text — the number it amounts to is each axis's own — and a value per series. A chart that names no
- * x path reads its x off the row's place instead, so the text is whatever the row came with and nothing reads it.
- */
+/** One row: its key, its x as text, and a value per series; with no x path the x is the row's place and nothing reads the text. */
 export type ChartRow = {
     readonly key: string;
     readonly x: string;
@@ -50,7 +47,7 @@ export type ChartChangeItem = {
 
 /** The rows the server drew from; an empty list where the attribute is missing or does not parse. */
 export function readRows(root: Element): ChartRow[] {
-    const text = root.getAttribute(RowsAttribute);
+    const text = root.getAttribute(ChartAttributes.rows);
 
     if (text === null || text.length === 0)
         return [];
@@ -250,10 +247,7 @@ function placeNumber(place: number, kind: string, categories: string[]): number 
     return kind === "Category" ? xNumber(String(place), kind, categories, () => null) ?? place : place;
 }
 
-/**
- * The x as its axis's number: a name's place among the names, or the number its text writes — on a time axis, failing that, the
- * moment's wall clock. The server reads the same text the same way (`ChartValues.TryToNumber`).
- */
+/** The x as its axis's number, read as the server reads it (`ChartValues.TryToNumber`). */
 export function xNumber(text: string, kind: string, categories: string[], parse: MomentParser): number | null {
     if (kind === "Category") {
         const index = categories.indexOf(text);

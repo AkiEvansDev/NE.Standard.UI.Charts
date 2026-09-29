@@ -5,23 +5,22 @@ using NE.Standard.UI.Primitives.Annotations;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// One series as sectors of a turn: a row's x names the sector, its value is the share. No axes — the legend and tooltip say
-/// what a sector is.
+/// One series as sectors of a turn: a row's x names the sector, its value is the share.
 /// </summary>
 public abstract partial class PieChartComponent<T>(string? id = null) : ChartComponentBase<T>(id)
     where T : PieChartComponent<T>, IUIComponentDefinition
 {
     /// <summary>
-    /// Gets how much of the radius the hole in the middle takes, set by <c>SetDonut</c>: from none (a pie) to nearly all of it (a thin ring).
+    /// Gets how much of the radius the hole in the middle takes, set by <c>SetDonut</c>.
     /// </summary>
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = 0d)]
     public double Donut { get; private set; }
 
     /// <summary>
-    /// Gets or sets the words in the middle of a donut — a total, a name. Nothing is written where there is no hole to write it in.
+    /// Gets or sets the words in the middle of a donut; nothing is written without a hole.
     /// </summary>
     [Translatable]
-    [UIComponentProperty(IsBindable = false, DefaultValue = null)]
+    [UIComponentProperty(DefaultValue = null)]
     public string? CentreCaption { get; set; }
 
     /// <summary>
@@ -42,8 +41,6 @@ public abstract partial class PieChartComponent<T>(string? id = null) : ChartCom
 /// </summary>
 public sealed class PieChartComponent(string? id = null) : PieChartComponent<PieChartComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "charts.pie";
 }

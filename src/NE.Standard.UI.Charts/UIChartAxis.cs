@@ -20,8 +20,7 @@ public sealed record UIChartAxis
     public double? Max { get; init; }
 
     /// <summary>
-    /// How a tick is written: a standard number format (<c>N0</c>, <c>N2</c>, <c>P</c>, …), or on a time axis a token pattern
-    /// (<c>HH:mm</c>, <c>dd MMM</c>, …). A category writes its own name.
+    /// How a tick is written: a standard number format, or a token pattern on a time axis.
     /// </summary>
     public string? Format { get; init; }
 

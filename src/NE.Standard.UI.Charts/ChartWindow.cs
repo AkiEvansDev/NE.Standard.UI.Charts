@@ -4,8 +4,7 @@ using System.Collections.Generic;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// The stretch of the x axis a chart shows, and how a viewer's wheel and drag move it. The browser's <c>chart-window.ts</c>
-/// holds the same arithmetic.
+/// The stretch of the x axis a chart shows, and how the viewer moves it; <c>chart-window.ts</c> is its twin.
 /// </summary>
 public static class ChartWindow
 {
@@ -13,8 +12,7 @@ public static class ChartWindow
     public const double SmallestShare = 0.002;
 
     /// <summary>
-    /// The window inside what the data reaches: no wider than the whole, no narrower than <see cref="SmallestShare"/> of it, and
-    /// slid back inside rather than stretched where it hangs off an end.
+    /// The window kept inside the data, no narrower than <see cref="SmallestShare"/> of it, slid back rather than stretched.
     /// </summary>
     public static UIChartWindow Clamp(UIChartWindow span, double min, double max)
     {
@@ -35,8 +33,7 @@ public static class ChartWindow
     }
 
     /// <summary>
-    /// The window a wheel leaves: narrower or wider by <paramref name="factor"/>, about the value under the pointer, so the point
-    /// the viewer is reading stays where it is.
+    /// The window a wheel leaves, scaled by <paramref name="factor"/> about the value under the pointer, which stays put.
     /// </summary>
     public static UIChartWindow Zoom(UIChartWindow span, double at, double factor, double min, double max)
     {
@@ -58,8 +55,7 @@ public static class ChartWindow
         => Clamp(new UIChartWindow(max - span.Width, max), min, max);
 
     /// <summary>
-    /// What the series reach up and down inside the window, including the point either side so a line entering the view starts
-    /// at its true value. Every point counts when there is no window.
+    /// What the series reach inside the window, with the point either side so a line entering the view starts at its true value.
     /// </summary>
     public static (double Min, double Max) Extent(IReadOnlyList<IReadOnlyList<ChartPoint>> series, UIChartWindow? window)
     {

@@ -28,13 +28,14 @@ public abstract class ChartsDemoView : UIViewBase
     /// <summary>The sidebar's authored id, stable across renders.</summary>
     private const string SidebarId = "charts-sidebar";
 
+    /// <summary>Each page's route and its name, a key the page's own title shares.</summary>
     private static readonly (string Route, string Label)[] Pages =
     [
-        (LinesRoute, "Lines"),
-        (AreasAndBarsRoute, "Areas and bars"),
-        (PieAndScatterRoute, "Pie and scatter"),
-        (RadarRoute, "Radar"),
-        (SparksAndGaugesRoute, "Sparks and gauges")
+        (LinesRoute, "charts.page.lines"),
+        (AreasAndBarsRoute, "charts.page.areas-and-bars"),
+        (PieAndScatterRoute, "charts.page.pie-and-scatter"),
+        (RadarRoute, "charts.page.radar"),
+        (SparksAndGaugesRoute, "charts.page.sparks-and-gauges")
     ];
 
     /// <summary>The title band and the sidebar stand, the sidebar from the top of the page; the content scrolls by itself.</summary>
@@ -44,11 +45,13 @@ public abstract class ChartsDemoView : UIViewBase
     public abstract override string Title { get; }
     protected abstract string Description { get; }
 
-    /// <summary>The page band from the preset; the theme switcher is on every page, since the theme is the framework's state.</summary>
+    /// <summary>The page band from the preset; the language and theme switchers are on every page, since both are the framework's state.</summary>
     protected override IVisualComponent? CreateHeader()
-        => UIPage.Header(Title, Description, new ThemeSwitcherComponent()
-            .SetLightIcon(MaterialIcons.Outlined(LightIcon))
-            .SetDarkIcon(MaterialIcons.Outlined(DarkIcon))
+        => UIPage.Header(Title, Description,
+            new LanguageSwitcherComponent(),
+            new ThemeSwitcherComponent()
+                .SetLightIcon(MaterialIcons.Outlined(LightIcon))
+                .SetDarkIcon(MaterialIcons.Outlined(DarkIcon))
         );
 
     /// <summary>The sidebar every page wears: one entry per page, the one being read marked.</summary>
@@ -121,7 +124,7 @@ public abstract class ChartsDemoView : UIViewBase
                 .SetType(UIButtonType.Ghost)
                 .SetSize(UIButtonSize.Small)
                 .SetIcon(MaterialIcons.Outlined(CodeIcon))
-                .SetTooltip("Code")
+                .SetTooltip("charts.code")
             )
             .SetContent(new ContainerComponent()
                 .SetWidth(UILayoutLength.Absolute(640))
@@ -141,7 +144,7 @@ public abstract class ChartsDemoView : UIViewBase
                     .SetType(UIButtonType.Ghost)
                     .SetSize(UIButtonSize.Small)
                     .SetIcon(MaterialIcons.Outlined(CopyIcon))
-                    .SetTooltip("Copy")
+                    .SetTooltip("charts.copy")
                     .SetHorizontalAlignment(UIAlignment.End)
                     .SetVerticalAlignment(UIAlignment.Start)
                     // Clear of the text's vertical scrollbar, which runs down the same edge once the source is longer than the box.

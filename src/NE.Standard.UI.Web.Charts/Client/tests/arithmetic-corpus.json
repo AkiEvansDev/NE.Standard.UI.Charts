@@ -160,6 +160,16 @@
             "expected": "M0 100 L50 50 L100 0 L100 80 L50 80 L0 80 Z"
         }
     ],
+    "segments": [
+        { "case": "a straight line is a piece per pair of points", "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }], "stepped": false, "smooth": false, "expected": [[0, 100, 50, 50], [50, 50, 100, 0]] },
+        { "case": "a gap breaks the line, and a run of one point draws nothing", "points": [{ "x": 0, "y": 0 }, { "x": 2, "y": 2 }, { "x": 4, "y": null }, { "x": 6, "y": 6 }, { "x": 8, "y": null }, { "x": 10, "y": 10 }], "stepped": false, "smooth": false, "expected": [[0, 100, 20, 80]] },
+        { "case": "a stair is across to halfway, up, and across", "points": [{ "x": 0, "y": 0 }, { "x": 10, "y": 10 }], "stepped": true, "smooth": false, "expected": [[0, 100, 50, 100], [50, 100, 50, 0], [50, 0, 100, 0]] },
+        { "case": "a step to the same value draws no rise", "points": [{ "x": 0, "y": 5 }, { "x": 10, "y": 5 }], "stepped": true, "smooth": false, "expected": [[0, 50, 50, 50], [50, 50, 100, 50]] }
+    ],
+    "curves": [
+        { "case": "a curve is cut into pieces about four long, from its first point to its last", "points": [{ "x": 0, "y": 0 }, { "x": 10, "y": 10 }], "expectedCount": 36, "expectedStart": [0, 100], "expectedEnd": [100, 0], "expectedLongest": 4.907432607771873 },
+        { "case": "a curve over a crest is counted along its handles", "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 10 }, { "x": 10, "y": 0 }], "expectedCount": 62, "expectedStart": [0, 100], "expectedEnd": [100, 100], "expectedLongest": 4.814578175993702 }
+    ],
     "stacks": [
         {
             "case": "every series is drawn from the running total at its x",
@@ -228,6 +238,11 @@
     "radarRadii": [
         { "case": "the shorter side wins, less the room for the names", "width": 640, "height": 280, "across": 80, "down": 36, "expected": 104 },
         { "case": "a box too narrow for its names draws no radius", "width": 100, "height": 100, "across": 60, "down": 10, "expected": 0 }
+    ],
+    "edges": [
+        { "case": "a side per place, the last back to the first", "spots": [{ "x": 0, "y": -10 }, { "x": 10, "y": 0 }, { "x": 0, "y": 10 }], "expected": [[0, -10, 10, 0], [10, 0, 0, 10], [0, 10, 0, -10]] },
+        { "case": "two places at one spot draw no side between them", "spots": [{ "x": 0, "y": 0 }, { "x": 0, "y": 0 }, { "x": 10, "y": 0 }], "expected": [[0, 0, 10, 0], [10, 0, 0, 0]] },
+        { "case": "one place alone has no sides", "spots": [{ "x": 5, "y": 5 }], "expected": [] }
     ],
     "outlines": [
         { "case": "a closed shape through the places in order", "spots": [{ "x": 0, "y": -10 }, { "x": 10, "y": 0 }, { "x": 0, "y": 10 }], "expected": "M0 -10 L10 0 L0 10 Z" },

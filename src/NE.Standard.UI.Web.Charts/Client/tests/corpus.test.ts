@@ -12,11 +12,11 @@ import { PlainRadius, bubbleRadius, pointReach } from "../src/chart-bubbles.ts";
 import type { AxisKind, ChartAxis } from "../src/chart-model.ts";
 import { momentNumber } from "../src/chart-moment.ts";
 import type { MomentParser } from "../src/chart-moment.ts";
-import { areaPath, coord, linePath } from "../src/chart-path.ts";
-import type { ChartPoint } from "../src/chart-path.ts";
+import { areaPath, coord, linePath, lineSegments } from "../src/chart-path.ts";
+import type { ChartPoint, Segment } from "../src/chart-path.ts";
 import { sectorsOf } from "../src/chart-pie.ts";
 import type { Spot } from "../src/chart-pie.ts";
-import { radarOutline, radarRadius, radarReach, radarSpokes, spokeAnchor, spokeAngle } from "../src/chart-radar.ts";
+import { radarEdges, radarOutline, radarRadius, radarReach, radarSpokes, spokeAnchor, spokeAngle } from "../src/chart-radar.ts";
 import { xNumber } from "../src/chart-rows.ts";
 import type { ChartSeriesData } from "../src/chart-rows.ts";
 import { stackSeries } from "../src/chart-stack.ts";
@@ -26,6 +26,9 @@ import { clampWindow, followWindow, panWindow, windowExtent, zoomWindow } from "
 import type { Span } from "../src/chart-window.ts";
 
 type CorpusPoint = { readonly x: number; readonly y: number | null; readonly base?: number };
+
+/** A straight piece as the corpus writes it: where it starts and where it ends, across and down. */
+type CorpusSegment = readonly [number, number, number, number];
 
 type CorpusWindow = { readonly case: string; readonly from: number; readonly to: number; readonly min: number; readonly max: number; readonly expected: Span }
     & ({ readonly op: "clamp" | "follow" } | { readonly op: "zoom"; readonly at: number; readonly factor: number } | { readonly op: "pan"; readonly by: number });
@@ -54,6 +57,16 @@ type Corpus = {
     readonly coords: readonly { readonly value: number; readonly expected: string }[];
     readonly lines: readonly { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: string }[];
     readonly areas: readonly { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: string }[];
+    readonly segments: readonly { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: readonly CorpusSegment[] }[];
+    readonly curves: readonly {
+        readonly case: string;
+        readonly points: readonly CorpusPoint[];
+        readonly expectedCount: number;
+        readonly expectedStart: readonly [number, number];
+        readonly expectedEnd: readonly [number, number];
+        readonly expectedLongest: number;
+    }[];
+    readonly edges: readonly { readonly case: string; readonly spots: readonly Spot[]; readonly expected: readonly CorpusSegment[] }[];
     readonly stacks: readonly {
         readonly case: string;
         readonly series: readonly (readonly CorpusPoint[])[];
@@ -186,6 +199,40 @@ test("corpus: the path a series is drawn as", () => {
     for (const entry of corpus.areas)
         assert.equal(areaPath(pointsOf(entry.points), scale, scale, plot, entry.stepped, entry.smooth), entry.expected, entry.case);
 });
+
+test("corpus: the straight pieces a line and a radar's shape are drawn with", () => {
+    for (const entry of corpus.segments)
+        sameSegments(lineSegments(pointsOf(entry.points), scale, scale, plot, entry.stepped, entry.smooth), entry.expected, entry.case);
+
+    for (const entry of corpus.curves) {
+        const pieces = lineSegments(pointsOf(entry.points), scale, scale, plot, false, true);
+        const longest = Math.max(...pieces.map(piece => Math.hypot(piece.x2 - piece.x1, piece.y2 - piece.y1)));
+
+        assert.equal(pieces.length, entry.expectedCount, entry.case);
+        close(pieces[0].x1, entry.expectedStart[0], `${entry.case} (start x)`);
+        close(pieces[0].y1, entry.expectedStart[1], `${entry.case} (start y)`);
+        close(pieces[pieces.length - 1].x2, entry.expectedEnd[0], `${entry.case} (end x)`);
+        close(pieces[pieces.length - 1].y2, entry.expectedEnd[1], `${entry.case} (end y)`);
+        close(longest, entry.expectedLongest, `${entry.case} (longest)`);
+
+        for (let i = 1; i < pieces.length; i++)
+            assert.ok(pieces[i].x1 === pieces[i - 1].x2 && pieces[i].y1 === pieces[i - 1].y2, `${entry.case}: piece ${i} starts where the one before ends`);
+    }
+
+    for (const entry of corpus.edges)
+        sameSegments(radarEdges(entry.spots), entry.expected, entry.case);
+});
+
+function sameSegments(actual: readonly Segment[], expected: readonly CorpusSegment[], name: string): void {
+    assert.equal(actual.length, expected.length, `${name} (count)`);
+
+    for (let i = 0; i < actual.length; i++) {
+        close(actual[i].x1, expected[i][0], `${name} (${i} x1)`);
+        close(actual[i].y1, expected[i][1], `${name} (${i} y1)`);
+        close(actual[i].x2, expected[i][2], `${name} (${i} x2)`);
+        close(actual[i].y2, expected[i][3], `${name} (${i} y2)`);
+    }
+}
 
 test("corpus: the stack a series stands on", () => {
     for (const entry of corpus.stacks) {

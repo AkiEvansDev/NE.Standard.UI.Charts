@@ -5,8 +5,7 @@ using System.Text.Json.Serialization;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// The stretch of the x axis a chart shows, in the axis's own units — a number, clock milliseconds, or a category place. Unset,
-/// the chart shows the whole of its data.
+/// The stretch of the x axis a chart shows, in the axis's own units.
 /// </summary>
 public readonly record struct UIChartWindow(double From, double To)
 {

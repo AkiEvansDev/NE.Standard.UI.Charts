@@ -1,4 +1,5 @@
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Charts;
@@ -12,6 +13,13 @@ public class PieChartComponentRenderer : ChartComponentRendererBase
 
     protected override string ChartKind => PieKind;
 
-    protected override ChartCentre ReadCentre(WebRenderContext context)
-        => new(ReadRenderValue(context, PieChartComponent.DonutProperty, 0d), ReadRenderValue<string?>(context, PieChartComponent.CentreCaptionProperty, null));
+    protected override double ReadDonut(WebRenderContext context)
+        => ReadRenderValue(context, PieChartComponent.DonutProperty, 0d);
+
+    protected override void RenderCentre(WebRenderContext context, IHtmlElementBuilder centre)
+        => _ = RenderProperty<string?>(context, centre, PieChartComponent.CentreCaptionProperty, static (target, caption) =>
+        {
+            if (!string.IsNullOrWhiteSpace(caption))
+                _ = target.Text(caption);
+        }, [WebDomOperation.Text()]);
 }

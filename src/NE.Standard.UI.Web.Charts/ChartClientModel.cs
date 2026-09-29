@@ -4,9 +4,8 @@ using NE.Standard.UI.Charts;
 namespace NE.Standard.UI.Web.Charts;
 
 /// <summary>
-/// The chart as its client reads it off the root (<c>data-ui-chart</c>): what to draw, how to read a row, and how a tick is
-/// written. Axes carry only the author's fixed ends; the browser resolves the open ones itself, so a later point can widen
-/// the range.
+/// The chart as its client reads it off the root (<c>data-ui-chart</c>); axes carry only the author's fixed ends, so a later
+/// point can widen the range.
 /// </summary>
 internal sealed record ChartClientModel
 {
@@ -50,8 +49,6 @@ internal sealed record ChartClientModel
     public bool Bare { get; init; }
 
     public double Donut { get; init; }
-
-    public string? CentreCaption { get; init; }
 }
 
 /// <summary>One axis as the client reads it.</summary>
@@ -69,6 +66,7 @@ internal sealed record ChartClientAxis
 
     public int Ticks { get; init; }
 
+    /// <summary>As the author wrote it: the client translates it, again at every language switch.</summary>
     public string? Caption { get; init; }
 }
 
@@ -77,7 +75,8 @@ internal sealed record ChartClientSeries
 {
     public required string Key { get; init; }
 
-    public required string Caption { get; init; }
+    /// <summary>As the author wrote it, or null for none — the client then names the series by its key; translated there.</summary>
+    public string? Caption { get; init; }
 
     public string? ValuePath { get; init; }
 

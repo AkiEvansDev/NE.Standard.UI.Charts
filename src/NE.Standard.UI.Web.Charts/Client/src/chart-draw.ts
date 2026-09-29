@@ -3,14 +3,16 @@
 
 import { bandWidth, barOf, barSlots } from "./chart-bars.ts";
 import { PlainRadius, bubbleRadius, pointReach } from "./chart-bubbles.ts";
-import { PointAttribute, SeriesAttribute } from "./chart-model.ts";
 import type { ChartAxis, ChartModel } from "./chart-model.ts";
 import { momentDate } from "./chart-moment.ts";
-import { areaPath, coord, linePath } from "./chart-path.ts";
+import { syncLegend } from "./chart-legend.ts";
+import type { LegendEntry } from "./chart-legend.ts";
+import { ChartAttributes, ChartClasses, ChartKinds, ChartVariables, ChartWords, ClientNames, CoreNames } from "./chart-names.ts";
+import { areaPath, coord, linePath, lineSegments } from "./chart-path.ts";
 import { sectorsOf, spotAt } from "./chart-pie.ts";
 import type { Sector, Spot } from "./chart-pie.ts";
-import { radarOutline, radarRadius, radarReach, radarSpokes, spokeAnchor, spokeAngle } from "./chart-radar.ts";
-import type { ChartPoint } from "./chart-path.ts";
+import { radarEdges, radarOutline, radarRadius, radarReach, radarSpokes, spokeAnchor, spokeAngle } from "./chart-radar.ts";
+import type { ChartPoint, Segment } from "./chart-path.ts";
 import { buildData } from "./chart-rows.ts";
 import type { ChartData, ChartRow, ChartSeriesData } from "./chart-rows.ts";
 import { stackSeries } from "./chart-stack.ts";
@@ -18,28 +20,9 @@ import { clampWindow, followWindow, windowExtent } from "./chart-window.ts";
 import type { Span } from "./chart-window.ts";
 import { defaultFormat, plotBottom, plotDown, plotRight, plotX, plotY, resolveRange, step, ticks, within } from "./chart-ticks.ts";
 import type { Plot, Scale } from "./chart-ticks.ts";
-import type { ClientStrings, NumberCulturePack, NumberFormatting, TemporalCulturePack, TemporalFormatting } from "ne-standard-ui";
+import type { ClientStrings, DomNames, NumberCulturePack, NumberFormatting, Popups, TemporalCulturePack, TemporalFormatting } from "ne-standard-ui";
 
 const SvgNamespace = "http://www.w3.org/2000/svg";
-const AreaKind = "area";
-const BarKind = "bar";
-const PieKind = "pie";
-const ScatterKind = "scatter";
-const RadarKind = "radar";
-const TooltipAttribute = "data-ui-tooltip";
-const PointClass = "ui-chart__point";
-const MarkerClass = "ui-chart__marker";
-const BareMarkerClass = "ui-chart__marker--bare";
-const HitClass = "ui-chart__hit";
-const RuleClass = "ui-chart__rule";
-const EmptyKey = "ui.chart.empty";
-const LabelKey = "ui.chart.label";
-const LegendClass = "ui-chart__legend";
-const LegendEntryClass = "ui-chart__legend-entry";
-const LegendOffClass = "ui-chart__legend-entry--off";
-const LegendMarkClass = "ui-chart__legend-mark";
-const LegendCaptionClass = "ui-chart__legend-caption";
-const SeriesColorVariable = "--ui-chart-series-color";
 
 /** The air around the plot: a line of labels under it, a line more for a caption, and a hair of room at the far edges. */
 const PlotInset = 12;
@@ -50,11 +33,15 @@ const LabelGap = 8;
 const LabelHeight = 16;
 /** How many colours the theme's categorical run holds, where the page does not say. */
 const DefaultSeriesColors = 8;
+const CentreSelector = `:scope > .${ChartClasses.area} > .${ChartClasses.centre}`;
 
+/** What a draw takes from the framework: how a value and a word are written, and the attribute names it writes as the framework does. */
 export type ChartFormatting = {
     readonly numbers: NumberFormatting;
     readonly temporal: TemporalFormatting;
     readonly strings: ClientStrings;
+    readonly names: DomNames;
+    readonly focusReturn: Popups["focusReturn"];
 };
 
 /** What one chart holds between draws: what the server said, the rows as they now stand, and the series the viewer put away. */
@@ -67,6 +54,9 @@ export type ChartState = {
     view: Span | null;
     /** Whether a point arrived while the window stood at the far end: the next draw slides it along before drawing, and clears this. */
     follow: boolean;
+    /** The box the canvas was last measured at by a draw, once the legend beside it was in step. */
+    width: number;
+    height: number;
 };
 
 /** What a draw settled on, so a wheel and a drag can be read against the picture they land on. */
@@ -79,20 +69,10 @@ export type ChartFrame = {
     readonly columns: readonly ChartColumn[];
 };
 
-/**
- * One x as a shared tooltip reads it: where it stands along the band axis — across the plot, or down it where the chart lies on its
- * side — and what every series drawn says there, written when first read.
- */
+/** One x as a shared tooltip reads it: its place on the band axis and what every drawn series says there, written when first read. */
 export type ChartColumn = {
     readonly at: number;
     readonly text: string;
-};
-
-/** One entry of the legend: the key it hides and shows by, what it says, and the colour its mark takes. */
-type LegendEntry = {
-    readonly key: string;
-    readonly caption: string;
-    readonly color: string;
 };
 
 /** One mark of an axis: where it stands, the words under it, and how wide they are in this chart's own type. */
@@ -110,16 +90,9 @@ type ChartFormats = {
 
 /** Draws the chart over its own canvas; a chart the page has not laid out yet keeps the frame the server drew. */
 export function drawChart(state: ChartState, formatting: ChartFormatting): ChartFrame | null {
-    const canvas = state.root.querySelector<SVGSVGElement>(".ui-chart__canvas");
+    const canvas = state.root.querySelector<SVGSVGElement>(`.${ChartClasses.canvas}`);
 
     if (canvas === null)
-        return null;
-
-    const box = canvas.getBoundingClientRect();
-    const width = Math.round(box.width);
-    const height = Math.round(box.height);
-
-    if (width < 2 || height < 2)
         return null;
 
     const model = state.model;
@@ -143,7 +116,7 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     const extent = windowExtent(visible.map(series => series.drawn), window);
     const x = window === null ? whole : { ...whole, min: window.from, max: window.to };
     // A radar's baseline is its centre, so zero is part of its range as it is of a bar's.
-    const y = resolveRange(model.y, extent.min, extent.max, 0, model.kind === AreaKind || model.kind === BarKind || model.kind === RadarKind);
+    const y = resolveRange(model.y, extent.min, extent.max, 0, model.kind === ChartKinds.area || model.kind === ChartKinds.bar || model.kind === ChartKinds.radar);
     const numbers = formatting.numbers.readCulture(state.root);
     const dates = formatting.temporal.readCulture(state.root);
     const formats: ChartFormats = {
@@ -151,32 +124,43 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
         y: model.y.format ?? defaultFormat(model.y.kind, step(model.y.kind, y.min, y.max, model.y.ticks))
     };
 
+    const colors = readSeriesColorCount(state.root);
+    // A pie's legend names its sectors rather than its series.
+    const entries = model.kind === ChartKinds.pie
+        ? sectorEntries(model, data, formats, numbers, dates, formatting, colors)
+        : data.series.map(entry => ({ key: entry.series.key, caption: entry.series.caption, color: colorOf(entry, colors) }));
+
+    // The legend first: its entries move the plot's box, and a box measured before them would stretch the old frame into the new.
+    if (model.legend !== "None")
+        syncLegend(state.root, entries, state.hidden, formatting.names, formatting.focusReturn);
+
+    labelCanvas(canvas, entries, formatting);
+
+    const box = canvas.getBoundingClientRect();
+    const width = Math.round(box.width);
+    const height = Math.round(box.height);
+
+    state.width = width;
+    state.height = height;
+
+    if (width < 2 || height < 2)
+        return null;
+
     canvas.setAttribute("viewBox", `0 0 ${coord(width)} ${coord(height)}`);
 
-    // Drawn off the page and put in place in one step: every element appended to the live canvas would be a mutation of its own
-    // for every observer of the page.
+    // Drawn off the page and put in place in one step, or every appended element would be a mutation for every observer.
     const drawing = document.createElementNS(SvgNamespace, "svg");
-    const colors = readSeriesColorCount(state.root);
 
     // A turn shared out has no axes to lay out, and no labels to measure: the sectors are the whole drawing.
-    if (model.kind === PieKind) {
-        const sectors = sectorEntries(model, data, formats, numbers, dates, formatting, colors);
-
+    if (model.kind === ChartKinds.pie) {
         drawPie(drawing, state, data, width, height, formats, numbers, dates, formatting, colors);
         canvas.replaceChildren(...drawing.childNodes);
-        syncLegend(state, sectors);
-        labelCanvas(canvas, sectors, formatting);
 
         return null;
     }
 
-    const entries = data.series.map(entry => ({ key: entry.series.key, caption: entry.series.caption, color: colorOf(entry, colors) }));
-
-    syncLegend(state, entries);
-    labelCanvas(canvas, entries, formatting);
-
     // Spokes round a centre rather than two axes along a box: the rings stand for the y axis, and nothing zooms or shares a tooltip.
-    if (model.kind === RadarKind) {
+    if (model.kind === ChartKinds.radar) {
         drawRadar(drawing, canvas, state, data, visible, y, width, height, formats, numbers, dates, formatting, colors);
         canvas.replaceChildren(...drawing.childNodes);
 
@@ -245,82 +229,25 @@ function sectorEntries(
     }));
 }
 
-/**
- * The legend kept in step with the data: the server wrote it for the rows of the first frame, and a series or a sector that
- * arrives or goes later has to arrive or go here too. Left alone while it already names the same entries, so a press or a hover
- * on it is never lost to a redraw; an entry the viewer put aside stays aside.
- */
-function syncLegend(state: ChartState, entries: readonly LegendEntry[]): void {
-    if (state.model.legend === "None")
-        return;
-
-    const root = state.root;
-    let legend: Element | null = null;
-
-    for (const child of root.children) {
-        if (child.classList.contains(LegendClass))
-            legend = child;
-    }
-
-    if (entries.length === 0) {
-        legend?.remove();
-        return;
-    }
-
-    const buttons = legend === null ? [] : [...legend.children];
-
-    if (buttons.length === entries.length && entries.every((entry, i) => sameEntry(buttons[i], entry)))
-        return;
-
-    if (legend === null) {
-        legend = document.createElement("div");
-        legend.className = LegendClass;
-        root.append(legend);
-    }
-
-    legend.replaceChildren(...entries.map(entry => legendButton(entry, state.hidden.has(entry.key))));
-}
-
 /** What the canvas is announced as, as the server wrote it: the entries the legend names, or the chart's own word where there are none. */
 function labelCanvas(canvas: SVGSVGElement, entries: readonly LegendEntry[], formatting: ChartFormatting): void {
-    const label = entries.length > 0 ? entries.map(entry => entry.caption).join(", ") : formatting.strings.text(LabelKey);
+    const label = entries.length > 0 ? wordList(entries.map(entry => entry.caption), formatting.strings) : formatting.strings.text(ChartWords.label);
 
     if (canvas.getAttribute("aria-label") !== label)
         canvas.setAttribute("aria-label", label);
 }
 
-/** Whether a button the legend holds names this entry, in these words and this colour. */
-function sameEntry(button: Element, entry: LegendEntry): boolean {
-    return button instanceof HTMLElement
-        && button.getAttribute(SeriesAttribute) === entry.key
-        && button.querySelector(`.${LegendCaptionClass}`)?.textContent === entry.caption
-        && button.style.getPropertyValue(SeriesColorVariable) === entry.color;
+/** Captions as one list, each joined on by the package's word (`ui.chart.list`), so a language writes its own separator. */
+export function wordList(captions: readonly string[], strings: ClientStrings): string {
+    let list = captions.length > 0 ? captions[0] : "";
+
+    for (let i = 1; i < captions.length; i++)
+        list = strings.format(ChartWords.list, { list, next: captions[i] });
+
+    return list;
 }
 
-/** One entry as the server writes it: a small ghost button, pressed until the viewer puts its series aside. */
-function legendButton(entry: LegendEntry, hidden: boolean): HTMLButtonElement {
-    const button = document.createElement("button");
-    const mark = document.createElement("span");
-    const caption = document.createElement("span");
-
-    button.className = `${LegendEntryClass} ui-button ui-button--ghost ui-button--small`;
-    button.type = "button";
-    button.setAttribute(SeriesAttribute, entry.key);
-    button.setAttribute("aria-pressed", hidden ? "false" : "true");
-    button.classList.toggle(LegendOffClass, hidden);
-    button.style.setProperty(SeriesColorVariable, entry.color);
-    mark.className = LegendMarkClass;
-    caption.className = LegendCaptionClass;
-    caption.textContent = entry.caption;
-    button.append(mark, caption);
-
-    return button;
-}
-
-/**
- * The turn shared out: one sector per point of the first series, the biggest circle the box holds, with a donut's words in its
- * hole. A sector the legend hid takes no angle, so the rest spread over the whole turn; colours stay where they were.
- */
+/** The turn shared out between the first series' points; a sector the legend hid takes no angle, and colours stay where they were. */
 function drawPie(
     canvas: SVGSVGElement,
     state: ChartState,
@@ -346,44 +273,54 @@ function drawPie(
     const centre = { x: width / 2, y: height / 2 };
     const radius = Math.min(width, height) / 2 - PlotInset;
     const inner = radius * model.donut;
-    const group = append(canvas, "g", "ui-chart__plot");
+    const group = append(canvas, "g", ChartClasses.plot);
 
     for (let i = 0; i < shown.length; i++) {
         if (sectors[i].sweep <= 0 || radius <= 0)
             continue;
 
         const point = shown[i].point;
-        const shape = append(group, "g", "ui-chart__series");
+        const shape = append(group, "g", ChartClasses.series);
 
-        shape.setAttribute(SeriesAttribute, point.key);
-        shape.style.setProperty("--ui-chart-series-color", seriesColorVar(shown[i].index, colors));
+        shape.setAttribute(ChartAttributes.series, point.key);
+        shape.style.setProperty(ChartVariables.seriesColor, seriesColorVar(shown[i].index, colors));
 
         // A ring from the hole to the rim, which the stylesheet cuts to the sector's own angles (the contract's mixins/arc.less).
-        const sector = append(shape, "circle", "ui-chart__sector");
+        const sector = append(shape, "circle", ChartClasses.sector);
 
         sector.setAttribute("cx", coord(centre.x));
         sector.setAttribute("cy", coord(centre.y));
         sector.setAttribute("r", coord((radius + inner) / 2));
         sector.setAttribute("stroke-width", coord(radius - inner));
-        sector.style.setProperty("--ui-arc-start", degrees(sectors[i].start));
-        sector.style.setProperty("--ui-arc-sweep", degrees(sectors[i].sweep));
-        sector.setAttribute(PointAttribute, point.key);
+        sector.style.setProperty(ChartVariables.arcStart, degrees(sectors[i].start));
+        sector.style.setProperty(ChartVariables.arcSweep, degrees(sectors[i].sweep));
+        sector.setAttribute(ChartAttributes.point, point.key);
         // The group is named by its row, so the sector itself says which series a press on it belongs to.
-        sector.setAttribute(SeriesAttribute, data.series[0].series.key);
+        sector.setAttribute(ChartAttributes.series, data.series[0].series.key);
 
         if (!model.tooltip)
             continue;
 
         const label = formatValue(model.x, formats.x, point.x, data.categories, numbers, dates, formatting);
         const value = formatValue(model.y, formats.y, point.y ?? 0, data.categories, numbers, dates, formatting);
+        // The tooltip stands against the middle of the sector's own arc: the ring's box is the whole turn's, whatever the cut.
+        const middle = spotAt(centre, (radius + inner) / 2, sectors[i].start + sectors[i].sweep / 2);
+        const mark = append(shape, "circle", ChartClasses.sectorAnchor);
 
-        sector.setAttribute(TooltipAttribute, `${label} — ${value}`);
+        sector.setAttribute(ChartAttributes.sectorTooltip, formatting.strings.format(ChartWords.sector, { label, value }));
+        mark.setAttribute("cx", coord(middle.x));
+        mark.setAttribute("cy", coord(middle.y));
+        mark.setAttribute("r", "1");
     }
 
     drawSectorEdges(group, sectors, centre, radius, inner);
 
-    if (inner > 0 && model.centreCaption !== null)
-        text(canvas, "ui-chart__centre", model.centreCaption, centre.x, centre.y + 4, "middle");
+    // The words over the hole are the framework's to write; the drawing gives them the square the hole holds to wrap in.
+    const words = state.root.querySelector<HTMLElement>(CentreSelector);
+    const room = `${coord(Math.max(inner, 0) * Math.SQRT2)}px`;
+
+    if (words !== null && words.style.maxWidth !== room)
+        words.style.maxWidth = room;
 
     if (points.length === 0)
         drawEmpty(canvas, { left: 0, top: 0, width, height }, formatting);
@@ -404,7 +341,7 @@ function drawSectorEdges(group: SVGElement, sectors: readonly Sector[], centre: 
     for (const sector of drawn) {
         const from = spotAt(centre, inner, sector.start);
         const to = spotAt(centre, radius, sector.start);
-        const line = append(group, "line", "ui-chart__sector-edge");
+        const line = append(group, "line", ChartClasses.sectorEdge);
 
         line.setAttribute("x1", coord(from.x));
         line.setAttribute("y1", coord(from.y));
@@ -413,11 +350,7 @@ function drawSectorEdges(group: SVGElement, sectors: readonly Sector[], centre: 
     }
 }
 
-/**
- * The spokes round a centre, a ring at every mark of the y axis, and each series the viewer kept closed into a filled outline over
- * them: the biggest radius the box holds with room beside the rim for the spokes' names. The spokes are every series' — one the
- * legend hid keeps its spokes, so the shape the rest make doesn't turn.
- */
+/** The radar: spokes, rings and each kept series' filled outline; a hidden series keeps its spokes, so the shape the rest make doesn't turn. */
 function drawRadar(
     drawing: SVGSVGElement,
     canvas: SVGSVGElement,
@@ -449,19 +382,19 @@ function drawRadar(
     if (spokes.length > 0 && radius > 0)
         drawRadarFrame(drawing, model, names, rings.map(value => ({ value, text: formatValue(model.y, formats.y, value, [], numbers, dates, formatting) })), y, centre, radius);
 
-    const group = append(drawing, "g", "ui-chart__plot");
+    const group = append(drawing, "g", ChartClasses.plot);
+    // Every band under every series' outline and marks: a later series' band laid over an earlier one would take its corners from
+    // the pointer.
+    const bands = append(group, "g", ChartClasses.bands);
 
     for (const entry of visible)
-        drawRadarSeries(group, model, entry, spokes, y, centre, radius, data.categories, formats, numbers, dates, formatting, colors);
+        drawRadarSeries(group, bands, model, entry, spokes, y, centre, radius, data.categories, formats, numbers, dates, formatting, colors);
 
     if (state.rows.length === 0)
         drawEmpty(drawing, { left: 0, top: 0, width, height }, formatting);
 }
 
-/**
- * What the series are read against: a ring at every mark of the y axis that asked for them, with its value beside the top spoke;
- * the rim; a spoke to every name where the x axis asked for them, and the name beyond its tip.
- */
+/** What the series are read against: rings, rim, spokes and their names, where the axes ask for them. */
 function drawRadarFrame(
     canvas: SVGSVGElement,
     model: ChartModel,
@@ -474,19 +407,19 @@ function drawRadarFrame(
     const count = names.length;
 
     if (model.y.grid) {
-        const grid = append(canvas, "g", "ui-chart__grid");
+        const grid = append(canvas, "g", ChartClasses.grid);
 
         for (const ring of rings) {
             const reach = radarReach(y, ring.value, radius);
 
             if (reach > 0 && reach < radius)
-                radarRing(grid, "ui-chart__grid-line", count, centre, reach);
+                radarRing(grid, ChartClasses.gridLine, count, centre, reach);
         }
     }
 
-    const axes = append(canvas, "g", "ui-chart__axes");
+    const axes = append(canvas, "g", ChartClasses.axes);
 
-    radarRing(axes, "ui-chart__axis-line", count, centre, radius);
+    radarRing(axes, ChartClasses.axisLine, count, centre, radius);
 
     for (let i = 0; i < count; i++) {
         const angle = spokeAngle(i, count);
@@ -494,9 +427,9 @@ function drawRadarFrame(
         const name = spotAt(centre, radius + LabelGap, angle);
 
         if (model.x.grid)
-            line(axes, "ui-chart__axis-line", centre.x, centre.y, tip.x, tip.y);
+            line(axes, ChartClasses.axisLine, centre.x, centre.y, tip.x, tip.y);
 
-        text(axes, "ui-chart__label", names[i], name.x, spokeNameBaseline(angle, name.y), spokeAnchor(angle));
+        text(axes, ChartClasses.label, names[i], name.x, spokeNameBaseline(angle, name.y), spokeAnchor(angle));
     }
 
     // A ring's value beside the top spoke, just inside the ring; one that would sit on the one written before it is left out.
@@ -509,18 +442,18 @@ function drawRadarFrame(
             continue;
 
         last = reach;
-        text(axes, "ui-chart__label", ring.text, centre.x + LabelGap, centre.y - reach + 12, "start");
+        text(axes, ChartClasses.label, ring.text, centre.x + LabelGap, centre.y - reach + 12, "start");
     }
 }
 
-/** One ring: the shape through every spoke at the same reach. */
+/** One ring: the shape through every spoke at the same reach, drawn as its sides. */
 function radarRing(parent: SVGElement, className: string, count: number, centre: Spot, reach: number): void {
     const spots: Spot[] = [];
 
     for (let i = 0; i < count; i++)
         spots.push(spotAt(centre, reach, spokeAngle(i, count)));
 
-    append(parent, "path", className).setAttribute("d", radarOutline(spots));
+    segmentGroup(parent, className, radarEdges(spots));
 }
 
 /** Where a spoke's name sits for its tip: above one at the top of the turn, under one at the bottom, level beside the rest. */
@@ -530,12 +463,10 @@ function spokeNameBaseline(angle: number, y: number): number {
     return down < -0.3 ? y : down > 0.3 ? y + 12 : y + 4;
 }
 
-/**
- * One series closed into a shape over the spokes: its band, its outline, and a mark where it meets each spoke it has a value on.
- * A spoke it has no value on holds its outline at the centre.
- */
+/** One series closed into a shape over the spokes, its outline at the centre on a spoke it has no value on. */
 function drawRadarSeries(
     group: SVGElement,
+    bands: SVGElement,
     model: ChartModel,
     entry: ChartSeriesData,
     spokes: readonly number[],
@@ -559,13 +490,14 @@ function drawRadarSeries(
 
     const points = spokes.map(spoke => byPlace.get(spoke) ?? null);
     const spots = points.map((point, i) => spotAt(centre, radarReach(y, point?.y ?? null, radius), spokeAngle(i, spokes.length)));
-    const outline = radarOutline(spots);
-    const shape = append(group, "g", "ui-chart__series");
+    const shape = append(group, "g", ChartClasses.series);
+    const color = colorOf(entry, colors);
 
-    shape.setAttribute(SeriesAttribute, entry.series.key);
-    shape.style.setProperty(SeriesColorVariable, colorOf(entry, colors));
-    append(shape, "path", "ui-chart__fill").setAttribute("d", outline);
-    append(shape, "path", "ui-chart__line").setAttribute("d", outline);
+    shape.setAttribute(ChartAttributes.series, entry.series.key);
+    shape.style.setProperty(ChartVariables.seriesColor, color);
+    // The band stays a path: its edge lies under the outline, and it is four-fifths transparent.
+    drawBand(bands, entry.series.key, color, radarOutline(spots));
+    segmentGroup(shape, ChartClasses.line, radarEdges(spots));
 
     // As on a line: a chart that draws no marks still needs something for a tooltip to anchor on.
     if (!markers && !model.tooltip)
@@ -579,8 +511,17 @@ function drawRadarSeries(
 
         const tooltip = model.tooltip ? tooltipText(model, entry, point.x, point.y, categories, formats, numbers, dates, formatting) : null;
 
-        drawPointMark(shape, point.key, spots[i].x, spots[i].y, markers ? PlainRadius - 1 : PlainRadius + 1, markers, tooltip);
+        drawPointMark(shape, point.key, spots[i].x, spots[i].y, markers ? PlainRadius - 1 : PlainRadius + 1, markers, tooltip, formatting.names);
     }
+}
+
+/** One series' band, in the layer of bands under every series: keyed and coloured as its series is, so it is read as one with it. */
+function drawBand(bands: SVGElement, key: string, color: string, outline: string): void {
+    const fill = append(bands, "path", ChartClasses.fill);
+
+    fill.setAttribute(ChartAttributes.series, key);
+    fill.style.setProperty(ChartVariables.seriesColor, color);
+    fill.setAttribute("d", outline);
 }
 
 /** The marks of one axis, each already written in the page's culture and measured in its type. */
@@ -631,7 +572,7 @@ function formatValue(
 function measurer(canvas: SVGSVGElement): { width: (text: string) => number; release: () => void } {
     const element = document.createElementNS(SvgNamespace, "text");
 
-    element.setAttribute("class", "ui-chart__label");
+    element.setAttribute("class", ChartClasses.label);
     element.setAttribute("visibility", "hidden");
     canvas.appendChild(element);
 
@@ -668,10 +609,7 @@ function bottomAxis(model: ChartModel): ChartAxis {
     return model.horizontal ? model.y : model.x;
 }
 
-/**
- * Where a place on the band axis lands: across the plot, or down it when the chart lies on its side. Only bars draw this way;
- * a line uses `chart-path.ts`.
- */
+/** Where a place on the band axis lands, across the plot or down it when bars lie on their side. */
 function bandCoord(model: ChartModel, plot: Plot, band: Scale, value: number): number {
     return model.horizontal ? plotDown(plot, band, value) : plotX(plot, band, value);
 }
@@ -693,7 +631,7 @@ function drawGrid(
     if (!model.x.grid && !model.y.grid)
         return;
 
-    const group = append(canvas, "g", "ui-chart__grid");
+    const group = append(canvas, "g", ChartClasses.grid);
 
     if (model.y.grid) {
         for (const label of yLabels)
@@ -710,9 +648,9 @@ function drawGrid(
 /** One line across the plot at a mark: down the box for a mark on the axis under it, across for one beside it. */
 function gridLine(group: SVGElement, plot: Plot, at: number, down: boolean): void {
     if (down)
-        line(group, "ui-chart__grid-line", at, plot.top, at, plotBottom(plot));
+        line(group, ChartClasses.gridLine, at, plot.top, at, plotBottom(plot));
     else
-        line(group, "ui-chart__grid-line", plot.left, at, plotRight(plot), at);
+        line(group, ChartClasses.gridLine, plot.left, at, plotRight(plot), at);
 }
 
 function drawAxes(
@@ -726,10 +664,10 @@ function drawAxes(
     width: number,
     height: number
 ): void {
-    const group = append(canvas, "g", "ui-chart__axes");
+    const group = append(canvas, "g", ChartClasses.axes);
 
-    line(group, "ui-chart__axis-line", plot.left, plotBottom(plot), plotRight(plot), plotBottom(plot));
-    line(group, "ui-chart__axis-line", plot.left, plot.top, plot.left, plotBottom(plot));
+    line(group, ChartClasses.axisLine, plot.left, plotBottom(plot), plotRight(plot), plotBottom(plot));
+    line(group, ChartClasses.axisLine, plot.left, plot.top, plot.left, plotBottom(plot));
 
     const under = model.horizontal ? yLabels : xLabels;
     const beside = model.horizontal ? xLabels : yLabels;
@@ -746,7 +684,7 @@ function drawAxes(
             continue;
 
         occupied = at + half + LabelGap;
-        text(group, "ui-chart__label", label.text, at, plotBottom(plot) + 16, "middle");
+        text(group, ChartClasses.label, label.text, at, plotBottom(plot) + 16, "middle");
     }
 
     // The labels beside the plot run upward, so one is dropped when it would sit on the one drawn before it, whichever way that is.
@@ -759,30 +697,27 @@ function drawAxes(
             continue;
 
         last = at;
-        text(group, "ui-chart__label", label.text, plot.left - LabelGap, at + 4, "end");
+        text(group, ChartClasses.label, label.text, plot.left - LabelGap, at + 4, "end");
     }
 
     const bottomCaption = bottomAxis(model).caption;
     const leftCaption = leftAxis(model).caption;
 
     if (bottomCaption !== null)
-        text(group, "ui-chart__caption", bottomCaption, plot.left + plot.width / 2, height - 2, "middle");
+        text(group, ChartClasses.caption, bottomCaption, plot.left + plot.width / 2, height - 2, "middle");
 
     if (leftCaption !== null) {
         // Reading up the axis, which is how the caption beside a plot is read; the rotation is about the point it is placed at.
         const middle = plot.top + plot.height / 2;
-        const caption = text(group, "ui-chart__caption", leftCaption, 10, middle, "middle");
+        const caption = text(group, ChartClasses.caption, leftCaption, 10, middle, "middle");
 
         caption.setAttribute("transform", `rotate(-90 10 ${coord(middle)})`);
     }
 }
 
-/**
- * The frame the plot is cut at, so a line running out of a narrowed window isn't drawn over the axes. The id is the chart's
- * own, so two charts on one page don't share a clip.
- */
-function clipPlot(canvas: SVGSVGElement, group: SVGElement, root: HTMLElement, plot: Plot): void {
-    const id = `ui-chart-clip-${root.getAttribute("data-ui-id") ?? "0"}`;
+/** The frame the plot is cut at, so a line out of a narrowed window isn't drawn over the axes; the id is the chart's own. */
+function clipPlot(canvas: SVGSVGElement, group: SVGElement, root: HTMLElement, plot: Plot, names: DomNames): void {
+    const id = `${ChartClasses.clipPrefix}${root.getAttribute(names.componentId) ?? "0"}`;
     const clip = append(canvas, "clipPath", "");
 
     clip.setAttribute("id", id);
@@ -798,8 +733,8 @@ function clipPlot(canvas: SVGSVGElement, group: SVGElement, root: HTMLElement, p
 }
 
 /**
- * The series the viewer has not put aside, each in its own group. A stack is of the ones drawn, and bars share the band among the
- * ones drawn, so a series the legend hid leaves neither a step in the stack nor a gap in the band.
+ * The series the viewer kept, bands in one layer under them all; stacks and bars count only these, so a hidden series leaves
+ * no step and no gap.
  */
 function drawSeries(
     canvas: SVGSVGElement,
@@ -816,14 +751,18 @@ function drawSeries(
     colors: number,
     sizes: { readonly min: number; readonly max: number } = { min: Number.POSITIVE_INFINITY, max: Number.NEGATIVE_INFINITY }
 ): void {
-    const group = append(canvas, "g", "ui-chart__plot");
+    const group = append(canvas, "g", ChartClasses.plot);
     const model = state.model;
 
     if (state.view !== null)
-        clipPlot(canvas, group, state.root, plot);
+        clipPlot(canvas, group, state.root, plot, formatting.names);
+
+    // Every band under every series' line and marks: a later series' band laid over an earlier one would take its points from the
+    // pointer.
+    const bands = model.kind === ChartKinds.area ? append(group, "g", ChartClasses.bands) : null;
 
     // Bars share the band one x owns; a line and an area own the whole width and need none of this.
-    const band = model.kind === BarKind
+    const band = model.kind === ChartKinds.bar
         ? bandWidth(model.horizontal ? plot.height : plot.width, barSlots(series.map(entry => entry.drawn), x))
         : 0;
 
@@ -832,42 +771,36 @@ function drawSeries(
         const stepped = entry.series.stepped ?? model.stepped;
         const smooth = entry.series.smooth ?? model.smooth;
         const markers = entry.series.markers ?? model.markers;
-        const shape = append(group, "g", "ui-chart__series");
+        const shape = append(group, "g", ChartClasses.series);
+        const color = colorOf(entry, colors);
 
-        shape.setAttribute(SeriesAttribute, entry.series.key);
-        shape.style.setProperty("--ui-chart-series-color", colorOf(entry, colors));
+        shape.setAttribute(ChartAttributes.series, entry.series.key);
+        shape.style.setProperty(ChartVariables.seriesColor, color);
 
-        if (model.kind === BarKind) {
+        if (model.kind === ChartKinds.bar) {
             drawBars(shape, entry, index, series.length, plot, x, y, band, categories, formats, numbers, dates, formatting, model);
             continue;
         }
 
         // A cloud of points: no line at all, and a third value may size each of them.
-        if (model.kind === ScatterKind) {
+        if (model.kind === ChartKinds.scatter) {
             for (let i = 0; i < entry.drawn.length; i++)
                 drawMarker(shape, entry, i, plot, x, y, bubbleRadius(entry.drawn[i].size, sizes.min, sizes.max), true, categories, formats, numbers, dates, formatting, model);
 
             continue;
         }
 
-        if (model.kind === AreaKind) {
-            const fill = append(shape, "path", "ui-chart__fill");
+        if (bands !== null)
+            drawBand(bands, entry.series.key, color, areaPath(entry.drawn, x, y, plot, stepped, smooth));
 
-            fill.setAttribute("d", areaPath(entry.drawn, x, y, plot, stepped, smooth));
-        }
+        segmentGroup(shape, ChartClasses.line, lineSegments(entry.drawn, x, y, plot, stepped, smooth));
 
-        const drawn = linePath(entry.drawn, x, y, plot, stepped, smooth);
-        const path = append(shape, "path", "ui-chart__line");
+        // The same line unpainted and wide, for a pointer a thin stroke cannot hold; never painted, it stays one path.
+        const reach = append(shape, "path", ChartClasses.lineHit);
 
-        path.setAttribute("d", drawn);
+        reach.setAttribute("d", linePath(entry.drawn, x, y, plot, stepped, smooth));
 
-        // The same line again, unpainted and wide: a two-pixel stroke is too thin for the pointer to hold.
-        const reach = append(shape, "path", "ui-chart__line-hit");
-
-        reach.setAttribute("d", drawn);
-
-        // A chart that draws no marks still needs something for a tooltip to anchor on: the mark is there, unpainted, and the
-        // stylesheet shows it under the pointer.
+        // A chart drawing no marks keeps one unpainted for a tooltip to anchor on; the stylesheet shows it under the pointer.
         if (!markers && !model.tooltip)
             continue;
 
@@ -905,17 +838,17 @@ function drawMarker(
         ? null
         : tooltipText(model, entry, point.x, rawValue(entry, index), categories, formats, numbers, dates, formatting);
 
-    drawPointMark(shape, point.key, plotX(plot, x, point.x), plotY(plot, y, point.y), radius, painted, tooltip);
+    drawPointMark(shape, point.key, plotX(plot, x, point.x), plotY(plot, y, point.y), radius, painted, tooltip, formatting.names);
 }
 
 /** A point's two circles where it stands: the mark, and the fixed-size one the pointer answers, carrying the tooltip. */
-function drawPointMark(shape: SVGElement, key: string, x: number, y: number, radius: number, painted: boolean, tooltip: string | null): void {
+function drawPointMark(shape: SVGElement, key: string, x: number, y: number, radius: number, painted: boolean, tooltip: string | null, names: DomNames): void {
     const at = { x: coord(x), y: coord(y) };
-    const group = append(shape, "g", PointClass);
+    const group = append(shape, "g", ChartClasses.point);
 
-    group.setAttribute(PointAttribute, key);
+    group.setAttribute(ChartAttributes.point, key);
 
-    const marker = append(group, "circle", painted ? MarkerClass : `${MarkerClass} ${BareMarkerClass}`);
+    const marker = append(group, "circle", painted ? ChartClasses.marker : `${ChartClasses.marker} ${ChartClasses.bareMarker}`);
 
     marker.setAttribute("cx", at.x);
     marker.setAttribute("cy", at.y);
@@ -923,14 +856,14 @@ function drawPointMark(shape: SVGElement, key: string, x: number, y: number, rad
 
     // A separate, fixed-size hit target: a marker that grows under the pointer would slip from under it, and a mark of three is
     // hard to find.
-    const hit = append(group, "circle", HitClass);
+    const hit = append(group, "circle", ChartClasses.hit);
 
     hit.setAttribute("cx", at.x);
     hit.setAttribute("cy", at.y);
     hit.setAttribute("r", coord(pointReach(radius)));
 
     if (tooltip !== null)
-        hit.setAttribute(TooltipAttribute, tooltip);
+        hit.setAttribute(names.tooltip, tooltip);
 }
 
 /** A bar per point, from what it stands on — its place in a stack, or zero — to the value, in its own place across the band. */
@@ -964,19 +897,19 @@ function drawBars(
         const near = Math.min(reading, stands);
         // A value of zero still draws a hair, so the bar is there to point at.
         const length = Math.max(1, Math.abs(reading - stands));
-        const rectangle = append(shape, "rect", "ui-chart__bar");
+        const rectangle = append(shape, "rect", ChartClasses.bar);
 
         rectangle.setAttribute("x", coord(sideways ? near : bar.start));
         rectangle.setAttribute("y", coord(sideways ? bar.start : near));
         rectangle.setAttribute("width", coord(sideways ? length : bar.thickness));
         rectangle.setAttribute("height", coord(sideways ? bar.thickness : length));
-        rectangle.setAttribute(PointAttribute, point.key);
+        rectangle.setAttribute(ChartAttributes.point, point.key);
 
         if (!model.tooltip || model.sharedTooltip)
             continue;
 
         rectangle.setAttribute(
-            TooltipAttribute,
+            formatting.names.tooltip,
             tooltipText(model, entry, point.x, rawValue(entry, i), categories, formats, numbers, dates, formatting)
         );
     }
@@ -1002,23 +935,20 @@ function tooltipText(
     const left = formatValue(model.x, formats.x, x, categories, numbers, dates, formatting);
     const right = formatValue(model.y, formats.y, value, categories, numbers, dates, formatting);
 
-    return `${series.series.caption} — ${left}: ${right}`;
+    return formatting.strings.format(ChartWords.point, { series: series.series.caption, x: left, y: right });
 }
 
 /** A chart with no rows keeps its frame and says there is nothing in it. */
 function drawEmpty(canvas: SVGSVGElement, plot: Plot, formatting: ChartFormatting): void {
-    const word = formatting.strings.text(EmptyKey);
+    const word = formatting.strings.text(ChartWords.empty);
 
     if (word.length === 0)
         return;
 
-    text(canvas, "ui-chart__empty", word, plot.left + plot.width / 2, plot.top + plot.height / 2, "middle");
+    text(canvas, ChartClasses.empty, word, plot.left + plot.width / 2, plot.top + plot.height / 2, "middle");
 }
 
-/**
- * Every x the drawn series hold inside the window, with what one shared tooltip says there. The points are bucketed by x in one
- * pass, and a column's words are written the first time the pointer reaches it rather than for every x on every draw.
- */
+/** Every x the drawn series hold inside the window; a column's words are written when the pointer first reaches it, not on every draw. */
 function buildColumns(
     model: ChartModel,
     series: readonly ChartSeriesData[],
@@ -1066,8 +996,12 @@ function buildColumns(
                 for (let index = 0; index < series.length; index++) {
                     const value = values[index];
 
-                    if (value !== null && value !== undefined)
-                        lines.push(`${series[index].series.caption}: ${formatValue(model.y, formats.y, value, categories, numbers, dates, formatting)}`);
+                    if (value === null || value === undefined)
+                        continue;
+
+                    const reading = formatValue(model.y, formats.y, value, categories, numbers, dates, formatting);
+
+                    lines.push(formatting.strings.format(ChartWords.reading, { series: series[index].series.caption, value: reading }));
                 }
 
                 text = lines.join("\n");
@@ -1078,12 +1012,9 @@ function buildColumns(
     });
 }
 
-/**
- * The line a shared tooltip is read against: one x, marked while the pointer names it — down the plot, or across it where the
- * chart lies on its side. The engine is what moves and shows it.
- */
+/** The line a shared tooltip is read against, which the engine moves and shows. */
 function drawRule(canvas: SVGSVGElement, plot: Plot, horizontal: boolean): void {
-    const rule = append(canvas, "rect", RuleClass);
+    const rule = append(canvas, "rect", ClientNames.rule);
 
     rule.setAttribute("x", horizontal ? coord(plot.left) : "0");
     rule.setAttribute("y", horizontal ? "0" : coord(plot.top));
@@ -1101,11 +1032,11 @@ function colorOf(series: ChartSeriesData, colors: number): string {
 
 /** The theme's categorical colour at a place in the run, cycled by the run's length — the same rule `ThemeColorRenderer.SeriesColorCss` writes. */
 function seriesColorVar(index: number, colors: number): string {
-    return `var(--ui-color-series-${(index % colors) + 1})`;
+    return `var(${CoreNames.seriesColorPrefix}${(index % colors) + 1})`;
 }
 
 function readSeriesColorCount(root: Element): number {
-    const value = Number(getComputedStyle(root).getPropertyValue("--ui-color-series-count"));
+    const value = Number(getComputedStyle(root).getPropertyValue(CoreNames.seriesColorCount));
 
     return Number.isFinite(value) && value >= 1 ? Math.floor(value) : DefaultSeriesColors;
 }
@@ -1117,6 +1048,21 @@ function append(parent: Element, tag: string, className: string): SVGElement {
     parent.appendChild(element);
 
     return element;
+}
+
+/** A line as `<line>` pieces under one group, since Chrome antialiases a path as a staircase (`lineSegments`). */
+function segmentGroup(parent: Element, className: string, segments: readonly Segment[]): void {
+    const group = append(parent, "g", className);
+
+    for (const segment of segments) {
+        const element = document.createElementNS(SvgNamespace, "line");
+
+        element.setAttribute("x1", coord(segment.x1));
+        element.setAttribute("y1", coord(segment.y1));
+        element.setAttribute("x2", coord(segment.x2));
+        element.setAttribute("y2", coord(segment.y2));
+        group.appendChild(element);
+    }
 }
 
 function line(parent: Element, className: string, x1: number, y1: number, x2: number, y2: number): void {

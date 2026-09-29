@@ -20,8 +20,7 @@ public static class ChartBars
     private const double MinimumThickness = 1;
 
     /// <summary>
-    /// How many places along the band axis the bars share: one per x the data holds inside the range the axis shows, so a window
-    /// zoomed in widens the bars it keeps.
+    /// How many places the bars share: one per x inside the range shown, so a zoomed window widens the bars it keeps.
     /// </summary>
     public static int Slots(IReadOnlyList<IReadOnlyList<ChartPoint>> series, ChartScale band)
     {
@@ -44,8 +43,7 @@ public static class ChartBars
     }
 
     /// <summary>
-    /// How much of the band axis one x takes, in the units the chart is drawn in; the length is the plot's own across the axis the
-    /// bands run along.
+    /// How much of the plot's <paramref name="length"/> along the band axis one x takes.
     /// </summary>
     public static double Band(double length, int slots)
         => length / Math.Max(1, slots);

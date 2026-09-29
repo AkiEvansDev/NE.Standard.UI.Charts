@@ -14,14 +14,12 @@ public sealed record UIChartSeries
     public string? Caption { get; init; }
 
     /// <summary>
-    /// The row property this series' value is read from. Unset, the series takes the chart's own <c>ValuePath</c>, for rows
-    /// whose <c>SeriesPath</c> names this series.
+    /// The row property this series' value is read from; unset, the chart's own <c>ValuePath</c>.
     /// </summary>
     public string? ValuePath { get; init; }
 
     /// <summary>
-    /// The row property a point is sized by, on a chart that sizes its points — a scatter's bubbles. Unset, every point of the
-    /// series is drawn the same size.
+    /// The row property a point is sized by, on a chart that sizes its points.
     /// </summary>
     public string? SizePath { get; init; }
 

@@ -13,8 +13,7 @@ public static class ChartsWebExtensions
     private const string AssemblyName = "NE.Standard.UI.Web.Charts";
 
     /// <summary>
-    /// Renders the charts: their renderers, the words their chrome writes, and the script and stylesheet the package embeds.
-    /// Calling it twice registers nothing more.
+    /// Registers the charts' renderers, words, script and stylesheet; a second call registers nothing more.
     /// </summary>
     public static IServiceCollection AddCharts(this IServiceCollection services)
     {

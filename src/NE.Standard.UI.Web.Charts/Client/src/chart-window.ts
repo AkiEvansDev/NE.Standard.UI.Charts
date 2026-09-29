@@ -17,10 +17,7 @@ function spanWidth(span: Span): number {
     return span.to - span.from;
 }
 
-/**
- * The window inside what the data reaches: no wider than the whole, no narrower than the smallest share of it, slid back
- * rather than stretched where it hangs off an end.
- */
+/** The window kept inside the data, no narrower than the smallest share of it, slid back rather than stretched. */
 export function clampWindow(span: Span, min: number, max: number): Span {
     if (!Number.isFinite(min) || !Number.isFinite(max) || max <= min)
         return { from: min, to: max };
@@ -63,10 +60,7 @@ export function followWindow(span: Span, min: number, max: number): Span {
     return clampWindow({ from: max - spanWidth(span), to: max }, min, max);
 }
 
-/**
- * What the series reach up and down inside the window, including the point either side so a line entering the view starts at
- * its true value. Every point counts when there is no window.
- */
+/** What the series reach inside the window, with the point either side so a line entering the view starts at its true value. */
 export function windowExtent(series: readonly (readonly ChartPoint[])[], window: Span | null): { min: number; max: number } {
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;

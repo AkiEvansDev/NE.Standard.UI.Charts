@@ -3,8 +3,7 @@ using System;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// How wide a sized point is drawn: scaled by area, not radius, so twice the value reads as twice the ink. The browser's
-/// <c>chart-bubbles.ts</c> holds the same arithmetic.
+/// How wide a sized point is drawn, by area so twice the value reads as twice the ink; <c>chart-bubbles.ts</c> is its twin.
 /// </summary>
 public static class ChartBubbles
 {
@@ -24,8 +23,7 @@ public static class ChartBubbles
     public static double Reach(double radius) => Math.Max(radius, ReachRadius);
 
     /// <summary>
-    /// The radius for a value between <paramref name="min"/> and <paramref name="max"/>; the plain radius when there is no value,
-    /// the middle radius when they are equal.
+    /// The radius for a value between <paramref name="min"/> and <paramref name="max"/>.
     /// </summary>
     public static double Radius(double? size, double min, double max)
     {

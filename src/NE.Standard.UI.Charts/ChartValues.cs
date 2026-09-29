@@ -20,8 +20,7 @@ public static class ChartValues
         => double.IsNaN(value) ? DateTime.UnixEpoch : DateTime.UnixEpoch.AddMilliseconds(Math.Clamp(value, ChartCalendar.MinTime, ChartCalendar.MaxTime));
 
     /// <summary>
-    /// The number the axis reads the value as: a number as itself, a moment in milliseconds on a time axis, a name by its place
-    /// among names seen so far. False when the axis cannot read the value.
+    /// The number the axis reads the value as (a moment in milliseconds, a name by its place); false when it cannot.
     /// </summary>
     public static bool TryToNumber(object? value, UIChartAxisKind kind, IList<string>? categories, out double number)
     {
@@ -67,9 +66,9 @@ public static class ChartValues
                 if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                     return double.IsFinite(number);
 
-                // Only a time axis reads text as a moment: on a value axis a date would turn into a number no one wrote.
-                // Parsed as an offset so the text's zone is dropped, not shifted into the reader's own zone; a text naming none is
-                // read as universal, so the calendar's first and last days parse whatever zone the server sits in.
+                // Only a time axis reads text as a moment: on a value axis a date would be a number no one wrote. Parsed as an
+                // offset so the text's zone is dropped, not shifted into the server's; a text naming none is universal, so the
+                // calendar's first and last days parse in any zone.
                 if (kind == UIChartAxisKind.Time && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset parsed))
                 {
                     number = FromDateTime(parsed.DateTime);

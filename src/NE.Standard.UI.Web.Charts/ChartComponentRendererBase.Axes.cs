@@ -49,8 +49,7 @@ public abstract partial class ChartComponentRendererBase
     }
 
     /// <summary>
-    /// The plot's box in the nominal frame: the widest label's own width on the left, a line of labels under the bottom, and a line
-    /// for each caption there is.
+    /// The plot's box in the nominal frame, inside the room its labels and captions take.
     /// </summary>
     private static ChartPlot ResolvePlot(ChartSpec spec, IReadOnlyList<ChartLabel> leftTicks)
     {
@@ -74,8 +73,7 @@ public abstract partial class ChartComponentRendererBase
         => spec.Horizontal ? spec.YAxis : spec.XAxis;
 
     /// <summary>
-    /// Where a place on the band axis lands: across the plot, or down it when the chart lies on its side. Only bars draw this
-    /// way; a line uses <see cref="ChartPath"/>.
+    /// Where a place on the band axis lands, across the plot or down it when bars lie on their side.
     /// </summary>
     private static double BandCoord(ChartSpec spec, ChartPlot plot, ChartScale band, double value)
         => spec.Horizontal ? plot.Down(band, value) : plot.X(band, value);
@@ -132,7 +130,7 @@ public abstract partial class ChartComponentRendererBase
     {
         _ = svg.Element("g", axes =>
         {
-            _ = axes.Class("ui-chart__axes");
+            _ = axes.Class(AxesClassName);
 
             RenderLine(axes, AxisLineClassName, plot.Left, plot.Bottom, plot.Right, plot.Bottom);
             RenderLine(axes, AxisLineClassName, plot.Left, plot.Top, plot.Left, plot.Bottom);

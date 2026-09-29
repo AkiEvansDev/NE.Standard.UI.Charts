@@ -9,19 +9,20 @@ using NE.Standard.UI.Web.Renderers.Foundation;
 namespace NE.Standard.UI.Web.Charts;
 
 /// <summary>
-/// The gauge: one reading on an arc, the bands outside it, and the reading written in the middle. The arc is pure stylesheet,
-/// moved by the range the root carries with no script; only the reading's words are written by the client.
+/// The gauge: one reading on an arc, its bands, and the reading in words; the arc is pure stylesheet, moved with no script.
 /// </summary>
 public class GaugeComponentRenderer : WebComponentRendererBase
 {
     /// <summary>The operation the package's client writes the reading's words under.</summary>
     public const string ValueOperationKind = "chart-gauge-value";
 
-    /// <summary>On the reading: how it is written.</summary>
+    /// <summary>On the reading's number: how it is written.</summary>
     public const string FormatAttribute = "data-ui-gauge-format";
 
-    /// <summary>On the reading: the unit written after it.</summary>
-    public const string UnitAttribute = "data-ui-gauge-unit";
+    protected const string RootClassName = "ui-gauge";
+    protected const string MinVariable = "--ui-gauge-min";
+    protected const string MaxVariable = "--ui-gauge-max";
+    protected const string ValueVariable = "--ui-gauge-value";
 
     protected const string FrameClassName = "ui-gauge__frame";
     protected const string CanvasClassName = "ui-gauge__canvas";
@@ -33,6 +34,8 @@ public class GaugeComponentRenderer : WebComponentRendererBase
     protected const string StartCapClassName = "ui-gauge__cap ui-gauge__cap--start";
     protected const string EndCapClassName = "ui-gauge__cap ui-gauge__cap--end";
     protected const string ValueClassName = "ui-gauge__value";
+    protected const string NumberClassName = "ui-gauge__number";
+    protected const string UnitClassName = "ui-gauge__unit";
     protected const string CaptionClassName = "ui-gauge__caption";
     protected const string BandColorVariable = "--ui-gauge-band-color";
     protected const string RatioVariable = "--ui-gauge-ratio";
@@ -58,7 +61,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
 
     public override string ComponentTypeKey => GaugeComponent.ComponentTypeKey;
 
-    protected override string ClassName => "ui-gauge";
+    protected override string ClassName => RootClassName;
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -73,15 +76,18 @@ public class GaugeComponentRenderer : WebComponentRendererBase
         var max = ReadRenderValue<double?>(context, GaugeComponent.MaxProperty, null);
         var high = max > low ? max.Value : low + 100;
 
-        // The range on the root, and the reading beside it: the stylesheet works out the reading's share of the arc from the three of them.
-        _ = root.Style("--ui-gauge-min", low.ToString(CultureInfo.InvariantCulture));
-        _ = root.Style("--ui-gauge-max", high.ToString(CultureInfo.InvariantCulture));
+        // The range and the reading, from which the stylesheet works out the reading's share; none reads as the low end.
+        _ = root.Style(MinVariable, low.ToString(CultureInfo.InvariantCulture));
+        _ = root.Style(MaxVariable, high.ToString(CultureInfo.InvariantCulture));
 
         _ = RenderProperty<double?>(context, root, GaugeComponent.ValueProperty, static (target, current) =>
-            target.Style("--ui-gauge-value", (current ?? 0).ToString(CultureInfo.InvariantCulture)),
+        {
+            if (current is double value)
+                _ = target.Style(ValueVariable, value.ToString(CultureInfo.InvariantCulture));
+        },
         [
-            WebDomOperation.Style("--ui-gauge-value"),
-            WebDomOperation.Custom(ValueOperationKind, target: $".{ValueClassName}")
+            WebDomOperation.Style(ValueVariable),
+            WebDomOperation.Custom(ValueOperationKind, target: $".{NumberClassName}")
         ]);
 
         _ = root.Element("div", frame =>
@@ -102,8 +108,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
         => ChartPath.Coord(share * 100) + "%";
 
     /// <summary>
-    /// The arc: the whole three quarters as the ground it is read against, each band's own stretch of it, and the reading's share
-    /// on top. The reading and the caption are words laid over it, so the arc is left unannounced beside them.
+    /// The arc: the track, the bands and the reading's share, unannounced since the words over it say what it shows.
     /// </summary>
     private static void RenderArc(WebRenderContext context, IHtmlElementBuilder frame, IReadOnlyList<UIGaugeBand> bands, double low, double high)
         => ChartSvg.Render(frame, CanvasClassName, Width, Height, null, svg =>
@@ -152,8 +157,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
         });
 
     /// <summary>
-    /// One band: its stretch of the ring outside the arc, in its own colour or the theme's run. An end is round where the band
-    /// stops there, flush where another carries it on.
+    /// One band on the ring outside the arc, its end round where it stops and flush where another carries it on.
     /// </summary>
     private static void RenderBand(WebRenderContext context, IHtmlElementBuilder svg, IReadOnlyList<UIGaugeBand> bands, int index, double low, double high)
     {
@@ -204,39 +208,55 @@ public class GaugeComponentRenderer : WebComponentRendererBase
     private static void RenderWords(WebRenderContext context, IHtmlElementBuilder frame, CultureInfo culture)
     {
         var format = ReadRenderValue<string?>(context, GaugeComponent.FormatProperty, null) ?? DefaultFormat;
-        var unit = ReadRenderValue<string?>(context, GaugeComponent.UnitProperty, null);
-        var caption = ReadRenderValue<string?>(context, GaugeComponent.CaptionProperty, null);
-        var word = string.IsNullOrEmpty(unit) ? null : context.Translate(unit);
+        var value = ReadRenderValue<double?>(context, GaugeComponent.ValueProperty, null);
 
         _ = frame.Element("div", words =>
         {
             _ = words.Class(WordsClassName);
 
+            // The number the client writes, and the unit as a property of its own that follows a language switch or a push; no
+            // reading hides the unit with the number's word.
             _ = words.Element("span", reading =>
             {
                 _ = reading.Class(ValueClassName);
-                _ = reading.Attribute(FormatAttribute, format);
 
-                if (word is not null)
-                    _ = reading.Attribute(UnitAttribute, word);
+                _ = reading.Element("span", number => _ = number
+                    .Class(NumberClassName)
+                    .Attribute(FormatAttribute, format)
+                    .Text(Reading(context, value, format, culture))
+                );
 
-                _ = reading.Text(Reading(context, ReadRenderValue<double?>(context, GaugeComponent.ValueProperty, null), format, word, culture));
+                _ = reading.Element("span", unit =>
+                {
+                    _ = unit.Class(UnitClassName);
+
+                    if (value is null)
+                        _ = unit.Attribute("hidden");
+
+                    _ = RenderProperty<string?>(context, unit, GaugeComponent.UnitProperty, static (target, text) =>
+                    {
+                        if (!string.IsNullOrEmpty(text))
+                            _ = target.Text(text);
+                    }, [WebDomOperation.Text()]);
+                });
             });
 
-            if (string.IsNullOrWhiteSpace(caption))
-                return;
-
+            // Always written, empty or not: a static caption is recorded for a language switch, a bound one follows its pushes.
             _ = words.Element("span", text =>
             {
                 _ = text.Class(CaptionClassName);
-                _ = text.Text(context.Translate(caption));
+                _ = RenderProperty<string?>(context, text, GaugeComponent.CaptionProperty, static (target, value) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(value))
+                        _ = target.Text(value);
+                }, [WebDomOperation.Text()]);
             });
         });
     }
 
-    /// <summary>The reading as the page's culture writes it, with its unit after it; the page's own word for none where there is no reading.</summary>
-    private static string Reading(WebRenderContext context, double? value, string format, string? unit, CultureInfo culture)
+    /// <summary>The reading's number as the page's culture writes it; the page's own word for none where there is no reading.</summary>
+    private static string Reading(WebRenderContext context, double? value, string format, CultureInfo culture)
         => value is double number
-            ? number.ToString(format, culture) + unit
+            ? number.ToString(format, culture)
             : context.Translate(ChartsStrings.NoReading);
 }

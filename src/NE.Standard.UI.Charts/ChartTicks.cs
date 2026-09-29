@@ -5,8 +5,7 @@ using System.Globalization;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// The round marks an axis carries: the step it's marked at, the values on it, and the default format when the author named
-/// none. The browser's <c>chart-ticks.ts</c> holds the same arithmetic.
+/// The round marks an axis carries; <c>chart-ticks.ts</c> is its twin.
 /// </summary>
 public static class ChartTicks
 {
@@ -33,8 +32,8 @@ public static class ChartTicks
     ];
 
     /// <summary>
-    /// The step a range of this kind is marked at, aiming for the given number of marks. A logarithmic range is marked at the powers
-    /// of ten, and answers with the power at its low end — the finest mark a label has to write.
+    /// The step a range is marked at, aiming for <paramref name="count"/> marks; a logarithmic range answers the power at its low end,
+    /// the finest a label writes.
     /// </summary>
     public static double Step(UIChartAxisKind kind, double min, double max, int count)
     {
@@ -113,8 +112,7 @@ public static class ChartTicks
     }
 
     /// <summary>
-    /// The format a tick is written under when the author named none: as many decimals as the step needs, or the part of a clock
-    /// the step moves.
+    /// The format a tick is written under when the author named none.
     /// </summary>
     public static string? DefaultFormat(UIChartAxisKind kind, double step)
     {

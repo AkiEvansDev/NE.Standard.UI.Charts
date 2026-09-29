@@ -6,8 +6,7 @@ using NE.Standard.UI.Shell.Localization;
 namespace NE.Standard.UI.Web.Charts;
 
 /// <summary>
-/// The words a chart's own chrome writes, translated through the application's localization source like the framework's own
-/// strings. The client writes the same words by the same keys.
+/// The words a chart's chrome writes, translated as the framework's own strings are; the client writes them by the same keys.
 /// </summary>
 public sealed class ChartsStrings : IUIStringsSource
 {
@@ -20,11 +19,27 @@ public sealed class ChartsStrings : IUIStringsSource
     /// <summary>What a gauge says where it has no reading at all.</summary>
     public const string NoReading = "ui.chart.no-reading";
 
+    /// <summary>A point's tooltip: <c>{series}</c>, <c>{x}</c> and <c>{y}</c>, each already written.</summary>
+    public const string Point = "ui.chart.point";
+
+    /// <summary>A sector's tooltip: its <c>{label}</c> and its <c>{value}</c>.</summary>
+    public const string Sector = "ui.chart.sector";
+
+    /// <summary>One series' line in a shared tooltip: <c>{series}</c> and its <c>{value}</c> at the x under the pointer.</summary>
+    public const string Reading = "ui.chart.reading";
+
+    /// <summary>A list of names, one joined on at a time: the <c>{list}</c> so far and the <c>{next}</c> name.</summary>
+    public const string List = "ui.chart.list";
+
     /// <inheritdoc/>
     public IReadOnlyDictionary<string, string> English { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         [Empty] = "Nothing to draw",
         [Chart] = "Chart",
-        [NoReading] = "—"
+        [NoReading] = "—",
+        [Point] = "{series} — {x}: {y}",
+        [Sector] = "{label} — {value}",
+        [Reading] = "{series}: {value}",
+        [List] = "{list}, {next}"
     }.ToFrozenDictionary(StringComparer.Ordinal);
 }

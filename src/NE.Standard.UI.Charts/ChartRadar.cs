@@ -5,8 +5,7 @@ using System.Text;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// A radar: a spoke per x the series hold, the turn shared evenly between them clockwise from twelve o'clock, and a value's
-/// reach along its spoke. The browser's <c>chart-radar.ts</c> is the same arithmetic.
+/// A radar's spokes and reaches; <c>chart-radar.ts</c> is its twin.
 /// </summary>
 public static class ChartRadar
 {
@@ -17,8 +16,7 @@ public static class ChartRadar
     private const double Top = -Math.PI / 2;
 
     /// <summary>
-    /// The x every spoke stands for: each one any series holds, once, low to high — which for names is the order they were met in.
-    /// A row with no value still names its spoke.
+    /// The x every spoke stands for, once each, low to high; a row with no value still names its spoke.
     /// </summary>
     public static double[] Spokes(IReadOnlyList<IReadOnlyList<ChartPoint>> series)
     {
@@ -44,8 +42,8 @@ public static class ChartRadar
         => count <= 0 ? Top : Top + (index * Turn / count);
 
     /// <summary>
-    /// How far along its spoke a value reaches: the centre is the low end of the range and the rim the high end; a value outside
-    /// the range stops at its end, and no value stays at the centre.
+    /// How far along its spoke a value reaches, from the range's low end at the centre; clamped to the range, and a missing value
+    /// stays at the centre.
     /// </summary>
     public static double Reach(ChartScale scale, double? value, double radius)
         => value is double reading ? radius * Math.Clamp(scale.Fraction(scale.Within(reading)), 0, 1) : 0;
@@ -73,8 +71,27 @@ public static class ChartRadar
     }
 
     /// <summary>
-    /// How a spoke's name is anchored beside its tip: after it on the right of the turn, before it on the left, and centred at
-    /// twelve and six o'clock.
+    /// <see cref="Outline"/> as straight pieces, for the reason <see cref="ChartPath.Segments"/> gives.
+    /// </summary>
+    public static IReadOnlyList<ChartSegment> Edges(IReadOnlyList<ChartSpot> spots)
+    {
+        ArgumentNullException.ThrowIfNull(spots);
+
+        List<ChartSegment> edges = new(spots.Count);
+
+        for (var i = 0; i < spots.Count && spots.Count > 1; i++)
+        {
+            ChartSpot from = spots[i];
+            ChartSpot to = spots[(i + 1) % spots.Count];
+
+            ChartPath.AddSegment(edges, from.X, from.Y, to.X, to.Y);
+        }
+
+        return edges;
+    }
+
+    /// <summary>
+    /// How a spoke's name is anchored beside its tip.
     /// </summary>
     public static string Anchor(double angle)
     {

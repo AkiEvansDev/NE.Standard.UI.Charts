@@ -8,8 +8,7 @@ using NE.Standard.UI.Primitives.Annotations;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// One value on an arc: the reading, the range it is read in, and the bands that say what it means. Binds a single value,
-/// not a collection.
+/// One value on an arc, read in a range with bands that say what it means.
 /// </summary>
 public abstract partial class GaugeComponent<T>(string? id = null) : VisualComponentBase<T>(id)
     where T : GaugeComponent<T>, IUIComponentDefinition
@@ -94,8 +93,6 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
 /// </summary>
 public sealed class GaugeComponent(string? id = null) : GaugeComponent<GaugeComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "charts.gauge";
 }

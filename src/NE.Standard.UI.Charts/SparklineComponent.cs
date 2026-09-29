@@ -4,8 +4,7 @@ using NE.Standard.UI.Primitives.Annotations;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// One series with nothing around it: no axes, no grid, no legend, a line or bars the height of a line of text, for a table
-/// cell or a tile's corner. A point still says what it is on hover.
+/// One series with no axes, grid or legend, the height of a line of text, for a table cell or a tile's corner.
 /// </summary>
 public abstract partial class SparklineComponent<T> : LineChartComponent<T>
     where T : SparklineComponent<T>, IUIComponentDefinition
@@ -29,8 +28,6 @@ public abstract partial class SparklineComponent<T> : LineChartComponent<T>
 /// </summary>
 public sealed class SparklineComponent(string? id = null) : SparklineComponent<SparklineComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "charts.spark";
 }

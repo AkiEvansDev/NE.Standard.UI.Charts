@@ -43,7 +43,6 @@ function model(values: Partial<ChartModel>): ChartModel {
         horizontal: false,
         bare: false,
         donut: 0,
-        centreCaption: null,
         ...values
     };
 }

@@ -11,8 +11,7 @@ namespace NE.Standard.UI.Charts;
 public static class ChartComponentExtensions
 {
     /// <summary>
-    /// Runs <paramref name="command"/> when a point is clicked, passing the point's key as <c>point</c> and its series' key as
-    /// <c>series</c>. Use the other overload for the row itself or other argument names.
+    /// Runs <paramref name="command"/> when a point is clicked, with its key as <c>point</c> and its series' as <c>series</c>.
     /// </summary>
     public static T OnPointClick<T>(this T chart, string command)
         where T : ChartComponentBase<T>, IUIComponentDefinition
@@ -32,8 +31,7 @@ public static class ChartComponentExtensions
     }
 
     /// <summary>
-    /// Runs <paramref name="command"/> when the viewer moves the window along the x axis. The bound <c>VisibleRange</c> reaches
-    /// the server first, so the command reads the window already settled.
+    /// Runs <paramref name="command"/> when the viewer moves the window, after the bound <c>VisibleRange</c> reached the server.
     /// </summary>
     public static T OnWindowChange<T>(this T chart, string command)
         where T : ChartComponentBase<T>, IUIComponentDefinition

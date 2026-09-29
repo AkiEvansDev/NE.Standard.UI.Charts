@@ -17,7 +17,7 @@ internal sealed partial class ChartsController : UIControllerBase
 
     public ChartsController()
     {
-        Load = Samples[^1].Cpu;
+        ShowLoad();
     }
 
     /// <summary>A reading a minute, which the buttons add to and change.</summary>
@@ -32,12 +32,13 @@ internal sealed partial class ChartsController : UIControllerBase
     [RecursiveMember(false)]
     public RecursiveCollection<Sample> Nothing { get; } = [];
 
+    /// <summary>What the live chart's page notes under it: a word with the reading's numbers, so it switches with the page.</summary>
     [RecursiveMember]
-    public partial string Status { get; set; } = "The live chart holds forty readings. Take one and the line follows it.";
+    public partial UIPhrase? Status { get; set; } = new("charts.status.live");
 
     /// <summary>What the bars page notes under its chart of servers.</summary>
     [RecursiveMember]
-    public partial string BarStatus { get; set; } = "Press a bar for its value.";
+    public partial UIPhrase? BarStatus { get; set; } = new("charts.status.bar-hint");
 
     /// <summary>
     /// The stretch of the clock the live chart shows. Bound both ways: the viewer's wheel and drag write it, and the button below
@@ -50,6 +51,14 @@ internal sealed partial class ChartsController : UIControllerBase
     [RecursiveMember]
     public partial double Load { get; set; }
 
+    /// <summary>The gauge's caption, which names the reading's minute: a bound caption the server pushes with every reading.</summary>
+    [RecursiveMember]
+    public partial UIPhrase? LoadCaption { get; set; }
+
+    /// <summary>The gauge's unit, which says whether the load rose or fell since the reading before: a bound unit, pushed as the caption is.</summary>
+    [RecursiveMember]
+    public partial UIPhrase? LoadUnit { get; set; }
+
     /// <summary>A reading arrives: the chart draws the new point, and the oldest falls off the far end.</summary>
     [UICommand]
     public void TakeReading()
@@ -61,10 +70,28 @@ internal sealed partial class ChartsController : UIControllerBase
         if (Samples.Count > Window)
             Samples.RemoveAt(0);
 
-        Load = Samples[^1].Cpu;
+        ShowLoad();
 
-        Status = string.Create(CultureInfo.InvariantCulture, $"Reading at {Samples[^1].Time:HH:mm}: CPU {Samples[^1].Cpu:N1}%, memory {Samples[^1].Memory:N1}%.");
+        Status = UIPhrase.Of("charts.status.reading", ("time", Clock(Samples[^1].Time)), ("cpu", Percent(Samples[^1].Cpu)), ("memory", Percent(Samples[^1].Memory)));
     }
+
+    /// <summary>The gauge follows the last reading: its arc, the minute its caption names, and the way its unit says it went.</summary>
+    private void ShowLoad()
+    {
+        Sample last = Samples[^1];
+
+        Load = last.Cpu;
+        LoadCaption = UIPhrase.Of("charts.processor-at", ("time", Clock(last.Time)));
+        LoadUnit = new UIPhrase(Samples.Count > 1 && last.Cpu < Samples[^2].Cpu ? "charts.unit.falling" : "charts.unit.rising");
+    }
+
+    /// <summary>A minute as the status lines write it.</summary>
+    private static string Clock(DateTime time)
+        => time.ToString("HH:mm", CultureInfo.InvariantCulture);
+
+    /// <summary>A load as the status lines write it, one decimal.</summary>
+    private static string Percent(double value)
+        => value.ToString("N1", CultureInfo.InvariantCulture);
 
     /// <summary>
     /// The viewer moved the window along the clock. The range has reached the controller before this runs, so the line only reads
@@ -75,13 +102,13 @@ internal sealed partial class ChartsController : UIControllerBase
     {
         if (VisibleRange is not UIChartWindow view)
         {
-            Status = string.Create(CultureInfo.InvariantCulture, $"Showing all {Samples.Count} readings.");
+            Status = UIPhrase.Of("charts.status.showing-all", ("total", Samples.Count));
             return;
         }
 
         var inside = Samples.Count(sample => sample.Time >= view.FromTime && sample.Time <= view.ToTime);
 
-        Status = string.Create(CultureInfo.InvariantCulture, $"Showing {view.FromTime:HH:mm} to {view.ToTime:HH:mm}: {inside} of {Samples.Count} readings.");
+        Status = UIPhrase.Of("charts.status.showing", ("from", Clock(view.FromTime)), ("to", Clock(view.ToTime)), ("inside", inside), ("total", Samples.Count));
     }
 
     /// <summary>The other direction: the controller sets the window and the chart moves to it.</summary>
@@ -91,7 +118,7 @@ internal sealed partial class ChartsController : UIControllerBase
         DateTime last = Samples[^1].Time;
 
         VisibleRange = UIChartWindow.Between(last.AddMinutes(-10), last);
-        Status = "The last ten minutes, set by the controller rather than by the wheel.";
+        Status = new UIPhrase("charts.status.last-ten-minutes");
     }
 
     /// <summary>
@@ -104,14 +131,18 @@ internal sealed partial class ChartsController : UIControllerBase
         Sample? sample = Samples.FirstOrDefault(current => string.Equals(current.Id, point, StringComparison.Ordinal));
 
         Status = sample is null
-            ? $"A point of {series} was clicked: {point}."
-            : string.Create(CultureInfo.InvariantCulture, $"{series} at {sample.Time:HH:mm}: CPU {sample.Cpu:N1}%, memory {sample.Memory:N1}%.");
+            ? UIPhrase.Of("charts.status.point-unknown", ("series", SeriesName(series)), ("point", point))
+            : UIPhrase.Of("charts.status.point", ("series", SeriesName(series)), ("time", Clock(sample.Time)), ("cpu", Percent(sample.Cpu)), ("memory", Percent(sample.Memory)));
     }
+
+    /// <summary>A series by the demo's word for it; one the demo has no word for is named by the key the chart sent.</summary>
+    private static object SeriesName(string series)
+        => series is "cpu" or "memory" or "requests" ? new UIPhrase(ChartsDemoWords.KeyPrefix + series) : series;
 
     /// <summary>The same event from a chart of bars, where a press lands on the bar rather than on a mark.</summary>
     [UICommand]
     public void BarClicked(string point, string series)
-        => BarStatus = $"The {series} bar of {point} was pressed.";
+        => BarStatus = UIPhrase.Of("charts.status.bar", ("series", SeriesName(series)), ("point", point));
 
     /// <summary>The last reading changes: one point moves, and nothing else is redrawn.</summary>
     [UICommand]
@@ -120,8 +151,8 @@ internal sealed partial class ChartsController : UIControllerBase
         Sample last = Samples[^1];
 
         last.Cpu = last.Cpu > 50 ? 12 : 94;
-        Load = last.Cpu;
+        ShowLoad();
 
-        Status = string.Create(CultureInfo.InvariantCulture, $"The reading at {last.Time:HH:mm} now says CPU {last.Cpu:N1}%.");
+        Status = UIPhrase.Of("charts.status.changed", ("time", Clock(last.Time)), ("cpu", Percent(last.Cpu)));
     }
 }

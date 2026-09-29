@@ -4,6 +4,103 @@ One section per release of this slice, headed `## X.Y.Z` and named by the tag �
 workflow cuts the matching section out to become the body of the GitHub release, and a tag with no section
 fails the release before anything is published.
 
+## 1.3.0
+
+- **Needs the framework's plugin contract 2**, which this version is built against: the wheel's reading, the delayed
+  tooltip, the disabled predicate, the framework's attribute names and the focus return a gone legend hands the chart
+  (`popups.focusReturn`) now come from the framework rather than from copies.
+- **A chart's words switch in place with the page.** The model carries the author's captions by their keys — an axis's and a
+  series' (none where the series has none, the client naming it by its key) — and the client translates them at every draw,
+  and draws every chart and gauge again when the page's words change. A gauge's unit and its caption, and a donut's centre
+  caption, are drawn through the properties' own render, each on an element of its own — the unit in a span after the
+  reading's number, the centre in a span over the hole — so a static one is written again at a switch and a bound one follows
+  its pushes (a bound unit was read once at render). `CentreCaption` is bindable (`BindCentreCaption`), for a live total in the
+  hole. This holds for a page rendered in any language and under `KeyPrefixes`. **Breaking**:
+  `GaugeComponentRenderer.UnitAttribute` (`data-ui-gauge-unit`) is gone, and the reading's number is `.ui-gauge__number`
+  inside `.ui-gauge__value`, the unit `.ui-gauge__unit` beside it. **Breaking**: `.ui-chart__centre` is an HTML span in
+  `.ui-chart__area` laid over the hole in the page's own type, wrapped inside the square the hole holds, not an SVG `text` in
+  the canvas (a stylesheet that set its `fill` sets `color`), and the model carries no `centreCaption`;
+  `ChartComponentRendererBase.ReadCentre` and `ChartCentre` are gone — a renderer with a hole overrides `ReadDonut` and
+  `RenderCentre`. **Breaking** for a script reading `data-ui-chart`: its captions are no longer the words shown.
+- **A tooltip's and the canvas name's separators are words.** `ui.chart.point` (`{series} — {x}: {y}`), `ui.chart.sector`
+  (`{label} — {value}`), `ui.chart.reading` (`{series}: {value}`, a shared tooltip's line) and `ui.chart.list`
+  (`{list}, {next}`, the canvas's name) join the parts on both sides, so a language punctuates its own.
+- **A wheel with nothing to change is the page's.** Over a zoomable chart already showing the whole, a wheel turned to widen
+  it — or a swipe mostly sideways — no longer takes the page's scroll, redraws nothing and sends no window change; the new
+  window is worked out before the event is taken. A notch is read through the framework's wheel (`context.wheel.pixels`);
+  a page still counts 800 pixels here.
+- **A double press on a zoomable chart is the zoom's gesture only.** It resets the window and runs no point command: on a
+  zoomable chart a press on a point answers once no second press followed it (300 ms); on one that is not zoomable it
+  answers at once.
+- **A press that stays within the drag's slack is a press.** The window no longer moves by the few pixels a press wobbled,
+  unsent, before the point's command ran.
+- **Every band lies under every series' line and marks.** An area's bands and a radar's shapes are drawn in one layer,
+  `g.ui-chart__bands`, under the series; a later series' band no longer takes an earlier one's points from the pointer. A
+  band still answers the hover, the engine matching it to its series by key. **Breaking** for a stylesheet that reached a
+  band as `.ui-chart__series > .ui-chart__fill`: it is `.ui-chart__bands > .ui-chart__fill`, carrying
+  `data-ui-chart-series` and the series' colour itself.
+- **The legend's hover keeps its word.** Hovering an entry whose series is put aside dims nothing, and the series being read
+  through the legend, a band or a bar stays forward through a redraw.
+- **A sector's tooltip stands by the sector**, at the middle of its own arc, rather than above the whole ring. **Breaking**
+  for anything that read a sector's words: they are `data-ui-chart-tooltip`, shown by the engine, not `data-ui-tooltip`.
+- **The shared tooltip waits as a hover does**, so a pointer only crossing the plot shows none, and it answers the plot
+  alone, not the axes' labels around it — as the wheel, the drag and the double press now do. Its line no longer takes the
+  pointer from the points it stands over, which made a point blink as the pointer crossed its x.
+- **A press gives under it.** A pressable point's mark sinks back, and a bar or a sector thins, on the hover's own
+  transitions. On a zoomable chart the point keeps that look from the release until its command runs or a second press calls
+  it off (`ui-chart__point--pending`, the engine's mark, painted as under the pointer), so the double press's wait reads as
+  taken rather than ending with the press.
+- **A chart that turns disabled or loading lets go.** A press still waiting for a second answers nothing and its point
+  drops the pressed look at once, a drag in hand stops moving the window, and a window still settling is not sent.
+- **The legend is in step before the canvas is measured**, so a legend that changes width — a language switch, a series
+  arriving — no longer paints one frame of the old drawing stretched into the new box.
+- **The legend keeps the keyboard.** The legend is kept in step by key: an entry that stays keeps its button, written again
+  in place — a language switch, a colour, another entry arriving or going — so a press, a hover or the keyboard on it
+  survives the redraw. A keyboard on an entry whose series or sector went moves to the entry now in its place, and to the
+  chart itself where the whole legend went, rather than falling to the page's body.
+- **The pointer says what a press does.** `ui-chart--pressable` (a wired `OnPointClick`) gives a point, a bar and a sector
+  the hand; `ui-chart--zoomable` gives the plot a grip — grabbing during a drag, over bars too — with no text selection and
+  the browser's own pan left to the other axis (`ui-chart--horizontal` for bars on their side).
+- **A press stays the chart's.** The legend, and a canvas that takes presses of its own, are event boundaries, so a
+  clickable component around the chart no longer runs its command too; a canvas that takes none lets the press through.
+- **A gauge with no reading draws no arc**, and one at its low end draws nothing either — the progress ring's rule. It said
+  *no reading* over an arc drawn at zero, half full on a range around it.
+- **Forced colours.** A series' colour is data: the series, their bands, the legend's key and a gauge's bands keep their
+  own ink; the frame, its words and the rule take the system's text colour.
+- The bare mark's outline and the legend mark's colour ease in with the rest instead of snapping.
+- The legend's button classes are the framework's (`WebClassNames`; the client's base one `names.buttonClass`), a tooltip's
+  attribute the framework's own name, and the engine refuses a disabled or loading chart through the framework's one
+  predicate. Every name the client spells is in one module, `chart-names.ts`, held to the renderers' constants and
+  `ChartsStrings` by a test, and every name the renderers write is a constant (`GaugeComponentRenderer.MinVariable`/
+  `MaxVariable`, `ChartComponentRendererBase.LegendClassPrefix`). A gauge's reading of none draws nothing through the core's
+  `.ui-arc-share()`.
+- **The demo speaks Chinese whole.** Everything in it that is not data is a `charts.*` word — its page names and
+  descriptions, the source button's *Code* and *Copy*, the sample buttons, the sparks' captions and the status lines, which
+  carry their readings as arguments — and its zh-Hans table carries every framework, code field and chart word it registers,
+  so the missing-word report in Development names only a real gap (`DemoWordsCoverageTests`). A section's title and note stay
+  the author's prose, as the framework demo's samples do.
+- **The demo shows what is bound.** The donut's centre caption is bound and changed by two buttons (a month's revenue, a
+  year's); the processor gauge's caption names the reading's minute and its unit whether the load rose or fell, both bound
+  and pushed with each reading; the dozen servers' bars on their side zoom, so a bar's pending look can be seen.
+- **The demo's rows wrap.** The sparks, the gauges and the live line's three buttons stand in rows that wrap, so a phone or a
+  tablet shows every gauge and button under one another rather than cutting the second and third off at the page's edge.
+
+- **A line is drawn smooth at 100% scale.** Chrome's GPU rasteriser antialiases an SVG path at four samples a pixel, so a
+  series' slope read as a staircase; a series' line, and a radar's outline, rim and rings, are now straight `<line>` pieces
+  under one group, which it antialiases smoothly. A curve is cut into pieces about four pixels long. The arithmetic is
+  `ChartPath.Segments` / `ChartRadar.Edges` and `lineSegments` / `radarEdges`, held to the shared corpus. A band's fill and a
+  line's pointer reach stay paths. **Breaking** for a stylesheet that styled `path.ui-chart__line`: `.ui-chart__line` is now a
+  `<g>` of `<line>`s, and its ends are square.
+- **A chart and a gauge read in the ink of the ground they stand on.** In a component given a theme `Background` — a filled card —
+  the axes, grid, tooltip rule, labels, captions, a switched-off legend key, a donut's centre and a gauge's reading, track and
+  caption take that colour's on-colour, their muted words the framework's muted share of it, where they kept the page's ink and
+  read dark on a dark fill. On the page's own ground nothing changes. The legend's entries, the framework's ghost buttons, take
+  the on-colour with the framework (2.5:1 on a Primary card before).
+- **A hollow marker and a sector's edge are cut out of the ground the chart stands on.** They painted the page's surface
+  colour, so in a filled card every marker wore a surface-coloured ring and a pie's sectors were parted by surface-coloured
+  lines; they now paint the framework's ground (`@ui-ground`, the `--ui-ground` a `Background` or a surface of its own writes).
+  Beside a framework that writes no ground they fall back to the surface, as before.
+
 ## 1.2.0
 
 - **`RadarChartComponent`, a new kind.** A row's x names a spoke, and each series' values along the spokes close into a

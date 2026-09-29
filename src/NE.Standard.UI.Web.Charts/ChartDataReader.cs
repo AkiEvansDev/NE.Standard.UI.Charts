@@ -8,8 +8,7 @@ using NE.Standard.UI.Compiled.Resolution;
 namespace NE.Standard.UI.Web.Charts;
 
 /// <summary>
-/// The rows as points: every row read once for its x and its values, series met by name as a long-form row arrives. The
-/// browser's <c>chart-rows.ts</c> reads rows the same way, letting a patch move one point.
+/// The rows as points, read once each; <c>chart-rows.ts</c> is its twin, letting a patch move one point.
 /// </summary>
 internal static class ChartDataReader
 {
@@ -38,8 +37,8 @@ internal static class ChartDataReader
         var raw = spec.XPath is null ? index : ReadPath(item, spec.XPath);
         var text = ChartValues.ToText(raw);
 
-        // A row whose x cannot be read is no point at all, rather than a point at zero. It is read off the text the browser is
-        // told, not the value, so the point a first frame places is the one every redraw places.
+        // A row whose x cannot be read is no point, not one at zero. Read off the text the browser is told, so every redraw
+        // places it where the first frame did.
         if (raw is null || !ChartValues.TryToNumber(text, spec.XAxis.Kind, data.Categories, out var x))
             return;
 

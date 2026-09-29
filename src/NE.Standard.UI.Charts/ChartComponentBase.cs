@@ -10,8 +10,7 @@ using NE.Standard.UI.Primitives.Binding;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// The base every chart shares: the row collection, the x axis property, the series drawn over it, the two axes and the legend.
-/// A chart hosts no item template.
+/// The base every chart shares: rows, x, series, axes and legend; a chart hosts no item template.
 /// </summary>
 public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsComponentBase<T, IBindableItem>(id), IChartComponent, IItemValuesComponent
     where T : ChartComponentBase<T>, IUIComponentDefinition
@@ -30,8 +29,7 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     public string? XPath { get; private set; }
 
     /// <summary>
-    /// Gets the row property naming which series a row belongs to, set by <see cref="SetSeriesPath"/>; unset, a row carries a value
-    /// per series instead, each series naming its own property.
+    /// Gets the row property naming a row's series, set by <see cref="SetSeriesPath"/>; unset, a row carries a value per series.
     /// </summary>
     [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
     public string? SeriesPath { get; private set; }
@@ -67,14 +65,13 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     public bool ShowTooltip { get; set; } = true;
 
     /// <summary>
-    /// Gets or sets whether one tooltip names every series at the x under the pointer, instead of one per point.
+    /// Gets or sets whether one tooltip names every series at the x under the pointer, instead of one per point (not on a radar).
     /// </summary>
     [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = false)]
     public bool SharedTooltip { get; set; }
 
     /// <summary>
-    /// Gets or sets whether the viewer may zoom and pan the x axis with wheel, drag and double press. Off by default; a pie or a
-    /// bare chart never zooms whatever this says.
+    /// Gets or sets whether the viewer may zoom and pan the x axis; a pie, a radar or a bare chart never zooms.
     /// </summary>
     [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = false)]
     public bool Zoomable { get; set; }
@@ -86,8 +83,7 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     public bool FollowLatest { get; set; }
 
     /// <summary>
-    /// Gets or sets the visible stretch of the x axis; unset, the whole of the data. Bound both ways: the viewer's drag and
-    /// wheel write it, and setting it moves the chart.
+    /// Gets or sets the visible stretch of the x axis, bound both ways; unset, the whole of the data (not on a radar).
     /// </summary>
     [UIComponentProperty(
         Contract = typeof(IChartComponent),
@@ -113,8 +109,7 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     }
 
     /// <summary>
-    /// Reads which series a row belongs to from this row property. Without it, a row carries a value per series, each series
-    /// naming its own property.
+    /// Reads which series a row belongs to from this row property; without it, a row carries a value per series.
     /// </summary>
     public T SetSeriesPath(string propertyPath)
     {
@@ -136,8 +131,7 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     }
 
     /// <summary>
-    /// Adds a series reading its value from <paramref name="valuePath"/> when given, else the chart's own <c>ValuePath</c> for
-    /// rows keyed by <c>SeriesPath</c>. A sized chart reads size from <paramref name="sizePath"/>.
+    /// Adds a series reading <paramref name="valuePath"/>, else the chart's own <c>ValuePath</c> for rows keyed by <c>SeriesPath</c>.
     /// </summary>
     public T AddSeries(string key, string? caption = null, string? valuePath = null, string? sizePath = null, UIThemeColor? color = null)
         => AddSeries(new UIChartSeries { Key = key, Caption = caption, ValuePath = valuePath, SizePath = sizePath, Color = color });

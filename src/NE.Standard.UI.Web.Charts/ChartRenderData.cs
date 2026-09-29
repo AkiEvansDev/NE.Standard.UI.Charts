@@ -17,8 +17,7 @@ internal sealed class ChartRenderSeries(UIChartSeries series, int index)
     public List<ChartPoint> Points { get; } = [];
 
     /// <summary>
-    /// The points as they are drawn: the series' own, or the stack's running totals. The tooltip keeps reading
-    /// <see cref="Points"/>, so a stacked bar still says what its own series holds.
+    /// The points as drawn, the series' own or the stack's totals; the tooltip reads <see cref="Points"/>.
     /// </summary>
     public IReadOnlyList<ChartPoint> Drawn { get; set; } = [];
 }

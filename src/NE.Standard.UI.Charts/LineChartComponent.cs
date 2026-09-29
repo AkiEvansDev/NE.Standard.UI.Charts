@@ -10,8 +10,7 @@ public abstract partial class LineChartComponent<T>(string? id = null) : ChartCo
     where T : LineChartComponent<T>, IUIComponentDefinition
 {
     /// <summary>
-    /// Gets or sets whether the lines step between points instead of sloping, as a setting or a stock reading does. A series may
-    /// override it.
+    /// Gets or sets whether the lines step between points instead of sloping; a series may override it.
     /// </summary>
     [UIComponentProperty(IsBindable = false, DefaultValue = false)]
     public bool Stepped { get; set; }
@@ -34,8 +33,6 @@ public abstract partial class LineChartComponent<T>(string? id = null) : ChartCo
 /// </summary>
 public sealed class LineChartComponent(string? id = null) : LineChartComponent<LineChartComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "charts.line";
 }

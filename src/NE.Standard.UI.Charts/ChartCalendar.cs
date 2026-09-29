@@ -3,9 +3,8 @@ using System;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// The calendar a time axis is marked by once its step is a month or more: the first of a month, a quarter or a year rather than
-/// a fixed count of days from the epoch, which drifts off the month. Pure arithmetic on the proleptic Gregorian calendar, so no
-/// year is out of its reach. The browser's <c>chart-calendar.ts</c> holds the same arithmetic.
+/// A time axis's marks at a step of a month or more, on the first of a month rather than a count of days, which drifts off it;
+/// <c>chart-calendar.ts</c> is its twin.
 /// </summary>
 internal static class ChartCalendar
 {

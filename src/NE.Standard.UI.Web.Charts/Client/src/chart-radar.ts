@@ -1,8 +1,7 @@
-// A radar: a spoke per x the series hold, the turn shared evenly between them clockwise from twelve o'clock, and a value's reach
-// along its spoke. The port of `ChartRadar` in NE.Standard.UI.Charts.
+// A radar's spokes and reaches; the port of `ChartRadar`.
 
-import { coord } from "./chart-path.ts";
-import type { ChartPoint } from "./chart-path.ts";
+import { addSegment, coord } from "./chart-path.ts";
+import type { ChartPoint, Segment } from "./chart-path.ts";
 import type { Spot } from "./chart-pie.ts";
 import { fraction, within } from "./chart-ticks.ts";
 import type { Scale } from "./chart-ticks.ts";
@@ -13,10 +12,7 @@ const Turn = Math.PI * 2;
 /** Twelve o'clock, where the first spoke stands. */
 const Top = -Math.PI / 2;
 
-/**
- * The x every spoke stands for: each one any series holds, once, low to high — which for names is the order they were met in. A
- * row with no value still names its spoke.
- */
+/** The x every spoke stands for, once each, low to high; a row with no value still names its spoke. */
 export function radarSpokes(series: readonly (readonly ChartPoint[])[]): number[] {
     const places = new Set<number>();
 
@@ -34,8 +30,8 @@ export function spokeAngle(index: number, count: number): number {
 }
 
 /**
- * How far along its spoke a value reaches: the centre is the low end of the range and the rim the high end; a value outside the
- * range stops at its end, and no value stays at the centre.
+ * How far along its spoke a value reaches, from the range's low end at the centre; clamped to the range, and a missing value
+ * stays at the centre.
  */
 export function radarReach(scale: Scale, value: number | null, radius: number): number {
     return value === null ? 0 : radius * Math.min(Math.max(fraction(scale, within(scale, value)), 0), 1);
@@ -57,6 +53,20 @@ export function radarOutline(spots: readonly Spot[]): string {
         parts.push(`L${coord(spots[i].x)} ${coord(spots[i].y)}`);
 
     return `${parts.join(" ")} Z`;
+}
+
+/** `radarOutline` as straight pieces, for the reason `lineSegments` gives. */
+export function radarEdges(spots: readonly Spot[]): Segment[] {
+    const edges: Segment[] = [];
+
+    for (let i = 0; i < spots.length && spots.length > 1; i++) {
+        const from = spots[i];
+        const to = spots[(i + 1) % spots.length];
+
+        addSegment(edges, from.x, from.y, to.x, to.y);
+    }
+
+    return edges;
 }
 
 /**

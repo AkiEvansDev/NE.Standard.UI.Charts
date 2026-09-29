@@ -1,5 +1,4 @@
-// How wide a point is drawn: scaled by area, not radius, so twice the value reads as twice the ink. The port of `ChartBubbles`
-// in NE.Standard.UI.Charts.
+// How wide a point is drawn, by area so twice the value reads as twice the ink; the port of `ChartBubbles`.
 
 /** The radius a point with no third value takes. */
 export const PlainRadius = 4;

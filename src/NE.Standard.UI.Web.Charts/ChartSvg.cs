@@ -5,8 +5,8 @@ using NE.Standard.UI.Web.Abstractions.Html;
 namespace NE.Standard.UI.Web.Charts;
 
 /// <summary>
-/// The one canvas every drawing of the package opens: a picture the browser re-lays out at its real size, taking no focus. A
-/// canvas with a label is announced as a picture by it; one without is the drawing beside words that already say what it shows.
+/// The canvas every drawing of the package opens, re-laid out at its real size; unlabelled, it is the drawing beside words
+/// that already say what it shows.
 /// </summary>
 internal static class ChartSvg
 {

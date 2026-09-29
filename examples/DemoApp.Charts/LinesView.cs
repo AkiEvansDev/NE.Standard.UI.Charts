@@ -9,10 +9,10 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
 
     protected override string Route => LinesRoute;
 
-    public override string Title => "Lines";
+    public override string Title => "charts.page.lines";
 
     protected override string Description
-        => "SVG the server writes and the browser keeps: a point is an item of a keyed collection, so a reading that arrives moves one point.";
+        => "charts.page.lines.description";
 
     protected override IVisualComponent[] CreateSections()
         =>
@@ -22,11 +22,11 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
                 new LineChartComponent("revenue")
                     .SetItems(Catalogue.Quarters())
                     .SetX(nameof(Quarter.Name))
-                    .SetXAxis(UIChartAxis.Category("Quarter"))
-                    .SetYAxis(UIChartAxis.Linear("Revenue, €k", format: "N0"))
-                    .AddSeries("eu-west", "Europe West", nameof(Quarter.EuropeWest))
-                    .AddSeries("eu-central", "Europe Central", nameof(Quarter.EuropeCentral))
-                    .AddSeries("us-east", "US East", nameof(Quarter.UsEast))
+                    .SetXAxis(UIChartAxis.Category("charts.quarter"))
+                    .SetYAxis(UIChartAxis.Linear("charts.revenue", format: "N0"))
+                    .AddSeries("eu-west", "charts.eu-west", nameof(Quarter.EuropeWest))
+                    .AddSeries("eu-central", "charts.eu-central", nameof(Quarter.EuropeCentral))
+                    .AddSeries("us-east", "charts.us-east", nameof(Quarter.UsEast))
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
             Example("Forty readings, and the ones that arrive",
@@ -37,26 +37,27 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
                     .AddChild(new StackPanelComponent()
                         .SetOrientation(UIOrientation.Horizontal)
                         .SetSpacing(8)
+                        .SetWrap(true)
                         .AddChild(new ButtonComponent()
-                            .SetTitle("Take a reading")
+                            .SetTitle("charts.button.take-reading")
                             .OnClick(nameof(ChartsController.TakeReading))
                         )
                         .AddChild(new ButtonComponent()
-                            .SetTitle("Change the last one")
+                            .SetTitle("charts.button.change-last")
                             .OnClick(nameof(ChartsController.ChangeLastReading))
                         )
                         .AddChild(new ButtonComponent()
-                            .SetTitle("Show the last ten minutes")
+                            .SetTitle("charts.button.last-ten-minutes")
                             .OnClick(nameof(ChartsController.ShowLastTenMinutes))
                         )
                     )
                     .AddChild(new LineChartComponent("load")
                         .BindItems(nameof(ChartsController.Samples))
                         .SetX(nameof(Sample.Time))
-                        .SetXAxis(UIChartAxis.Time("Time", format: "HH:mm"))
-                        .SetYAxis(UIChartAxis.Linear("Percent", min: 0, max: 100, format: "N0"))
-                        .AddSeries("cpu", "CPU", nameof(Sample.Cpu))
-                        .AddSeries("memory", "Memory", nameof(Sample.Memory))
+                        .SetXAxis(UIChartAxis.Time("charts.time", format: "HH:mm"))
+                        .SetYAxis(UIChartAxis.Linear("charts.percent", min: 0, max: 100, format: "N0"))
+                        .AddSeries("cpu", "charts.cpu", nameof(Sample.Cpu))
+                        .AddSeries("memory", "charts.memory", nameof(Sample.Memory))
                         .SetSmooth(true)
                         .SetShowMarkers(false)
                         .SetZoomable(true)
@@ -79,8 +80,8 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
                     .SetX(nameof(Reading.Hour))
                     .SetSeriesPath(nameof(Reading.Metric))
                     .SetValuePath(nameof(Reading.Value))
-                    .SetXAxis(UIChartAxis.Linear("Hour", min: 0, max: 23, format: "N0"))
-                    .SetYAxis(UIChartAxis.Linear("Requests", format: "N0"))
+                    .SetXAxis(UIChartAxis.Linear("charts.hour", min: 0, max: 23, format: "N0"))
+                    .SetYAxis(UIChartAxis.Linear("charts.requests", format: "N0"))
                     .SetStepped(true)
                     .SetSharedTooltip(true)
                     .SetLegend(UIChartLegendPlacement.End)
@@ -91,9 +92,9 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
                 new LineChartComponent("empty")
                     .BindItems(nameof(ChartsController.Nothing))
                     .SetX(nameof(Sample.Time))
-                    .SetXAxis(UIChartAxis.Time("Time"))
-                    .SetYAxis(UIChartAxis.Linear("Percent", min: 0, max: 100, format: "N0"))
-                    .AddSeries("cpu", "CPU", nameof(Sample.Cpu))
+                    .SetXAxis(UIChartAxis.Time("charts.time"))
+                    .SetYAxis(UIChartAxis.Linear("charts.percent", min: 0, max: 100, format: "N0"))
+                    .AddSeries("cpu", "charts.cpu", nameof(Sample.Cpu))
                     .SetLegend(UIChartLegendPlacement.None)
                     .SetMinHeight(UILayoutLength.Absolute(200))
             )

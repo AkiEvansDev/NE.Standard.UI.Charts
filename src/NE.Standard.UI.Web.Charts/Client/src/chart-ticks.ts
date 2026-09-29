@@ -1,5 +1,4 @@
-// The arithmetic of an axis: the range it covers, the round step it is marked at, and where a value lands in the plot. The port
-// of `ChartRange`, `ChartTicks`, `ChartScale` and `ChartPlot` in NE.Standard.UI.Charts.
+// The arithmetic of an axis; the port of `ChartRange`, `ChartTicks`, `ChartScale` and `ChartPlot`.
 
 import { MaxTime, MinTime, floorToStep, monthOf, monthStart, monthsOf } from "./chart-calendar.ts";
 import type { AxisKind, ChartAxis } from "./chart-model.ts";
@@ -102,8 +101,8 @@ export function plotBottom(plot: Plot): number {
 }
 
 /**
- * The step a range of this kind is marked at, aiming for the given number of marks. A logarithmic range is marked at the powers of
- * ten, and answers with the power at its low end — the finest mark a label has to write.
+ * The step a range is marked at, aiming for `count` marks; a logarithmic range answers the power at its low end, the finest a
+ * label writes.
  */
 export function step(kind: AxisKind, min: number, max: number, count: number): number {
     const target = (max - min) / Math.max(1, count);
@@ -200,10 +199,7 @@ export function defaultFormat(kind: AxisKind, size: number): string | null {
     return `N${Math.min(MaximumDecimals, decimals)}`;
 }
 
-/**
- * The range the axis covers over data of this extent; the ends the author fixed stand, the rest follow the data, rounded
- * outward. A chart whose marks stand on a baseline — an area, a bar — passes `includeZero` so the range reaches zero.
- */
+/** The range the axis covers: fixed ends stand, open ends round the data outward, reaching zero with `includeZero`. */
 export function resolveRange(axis: ChartAxis, dataMin: number, dataMax: number, categoryCount: number, includeZero = false): Scale {
     // A category stands in the middle of its own place, so the range reaches half a place past the first and the last.
     if (axis.kind === "Category")
@@ -229,8 +225,8 @@ export function resolveRange(axis: ChartAxis, dataMin: number, dataMax: number, 
     }
 
     if (max - min <= 0) {
-        // One value, or a range flattened to a point: a band around it rather than a scale of no width. A moment's number counts
-        // from 1970, so an eighth of it would be years; a day either side of it is what one reading is read against.
+        // A band around a single value rather than a scale of no width. A moment counts from 1970, so an eighth of it would be
+        // years: a day either side instead.
         const padding = axis.kind === "Time" ? Day : Math.abs(min) > 0 ? Math.abs(min) / 8 : 1;
 
         // An end the author fixed past the data leaves the open one built from it, so the range never runs backward.

@@ -10,10 +10,10 @@ internal sealed class AreasAndBarsView : ChartsDemoView, IUIViewDefinition
 
     protected override string Route => AreasAndBarsRoute;
 
-    public override string Title => "Areas and bars";
+    public override string Title => "charts.page.areas-and-bars";
 
     protected override string Description
-        => "The line chart with its ground filled, and the chart that gives every x a band: bands, bars, a stack, and bars on their side.";
+        => "charts.page.areas-and-bars.description";
 
     protected override IVisualComponent[] CreateSections()
         =>
@@ -23,11 +23,11 @@ internal sealed class AreasAndBarsView : ChartsDemoView, IUIViewDefinition
                 new AreaChartComponent("revenue-stacked")
                     .SetItems(Catalogue.Quarters())
                     .SetX(nameof(Quarter.Name))
-                    .SetXAxis(UIChartAxis.Category("Quarter"))
-                    .SetYAxis(UIChartAxis.Linear("Revenue, €k", format: "N0"))
-                    .AddSeries("eu-west", "Europe West", nameof(Quarter.EuropeWest))
-                    .AddSeries("eu-central", "Europe Central", nameof(Quarter.EuropeCentral))
-                    .AddSeries("us-east", "US East", nameof(Quarter.UsEast))
+                    .SetXAxis(UIChartAxis.Category("charts.quarter"))
+                    .SetYAxis(UIChartAxis.Linear("charts.revenue", format: "N0"))
+                    .AddSeries("eu-west", "charts.eu-west", nameof(Quarter.EuropeWest))
+                    .AddSeries("eu-central", "charts.eu-central", nameof(Quarter.EuropeCentral))
+                    .AddSeries("us-east", "charts.us-east", nameof(Quarter.UsEast))
                     .SetStacked(true)
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
@@ -36,11 +36,11 @@ internal sealed class AreasAndBarsView : ChartsDemoView, IUIViewDefinition
                 new BarChartComponent("revenue-bars")
                     .SetItems(Catalogue.Quarters())
                     .SetX(nameof(Quarter.Name))
-                    .SetXAxis(UIChartAxis.Category("Quarter"))
-                    .SetYAxis(UIChartAxis.Linear("Revenue, €k", format: "N0"))
-                    .AddSeries("eu-west", "Europe West", nameof(Quarter.EuropeWest))
-                    .AddSeries("eu-central", "Europe Central", nameof(Quarter.EuropeCentral))
-                    .AddSeries("us-east", "US East", nameof(Quarter.UsEast))
+                    .SetXAxis(UIChartAxis.Category("charts.quarter"))
+                    .SetYAxis(UIChartAxis.Linear("charts.revenue", format: "N0"))
+                    .AddSeries("eu-west", "charts.eu-west", nameof(Quarter.EuropeWest))
+                    .AddSeries("eu-central", "charts.eu-central", nameof(Quarter.EuropeCentral))
+                    .AddSeries("us-east", "charts.us-east", nameof(Quarter.UsEast))
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
             Example("A day of requests as one bar an hour",
@@ -50,13 +50,13 @@ internal sealed class AreasAndBarsView : ChartsDemoView, IUIViewDefinition
                     .SetX(nameof(Reading.Hour))
                     .SetSeriesPath(nameof(Reading.Metric))
                     .SetValuePath(nameof(Reading.Value))
-                    .SetXAxis(UIChartAxis.Linear("Hour", min: -0.5, max: 23.5, format: "N0"))
-                    .SetYAxis(UIChartAxis.Linear("Requests", format: "N0"))
+                    .SetXAxis(UIChartAxis.Linear("charts.hour", min: -0.5, max: 23.5, format: "N0"))
+                    .SetYAxis(UIChartAxis.Linear("charts.requests", format: "N0"))
                     .SetStacked(true)
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
             Example("A dozen servers as bars on their side",
-                "Horizontal bars: the values run across the box and every x owns a band down it, which is what a long name asks for — the names are read down the left instead of being turned on end under the plot, and the first of them is read first, so it stands highest. Everything else is the same chart: the band, a series' share of it, the stack, the tooltip. A press on a bar reaches a command with the row's key and the series' key.",
+                "Horizontal bars: the values run across the box and every x owns a band down it, which is what a long name asks for — the names are read down the left instead of being turned on end under the plot, and the first of them is read first, so it stands highest. Everything else is the same chart: the band, a series' share of it, the stack, the tooltip. It zooms as a line does, down the names — the wheel narrows them, a drag moves along them, a double press gives them all back — so a press on a bar waits out the double press, the bar keeping its pressed look, before it reaches a command with the row's key and the series' key.",
                 new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
@@ -64,9 +64,10 @@ internal sealed class AreasAndBarsView : ChartsDemoView, IUIViewDefinition
                         .SetItems(Catalogue.Servers())
                         .SetX(nameof(Server.Name))
                         .SetXAxis(UIChartAxis.Category())
-                        .SetYAxis(UIChartAxis.Linear("Requests a minute", format: "N0"))
-                        .AddSeries("requests", "Requests", nameof(Server.Requests))
+                        .SetYAxis(UIChartAxis.Linear("charts.requests-a-minute", format: "N0"))
+                        .AddSeries("requests", "charts.requests", nameof(Server.Requests))
                         .SetHorizontal(true)
+                        .SetZoomable(true)
                         .OnPointClick(nameof(ChartsController.BarClicked))
                         .SetLegend(UIChartLegendPlacement.None)
                         .SetMinHeight(UILayoutLength.Absolute(380))

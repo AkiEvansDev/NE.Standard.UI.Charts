@@ -1,7 +1,5 @@
-// The calendar a time axis is marked by once its step is a month or more: the first of a month, a quarter or a year rather than
-// a fixed count of days from the epoch, which drifts off the month. Pure arithmetic on the proleptic Gregorian calendar, so no
-// year is out of its reach — `Date.UTC` would read the years 0 to 99 as 1900 to 1999. The port of `ChartCalendar` in
-// NE.Standard.UI.Charts.
+// A time axis's marks at a step of a month or more, on the first of a month rather than a count of days, which drifts off it.
+// Pure proleptic Gregorian arithmetic, since `Date.UTC` reads the years 0 to 99 as 1900 to 1999. The port of `ChartCalendar`.
 
 const Day = 24 * 60 * 60 * 1000;
 const Year = 365 * Day;

@@ -1,8 +1,10 @@
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Charts;
@@ -12,6 +14,9 @@ public abstract partial class ChartComponentRendererBase
 {
     /// <summary>One entry of the legend: what it is keyed by, what it says, and the colour its mark takes.</summary>
     private readonly record struct LegendEntry(string Key, string Caption, string Color);
+
+    /// <summary>An entry's classes: the framework's own small ghost button, marked as the legend's.</summary>
+    private static readonly string LegendEntryClasses = $"{LegendEntryClassName} ui-button {WebClassNames.ButtonClass(UIButtonType.Ghost)} {WebClassNames.ButtonSize(UIButtonSize.Small)}";
 
     /// <summary>The chart as the browser reads it: the ends the author fixed rather than the ones this render settled on.</summary>
     private static ChartClientModel BuildModel(ChartSpec spec, ChartRenderData data, WebRenderContext context)
@@ -25,7 +30,7 @@ public abstract partial class ChartComponentRendererBase
             series.Add(new ChartClientSeries
             {
                 Key = current.Series.Key,
-                Caption = ReadCaption(context, current.Series),
+                Caption = string.IsNullOrWhiteSpace(current.Series.Caption) ? null : current.Series.Caption,
                 ValuePath = current.Series.ValuePath ?? spec.ValuePath,
                 SizePath = current.Series.SizePath,
                 Color = SeriesColor(context, current),
@@ -38,8 +43,8 @@ public abstract partial class ChartComponentRendererBase
         return new ChartClientModel
         {
             Kind = spec.Kind,
-            X = ToClientAxis(context, spec.XAxis),
-            Y = ToClientAxis(context, spec.YAxis),
+            X = ToClientAxis(spec.XAxis),
+            Y = ToClientAxis(spec.YAxis),
             Series = series,
             XPath = spec.XPath,
             SeriesPath = spec.SeriesPath,
@@ -55,20 +60,15 @@ public abstract partial class ChartComponentRendererBase
             FollowLatest = spec.FollowLatest,
             Horizontal = spec.Horizontal,
             Bare = spec.Bare,
-            Donut = spec.Donut,
-            CentreCaption = spec.CentreCaption
+            Donut = spec.Donut
         };
     }
-
-    /// <summary>The words the legend and the tooltip name a series by: the caption, translated, or the key itself.</summary>
-    private static string ReadCaption(WebRenderContext context, UIChartSeries series)
-        => string.IsNullOrWhiteSpace(series.Caption) ? series.Key : context.Translate(series.Caption);
 
     /// <summary>The colour of a series: the one the author gave, or its place in the theme's categorical run, cycled as the browser cycles it.</summary>
     private static string SeriesColor(WebRenderContext context, ChartRenderSeries series)
         => ThemeColorRenderer.SeriesColorCss(context, series.Index, series.Series.Color);
 
-    private static ChartClientAxis ToClientAxis(WebRenderContext context, UIChartAxis axis)
+    private static ChartClientAxis ToClientAxis(UIChartAxis axis)
         => new()
         {
             Kind = axis.Kind,
@@ -77,7 +77,7 @@ public abstract partial class ChartComponentRendererBase
             Format = axis.Format,
             Grid = axis.ShowGridLines,
             Ticks = axis.TickCount,
-            Caption = string.IsNullOrWhiteSpace(axis.Caption) ? null : context.Translate(axis.Caption)
+            Caption = string.IsNullOrWhiteSpace(axis.Caption) ? null : axis.Caption
         };
 
     /// <summary>An entry per series, each a button the engine hides and shows its series by; none where the author asked for none.</summary>
@@ -93,6 +93,10 @@ public abstract partial class ChartComponentRendererBase
 
         RenderLegendEntries(root, entries);
     }
+
+    /// <summary>The words the legend and the tooltip name a series by: the caption, translated, or the key itself.</summary>
+    private static string ReadCaption(WebRenderContext context, UIChartSeries series)
+        => string.IsNullOrWhiteSpace(series.Caption) ? series.Key : context.Translate(series.Caption);
 
     /// <summary>An entry per sector rather than per series: a pie's series is one, and what a viewer puts aside is a sector.</summary>
     private static void RenderSectorLegend(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartFormats formats, CultureInfo culture)
@@ -118,6 +122,8 @@ public abstract partial class ChartComponentRendererBase
         _ = root.Element("div", legend =>
         {
             _ = legend.Class(LegendClassName);
+            // A press on an entry is the chart's own, never a clickable component's around it.
+            _ = legend.Attribute(WebAttributes.EventBoundary);
 
             for (var i = 0; i < entries.Count; i++)
             {
@@ -125,7 +131,7 @@ public abstract partial class ChartComponentRendererBase
 
                 _ = legend.Element("button", button =>
                 {
-                    _ = button.Class($"{LegendEntryClassName} ui-button ui-button--ghost ui-button--small");
+                    _ = button.Class(LegendEntryClasses);
                     _ = button.Attribute("type", "button");
                     _ = button.Attribute(SeriesAttribute, entry.Key);
                     _ = button.Attribute("aria-pressed", "true");

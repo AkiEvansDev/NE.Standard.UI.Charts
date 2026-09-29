@@ -30,8 +30,7 @@ public readonly record struct ChartScale(double Min, double Max, bool Logarithmi
     }
 
     /// <summary>
-    /// The value at a fraction of the range: the inverse of <see cref="Fraction"/>, which is what a pointer's place on the plot
-    /// asks for.
+    /// The value at a fraction of the range: the inverse of <see cref="Fraction"/>.
     /// </summary>
     public double Value(double share)
     {

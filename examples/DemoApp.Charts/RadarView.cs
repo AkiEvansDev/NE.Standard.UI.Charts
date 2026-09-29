@@ -10,10 +10,10 @@ internal sealed class RadarView : ChartsDemoView, IUIViewDefinition
 
     protected override string Route => RadarRoute;
 
-    public override string Title => "Radar";
+    public override string Title => "charts.page.radar";
 
     protected override string Description
-        => "Series as shapes over spokes: a row names a spoke, and each series' values along them close into an outline to read against the others.";
+        => "charts.page.radar.description";
 
     protected override IVisualComponent[] CreateSections()
         =>
@@ -24,9 +24,9 @@ internal sealed class RadarView : ChartsDemoView, IUIViewDefinition
                     .SetItems(Catalogue.Scores())
                     .SetX(nameof(RegionScore.Measure))
                     .SetYAxis(UIChartAxis.Linear(min: 0, max: 100, format: "N0"))
-                    .AddSeries("eu-west", "Europe West", nameof(RegionScore.EuWest))
-                    .AddSeries("us-east", "US East", nameof(RegionScore.UsEast))
-                    .AddSeries("ap-south", "Asia South", nameof(RegionScore.ApSouth))
+                    .AddSeries("eu-west", "charts.eu-west", nameof(RegionScore.EuWest))
+                    .AddSeries("us-east", "charts.us-east", nameof(RegionScore.UsEast))
+                    .AddSeries("ap-south", "charts.asia-south", nameof(RegionScore.ApSouth))
                     .SetLegend(UIChartLegendPlacement.End)
                     .SetMinHeight(UILayoutLength.Absolute(360))
             ),
@@ -36,7 +36,7 @@ internal sealed class RadarView : ChartsDemoView, IUIViewDefinition
                     .SetItems(Catalogue.Scores())
                     .SetX(nameof(RegionScore.Measure))
                     .SetYAxis(UIChartAxis.Linear(min: 0, max: 100, format: "N0"))
-                    .AddSeries("ap-south", "Asia South", nameof(RegionScore.ApSouth))
+                    .AddSeries("ap-south", "charts.asia-south", nameof(RegionScore.ApSouth))
                     .SetShowMarkers(false)
                     .SetLegend(UIChartLegendPlacement.None)
                     .SetMinHeight(UILayoutLength.Absolute(320))

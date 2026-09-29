@@ -3,16 +3,14 @@ using System;
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
-/// The range an axis ends up covering: given ends stand, open ends follow the data and round outward to the axis's step. The
-/// browser's <c>chart-ticks.ts</c> holds the same arithmetic.
+/// The range an axis covers: given ends stand, open ends round the data outward; <c>chart-ticks.ts</c> is its twin.
 /// </summary>
 public static class ChartRange
 {
     private const double Day = 24 * 60 * 60 * 1000d;
 
     /// <summary>
-    /// The range the axis covers over data of this extent. A chart whose marks stand on a baseline — an area, a bar — passes
-    /// <paramref name="includeZero"/> so the range reaches zero.
+    /// The range the axis covers over data of this extent, reaching zero with <paramref name="includeZero"/>.
     /// </summary>
     public static ChartScale Resolve(UIChartAxis axis, double dataMin, double dataMax, int categoryCount, bool includeZero = false)
     {
@@ -46,8 +44,8 @@ public static class ChartRange
 
         if (max - min <= 0)
         {
-            // One value, or a range flattened to a point: a band around it rather than a scale of no width. A moment's number counts
-            // from 1970, so an eighth of it would be years; a day either side of it is what one reading is read against.
+            // A band around a single value rather than a scale of no width. A moment counts from 1970, so an eighth of it would be
+            // years: a day either side instead.
             var padding = axis.Kind == UIChartAxisKind.Time ? Day : Math.Abs(min) > 0 ? Math.Abs(min) / 8 : 1;
 
             // An end the author fixed past the data leaves the open one built from it, so the range never runs backward.

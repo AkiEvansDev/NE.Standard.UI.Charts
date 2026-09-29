@@ -14,8 +14,7 @@ public readonly record struct ChartSector(double Start, double Sweep);
 public readonly record struct ChartSpot(double X, double Y);
 
 /// <summary>
-/// A turn shared out: the angle every value takes and where a place on it lies. The browser's <c>chart-pie.ts</c> is the same
-/// arithmetic.
+/// A turn shared out between values; <c>chart-pie.ts</c> is its twin.
 /// </summary>
 public static class ChartPie
 {
@@ -26,8 +25,7 @@ public static class ChartPie
     private const double Top = -Math.PI / 2;
 
     /// <summary>
-    /// The angle each value takes, clockwise from twelve o'clock. A value that is zero or negative takes none; when every value
-    /// does, each takes nothing.
+    /// The angle each value takes, clockwise from twelve o'clock; a value that is zero or negative takes none.
     /// </summary>
     public static ChartSector[] Sectors(IReadOnlyList<double?> values)
     {

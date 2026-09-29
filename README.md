@@ -90,11 +90,11 @@ after it, as a render would.
 | `LineChartComponent` | a line per series | `Stepped`, `Smooth`, `ShowMarkers` — a series added as a `UIChartSeries` may say otherwise |
 | `AreaChartComponent` | the same lines with a band under each | `Stacked`, and the line chart's own; no marks are painted, though a point still answers the pointer |
 | `BarChartComponent` | a bar per series at every x | `Stacked` — otherwise the bars share the x's band side by side; `Horizontal` lays them on their side, the values across the box and a band per x down it |
-| `PieChartComponent` | one series' points as sectors of a turn | `SetDonut(share)` for a hole, `CentreCaption` for the words in it; no axes, and the legend names the sectors |
-| `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre. No zoom, no window and no shared tooltip: there is no x to move along |
+| `PieChartComponent` | one series' points as sectors of a turn | `SetDonut(share)` for a hole, `CentreCaption` (or `BindCentreCaption`) for the words in it; no axes, and the legend names the sectors |
+| `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x — a character's attributes, a product's scores, read against each other at a glance | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre. No zoom, no window and no shared tooltip: there is no x to move along |
 | `SparklineComponent` | one series with nothing around it, a line of text high | `Bars` for a run of bars instead of a line; no axes, no grid, no legend, and no marks until the pointer finds one |
 | `ScatterChartComponent` | a mark per point and no line between them | a third value sizes each mark where the series names one: `AddSeries(key, caption, valuePath, sizePath)`, by area rather than by radius |
-| `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Caption`, `Format`, `Unit` |
+| `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Caption`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule |
 
 An area's band, a bar's length and a radar's reach from its centre are read against zero, so those take zero into the
 range whether the data does or not; a line chart follows its data. A radar's spokes are every x any series holds, once, in
@@ -134,7 +134,7 @@ moments a `DateTime` can name, and a single moment is drawn with a day either si
 ### Where the drawing happens
 
 The server writes a correct first frame with no measurement — the ranges, the round ticks and their labels in the
-page's culture, a path per series — at a nominal size the `viewBox` carries. The browser then re-draws the chart at
+page's culture, the lines and bands of every series — at a nominal size the `viewBox` carries. The browser then re-draws the chart at
 the size it really got, which is the only way text can be placed properly, and again whenever the collection
 changes or the viewer puts a series aside — once per frame, however many changes, drags or wheel notches arrived before
 it. Both sides run the same arithmetic: `ChartRange`, `ChartTicks`, `ChartScale`, `ChartPlot`, `ChartCalendar`,
@@ -143,26 +143,51 @@ it. Both sides run the same arithmetic: `ChartRange`, `ChartTicks`, `ChartScale`
 `chart-bars.ts`, `chart-pie.ts`, `chart-radar.ts`, `chart-bubbles.ts`, `chart-window.ts`, `chart-moment.ts` and `chart-rows.ts`'s reading of an
 x there — held to one corpus of cases both test suites read.
 
+A painted line — a series, a radar's outline, rim and rings — is drawn as its straight pieces, a `<line>` each under one
+group, never as a single `<path>`: Chrome's GPU rasteriser antialiases a path at four samples a pixel, which reads as a
+staircase at 100% scale, and a lone line smoothly. A curve is cut into pieces about four pixels long. A band's fill and a
+line's unpainted pointer reach stay paths. A stylesheet that restyles a series' line targets `.ui-chart__line`, a group, and
+its lines inherit the stroke.
+
 The legend follows the data: the server writes it for the first frame, and a series or a sector that arrives or goes later
-arrives or goes in the legend too, an entry the viewer put aside staying aside. The canvas is announced as a picture named
+arrives or goes in the legend too, an entry the viewer put aside staying aside. The legend is kept in step by key: an entry that
+stays keeps its button, written again in place, so a press, a hover or the keyboard on it is never lost to a redraw — the series
+being read stays forward through one. A keyboard standing on an entry whose series or sector went moves to the entry now in its
+place, and to the chart itself where the whole legend went, never to the page's body. The canvas is announced as a picture named
 by what the legend names — or by the `ui.chart.label` string (*Chart*) where there is nothing to name; a gauge's arc is left
 unannounced beside the words laid over it.
+
+The words are the page's. An axis's and a series' caption travel in the model as the author gave them — keys, not the words
+they read as — and the browser translates them at every draw and draws every chart again when the page's language changes. A
+donut's centre caption and a gauge's unit and caption are the properties' own words, each on an element of its own laid over
+the drawing in the page's own type — the centre over the hole, wrapped inside it; the unit written after the reading's
+number — written again at a switch, and a bound one follows its pushes. What a tooltip or the canvas's name
+puts between its parts is the package's own word with slots — `ui.chart.point` (`{series} — {x}: {y}`), `ui.chart.sector`,
+`ui.chart.reading`, `ui.chart.list` (`{list}, {next}`) — so a language punctuates its own. Numbers and dates keep the
+render's culture until the next render.
 
 ### What the viewer can do
 
 - **Hover a point** for its series, its x and its value, through the framework's own tooltip (`ShowTooltip`). A
   point answers through an unpainted circle of its own, wide enough to be easy to hit; a chart that paints no
-  marks still answers, the mark being there unpainted until the pointer finds it.
+  marks still answers, the mark being there unpainted until the pointer finds it. A sector's tooltip stands by the
+  middle of its own arc.
 - **Hover anywhere in the plot** where the author set `SharedTooltip`: one tooltip names every series at the x
-  under the pointer, and a line marks which x that is.
+  under the pointer, and a line marks which x that is. The words wait as a hover's do, so a pointer only crossing the
+  chart shows none, and the axes' labels around the plot are not the plot.
 - **Hover a series** — its line, its band, its sector, or its entry in the legend — and the rest of them go
-  back, so the one being read stands alone. A line is held over its whole length rather than at its marks alone.
+  back, so the one being read stands alone. A line is held over its whole length rather than at its marks alone. Every
+  band — an area's, a radar's shape — lies under every series' line and marks, so a later series' band never hides an
+  earlier one's points. An entry the viewer put aside names nothing drawn, and hovering it dims nothing.
 - **Hover a bar** and that bar alone is read: every other bar goes back, the ones stacked with it in its own
   column among them, since a stacked column is several values and not one.
 - **Zoom and pan** where the author set `Zoomable`: the wheel narrows the stretch of the x axis on show about the
   pointer — by how far it turned, so a trackpad's many small deltas zoom as far as a mouse's one notch — a drag moves it
   along, and a double press gives the whole of the data back — down the chart rather than across it where bars lie on their
-  side, the shared tooltip's line with them. Zoomed in, bars widen to share the band among the places on show. The window
+  side, the shared tooltip's line with them. The wheel, the drag and the double press answer the plot, not the axes' labels
+  around it. A wheel with nothing to change — a chart already showing the whole, turned to
+  widen it, or a swipe mostly sideways — scrolls the page as it would anywhere else. A drag starts once the pointer has moved
+  a few pixels; a press that stayed within them is a press. Zoomed in, bars widen to share the band among the places on show. The window
   starts where the server drew it, bound or written by the author. The window is bound
   (`BindVisibleRange`), so a controller hears where the viewer is reading and can move the chart itself;
   `OnWindowChange(command)` runs a command once the viewer has moved it, with the bound range already on the server;
@@ -171,8 +196,15 @@ unannounced beside the words laid over it.
   choice stays in the browser and is never sent.
 - **Click a point** — a mark, a bar or a sector — where the author wired `OnPointClick(command)`: the command is
   handed the key of the row the point was read from as `point` and the key of its series as `series` — a sector's series
-  being the pie's one series.
+  being the pie's one series. The pointer says which points a press reaches. On a zoomable chart a double press is the
+  zoom's own gesture and runs no command, so a press on a point there answers once no second press followed it; elsewhere
+  it answers at once. The point gives under the press — a mark sinks back, a bar or a sector thins — and on a zoomable chart
+  keeps that look from the release until its command runs or a second press calls it off, so the wait reads as taken. A press on the legend, or on a canvas that answers presses of its own, stays the chart's: a clickable
+  component around the chart does not take it.
 - The legend stands under the plot, over it, or at either edge (`SetLegend`).
+- A disabled or loading chart answers none of this, and lets go of what it held when it turned so: a press still waiting
+  for a second answers nothing and its point drops the pressed look, a drag stops moving the window, and a window not yet sent
+  is not sent.
 
 ### Its size
 
@@ -183,7 +215,9 @@ A chart fills the box it is given and has a floor of its own, so one dropped int
 
 A series takes the colour the author gave it (`UIThemeColor`) or the next of the theme's categorical run, which
 lives with the theme, so charts on one page read as one system in light and in dark; both sides cycle by the run's
-length, the server reading it off the theme and the browser off the page.
+length, the server reading it off the theme and the browser off the page. Under forced colours a series' colour is data
+rather than chrome: the series, their bands, the legend's key and a gauge's bands keep their own, and the frame and its
+words take the system's.
 
 ### Inside the package
 
@@ -200,6 +234,8 @@ the framework's own engines take; it lets go of a chart the page let go of.
 - No drawing tools, annotations or trend lines.
 - No export as an image — the SVG is the page's, and the browser's own save takes it.
 - No heat map and no candlestick; both wait for a case.
+- No keyboard path to a point or to the window: a point's command (`OnPointClick`) is the pointer's alone, and a zoomable
+  chart is zoomed, panned and reset by the pointer or by its controller (`VisibleRange`), never by a key.
 
 ## Licence
 

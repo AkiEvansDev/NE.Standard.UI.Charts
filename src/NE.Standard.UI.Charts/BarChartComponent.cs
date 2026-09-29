@@ -23,8 +23,6 @@ public abstract partial class BarChartComponent<T>(string? id = null) : ChartCom
 /// </summary>
 public sealed class BarChartComponent(string? id = null) : BarChartComponent<BarChartComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "charts.bar";
 }

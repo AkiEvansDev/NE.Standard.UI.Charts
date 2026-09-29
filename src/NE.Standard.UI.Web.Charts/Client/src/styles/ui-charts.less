@@ -1,7 +1,10 @@
-// The charts: a box for the canvas, the frame in the theme's own ink, and a series in the colour its group carries
-// (--ui-chart-series-color). Built on the theme's --ui-* tokens and the plugin contract's shared Less.
+// The charts: a box for the canvas, the frame in the ink of the ground it stands on, and each series in its group's --ui-chart-series-color.
 
 @import (reference) "../../plugin/ne-standard-ui.less";
+
+// A chart whose press look shows: its points are pressable, no drag holds the window, and it is not disabled or loading — a
+// point still waiting on its press lets go of the look the moment the chart does.
+@chart-press-live: ~".ui-chart--pressable:not(.ui-chart--dragging, .ui-disabled, .ui-loading)";
 
 // A chart fills its box and has a floor of its own, so one dropped into a stack is not a line high. Height follows the
 // framework's five-tier variable, read by the same mixin every component uses.
@@ -12,7 +15,8 @@
     min-width: 0;
     .ui-responsive-property(min-height, --ui-min-height, 12rem);
     .ui-responsive-property(max-height, --ui-max-height, none);
-    color: var(--ui-color-on-surface);
+    // The ground's ink, not the page's: a chart in a filled card reads in that card's on-colour, its frame and words alike.
+    color: @ui-text-ink;
 }
 
 // A chart with nothing around it stands a line of text high and leaves no room for a legend it does not have.
@@ -39,22 +43,43 @@
     overflow: visible;
 }
 
-// The frame: the two axis lines read as the page's edges do, the grid a hair of the same ink. Never filled: a radar's rim and rings
-// are closed paths, not lines.
+// A chart the viewer may move is taken in hand: the drag is the chart's, never a text selection or the browser's own pan across
+// the band axis (down it where bars lie on their side), and the cursor says so — grabbing once a drag is past its slack.
+.ui-chart--zoomable > .ui-chart__area {
+    cursor: grab;
+    user-select: none;
+    touch-action: pan-y;
+}
+
+.ui-chart--zoomable.ui-chart--horizontal > .ui-chart__area {
+    touch-action: pan-x;
+}
+
+// A point, a bar or a sector a press reaches says so, where the author wired one (OnPointClick). Held at a class's weight and
+// written before the drag's rule, so a drag across bars keeps its grabbing hand.
+.ui-chart--pressable :where([data-ui-chart-point]) {
+    cursor: pointer;
+}
+
+.ui-chart--dragging,
+.ui-chart--dragging * {
+    cursor: grabbing;
+}
+
+// The frame: the two axis lines read as the page's edges do, the grid a hair of the same ink. A radar's rim and rings carry the
+// class on a group of their sides, which the lines take the stroke from.
 .ui-chart__axis-line {
-    fill: none;
-    stroke: color-mix(in srgb, var(--ui-color-on-surface) 28%, transparent);
+    stroke: color-mix(in srgb, @ui-text-ink 28%, transparent);
     stroke-width: 1;
 }
 
 .ui-chart__grid-line {
-    fill: none;
-    stroke: color-mix(in srgb, var(--ui-color-on-surface) 10%, transparent);
+    stroke: color-mix(in srgb, @ui-text-ink 10%, transparent);
     stroke-width: 1;
 }
 
 .ui-chart__label {
-    fill: var(--ui-text-muted);
+    fill: @ui-text-muted;
     font-family: inherit;
     font-size: 0.6875rem;
     line-height: 1;
@@ -62,7 +87,7 @@
 
 .ui-chart__caption,
 .ui-chart__empty {
-    fill: var(--ui-text-muted);
+    fill: @ui-text-muted;
     font-family: inherit;
     font-size: var(--ui-text-caption-font-size);
 }
@@ -71,9 +96,10 @@
     font-style: italic;
 }
 
-// A series: one path in its own colour, and its marks the same. The one under the pointer — in the plot or in the legend —
-// is read; the rest go back, whether lines, bands, bars or sectors.
-.ui-chart__series {
+// The series under the pointer, in the plot or the legend, is read and the rest go back. A band lies in its own layer
+// (.ui-chart__bands), outside its series' group, so the engine marks the rest back by key, as it does for a legend entry.
+.ui-chart__series,
+.ui-chart__fill {
     transition: opacity @ui-motion-fast @ui-motion-ease;
 }
 
@@ -82,8 +108,7 @@
     opacity: 0.25;
 }
 
-// A bar is read on its own: the one under the pointer (marked by the engine) comes forward, every other bar — including ones
-// stacked in its column — goes back; a series of bars is never dimmed as a whole, or the bar being read would go with it.
+// A bar is read on its own and every other bar goes back; a series of bars is never dimmed whole, or the bar read would go too.
 .ui-chart__plot:has(> .ui-chart__series:hover) > .ui-chart__series:not(:hover):has(> .ui-chart__bar),
 .ui-chart__series--back:has(> .ui-chart__bar) {
     opacity: 1;
@@ -94,12 +119,13 @@
         opacity: 0.25;
     }
 
+// A series' line is a group of straight pieces (ChartPath.Segments). Square ends overlap so a bend has no gap; the group's
+// opacity dims it as one, so the overlaps never show darker.
 .ui-chart__line {
     fill: none;
     stroke: var(--ui-chart-series-color, var(--ui-color-primary));
     stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+    stroke-linecap: square;
 }
 
 // The line's own reach: the same path unpainted and wide, so the whole length answers the pointer, not only the marks. Its
@@ -114,21 +140,30 @@
 }
 
 // The mark is the drawing only: the circle over it answers the pointer, so a mark is free to grow without taking its hit area
-// with it. Scaled, not resized, so a sized bubble grows by the same factor as a plain marker.
+// with it. Scaled, not resized, so a sized bubble grows by the same factor as a plain marker. Hollow in the ground the chart
+// stands on, so a marker in a filled card is not ringed in the page's surface.
 .ui-chart__marker {
-    fill: var(--ui-color-surface);
+    fill: @ui-ground;
     stroke: var(--ui-chart-series-color, var(--ui-color-primary));
     stroke-width: 2;
     pointer-events: none;
     transform-box: fill-box;
     transform-origin: 50% 50%;
-    transition: transform @ui-motion-fast @ui-motion-ease, fill @ui-motion-fast @ui-motion-ease;
+    transition: transform @ui-motion-fast @ui-motion-ease, fill @ui-motion-fast @ui-motion-ease, stroke @ui-motion-fast @ui-motion-ease;
 }
 
-    .ui-chart__point:hover > .ui-chart__marker {
+    .ui-chart__point:hover > .ui-chart__marker,
+    @{chart-press-live} .ui-chart__point--pending > .ui-chart__marker {
         fill: var(--ui-chart-series-color, var(--ui-color-primary));
         transform: scale(1.3);
     }
+
+// A pressed point gives under it. On a zoomable chart the command waits out the double press, so the point keeps that look
+// (--pending) until it runs, painted as hovered since the pointer may have left. A pie never zooms, so a sector answers at once
+// and has no pending look.
+@{chart-press-live} :is(.ui-chart__point:active, .ui-chart__point--pending) > .ui-chart__marker {
+    transform: scale(1.15);
+}
 
 // Where the chart draws no marks the mark is still there, unpainted, and the pointer is what paints it.
 .ui-chart__marker--bare {
@@ -136,15 +171,18 @@
     stroke: transparent;
 }
 
-    .ui-chart__point:hover > .ui-chart__marker--bare {
+    .ui-chart__point:hover > .ui-chart__marker--bare,
+    @{chart-press-live} .ui-chart__point--pending > .ui-chart__marker--bare {
         fill: var(--ui-chart-series-color, var(--ui-color-primary));
-        stroke: var(--ui-color-surface);
+        stroke: @ui-ground;
     }
 
-// The line one tooltip is read against: the x the pointer names, marked while its words are up.
+// The line one tooltip is read against: the x the pointer names, marked while its words are up. It stands exactly where that x's
+// points are, so it never takes the pointer from them.
 .ui-chart__rule {
     display: none;
-    fill: color-mix(in srgb, var(--ui-color-on-surface) 30%, transparent);
+    fill: color-mix(in srgb, @ui-text-ink 30%, transparent);
+    pointer-events: none;
 }
 
 .ui-chart__rule--on {
@@ -158,8 +196,8 @@
     stroke: none;
 }
 
-// The band under a line: the series' own colour, thinned enough that a grid line still reads through it, and thinner again where
-// bands lie on one another.
+// The band under a line, or a radar's shape: the series' own colour, thinned enough that a grid line still reads through it, and
+// thinner again where bands lie on one another. It still answers the pointer; every series' line and marks lie over every band.
 .ui-chart__fill {
     fill: var(--ui-chart-series-color, var(--ui-color-primary));
     fill-opacity: 0.2;
@@ -177,9 +215,11 @@
         fill-opacity: 1;
     }
 
-// A sector: the colour of its place in the theme's run, whole under the pointer; a pie with no hole is the same ring reaching
-// the centre. A ring cut to the sector's own angles (mixins/arc.less), not a filled path — the browser antialiases a path's
-// arcs in coarse steps that read as pixels.
+    @{chart-press-live} :is(.ui-chart__bar:active, .ui-chart__bar.ui-chart__point--pending) {
+        fill-opacity: 0.7;
+    }
+
+// A sector is a ring cut to its angles (mixins/arc.less), not a filled path, whose arcs the browser antialiases in coarse steps.
 .ui-chart__sector {
     fill: none;
     stroke: var(--ui-chart-series-color, var(--ui-color-primary));
@@ -192,20 +232,44 @@
         stroke-opacity: 1;
     }
 
-// The line between two sectors, in the page's own ground so neighbours read apart; it is over the cut edges, never the pointer's.
+    @{chart-press-live} .ui-chart__sector:active {
+        stroke-opacity: 0.75;
+    }
+
+// The line between two sectors, in the ground's colour so neighbours read apart; it is over the cut edges, never the pointer's.
 .ui-chart__sector-edge {
-    stroke: var(--ui-color-surface);
+    stroke: @ui-ground;
     stroke-width: 1;
     pointer-events: none;
 }
 
-// The words in a donut's hole: a total, a name.
+// What a sector's tooltip stands against: a dot at the middle of its arc, never painted and never the pointer's.
+.ui-chart__sector-anchor {
+    fill: none;
+    stroke: none;
+    pointer-events: none;
+}
+
+// The words in a donut's hole, in the page's type, wrapped in the square the hole holds (the drawing writes its max-width);
+// hidden where the chart's empty word stands in the same middle.
 .ui-chart__centre {
-    fill: var(--ui-color-on-surface);
-    font-family: inherit;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max-content;
+    transform: translate(-50%, -50%);
+    color: @ui-text-ink;
     font-size: 0.875rem;
     font-weight: var(--ui-text-title-font-weight);
+    line-height: 1.25;
+    text-align: center;
+    pointer-events: none;
 }
+
+    .ui-chart__centre:empty,
+    .ui-chart__area:has(.ui-chart__empty) > .ui-chart__centre {
+        display: none;
+    }
 
 // The legend: a row of buttons, each its series' colour, the ones put aside greyed rather than gone; the page's own ring marks the
 // one walked to.
@@ -256,15 +320,15 @@
     height: 0.625rem;
     border-radius: 50%;
     background: var(--ui-chart-series-color, var(--ui-color-primary));
+    transition: background-color @ui-motion-fast @ui-motion-ease;
 }
 
 .ui-chart__legend-entry--off > .ui-chart__legend-mark {
-    background: var(--ui-text-muted);
+    background: @ui-text-muted;
 }
 
-// The gauge: an arc of its own, the reading over its middle, and the bands outside it. The reading's share is worked out here
-// from the range the root carries, so a server-pushed reading moves it with no script; it's a registered number so a
-// transition animates the share, not the shape it cuts.
+// The reading's share, worked out from the range the root carries so a pushed reading moves it with no script; registered, so
+// a transition animates the share, not the shape it cuts. No reading reads as the low end.
 @property --ui-gauge-share {
     syntax: "<number>";
     inherits: true;
@@ -277,10 +341,10 @@
     justify-content: center;
     min-width: 0;
     .ui-responsive-property(min-height, --ui-min-height, 8rem);
-    color: var(--ui-color-on-surface);
+    color: @ui-text-ink;
     --ui-gauge-min: 0;
     --ui-gauge-max: 100;
-    --ui-gauge-value: 0;
+    --ui-gauge-value: var(--ui-gauge-min);
     --ui-gauge-share: clamp(0, calc((var(--ui-gauge-value) - var(--ui-gauge-min)) / (var(--ui-gauge-max) - var(--ui-gauge-min))), 1);
     transition: --ui-gauge-share @ui-motion-normal @ui-motion-ease;
 }
@@ -325,7 +389,7 @@
 
 // A translucent ring is faded as one group rather than in its ink, so a dot laid over the circle's cut end is not a darker patch.
 .ui-gauge__track {
-    color: var(--ui-color-on-surface);
+    color: @ui-text-ink;
     opacity: 0.12;
     --ui-arc-width: 14px;
 }
@@ -337,11 +401,12 @@
     --ui-arc-width: 4px;
 }
 
-// The reading fills the track's whole width, so its edges and its ends are the track's own.
+// The reading fills the track's whole width, so its edges and its ends are the track's own; a reading of none draws nothing, the
+// progress ring's rule (mixins/arc.less).
 .ui-gauge__fill {
     color: var(--ui-color-primary);
     --ui-arc-width: 14px;
-    --ui-arc-to: var(--ui-gauge-share);
+    .ui-arc-share(var(--ui-gauge-share));
 }
 
 // The words: the page's own type and size, over the arc's centre — not drawn inside the viewBox, since scaled text is the one
@@ -360,13 +425,64 @@
 }
 
 .ui-gauge__value {
-    color: var(--ui-color-on-surface);
+    color: @ui-text-ink;
     font-size: 1.75rem;
     font-weight: var(--ui-text-title-font-weight);
     line-height: 1.1;
 }
 
+// Always written, so a bound caption's push is a text write; with no words it takes no room under the reading.
 .ui-gauge__caption {
-    color: var(--ui-text-muted);
+    color: @ui-text-muted;
     font-size: 0.8125rem;
+}
+
+    .ui-gauge__caption:empty {
+        display: none;
+    }
+
+// Forced colours: a series' colour is data, not chrome, so series, bands, the legend's key (the one thing that says which series
+// is which) and a gauge's bands keep their ink; the frame takes the system's colours, and a hollow mark's ground is Canvas.
+// A package's own block, since the core's preferences.less cannot name a package's selectors.
+@media (forced-colors: active) {
+    .ui-chart__series,
+    .ui-chart__fill,
+    .ui-chart__legend-mark,
+    .ui-gauge__band {
+        forced-color-adjust: none;
+    }
+
+    .ui-chart__axis-line,
+    .ui-chart__grid-line {
+        stroke: CanvasText;
+    }
+
+    .ui-chart__label,
+    .ui-chart__caption,
+    .ui-chart__empty,
+    .ui-chart__rule {
+        fill: CanvasText;
+    }
+
+    .ui-chart__marker:not(.ui-chart__marker--bare) {
+        fill: Canvas;
+    }
+
+    .ui-chart__point:hover > .ui-chart__marker--bare,
+    @{chart-press-live} .ui-chart__point--pending > .ui-chart__marker--bare,
+    .ui-chart__sector-edge {
+        stroke: Canvas;
+    }
+
+    .ui-chart__legend-entry--off > .ui-chart__legend-mark {
+        background: GrayText;
+    }
+
+    .ui-gauge__track {
+        color: CanvasText;
+    }
+
+    .ui-gauge__fill {
+        color: Highlight;
+    }
 }

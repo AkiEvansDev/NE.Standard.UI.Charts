@@ -5,15 +5,23 @@ using System.Text;
 
 namespace NE.Standard.UI.Charts;
 
+/// <summary>One straight piece of a drawn line, from one place to the next.</summary>
+/// <param name="X1">Where it starts, across.</param>
+/// <param name="Y1">Where it starts, down.</param>
+/// <param name="X2">Where it ends, across.</param>
+/// <param name="Y2">Where it ends, down.</param>
+public readonly record struct ChartSegment(double X1, double Y1, double X2, double Y2);
+
 /// <summary>
-/// A series as the SVG path string it becomes. The browser's <c>chart-path.ts</c> holds the same walk, so a server- and a
-/// browser-drawn chart match exactly.
+/// A series as the SVG it becomes; <c>chart-path.ts</c> is its twin, so a server- and a browser-drawn chart match exactly.
 /// </summary>
 public static class ChartPath
 {
+    /// <summary>About how long a piece of a curve is, in drawing units: short enough that the pieces read as the curve.</summary>
+    private const double CurvePiece = 4;
+
     /// <summary>
-    /// The line through the points, broken wherever a row had no value — a run of one point draws nothing, and its marker is what
-    /// shows it.
+    /// The line through the points, broken wherever a row had no value; a lone point is shown by its marker.
     /// </summary>
     public static string Line(IReadOnlyList<ChartPoint> points, ChartScale x, ChartScale y, ChartPlot plot, bool stepped, bool smooth)
     {
@@ -42,8 +50,7 @@ public static class ChartPath
     }
 
     /// <summary>
-    /// The band between a series' line and what it stands on — each point's own <see cref="ChartPoint.Base"/> in a stack, or the
-    /// axis's zero — closed like the line.
+    /// The band between a series' line and its <see cref="ChartPoint.Base"/> or the axis's zero.
     /// </summary>
     public static string Area(IReadOnlyList<ChartPoint> points, ChartScale x, ChartScale y, ChartPlot plot, bool stepped, bool smooth)
     {
@@ -70,6 +77,122 @@ public static class ChartPath
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>
+    /// The line <see cref="Line"/> describes as straight pieces, since a lone line antialiases smoothly where a path steps.
+    /// </summary>
+    public static IReadOnlyList<ChartSegment> Segments(IReadOnlyList<ChartPoint> points, ChartScale x, ChartScale y, ChartPlot plot, bool stepped, bool smooth)
+    {
+        ArgumentNullException.ThrowIfNull(points);
+
+        List<ChartSegment> segments = [];
+        List<(double X, double Y)> run = [];
+
+        for (var i = 0; i < points.Count; i++)
+        {
+            ChartPoint point = points[i];
+
+            if (point.Y is double value)
+            {
+                run.Add((plot.X(x, point.X), plot.Y(y, value)));
+                continue;
+            }
+
+            AddRunPieces(segments, run, stepped, smooth);
+            run.Clear();
+        }
+
+        AddRunPieces(segments, run, stepped, smooth);
+
+        return segments;
+    }
+
+    /// <summary>One unbroken run's pieces, the way <see cref="Line"/> walks it: straight, stepped, or curved.</summary>
+    private static void AddRunPieces(List<ChartSegment> segments, List<(double X, double Y)> run, bool stepped, bool smooth)
+    {
+        if (run.Count < 2)
+            return;
+
+        if (stepped)
+        {
+            AddStepPieces(segments, run);
+            return;
+        }
+
+        for (var i = 1; i < run.Count; i++)
+        {
+            if (smooth)
+                AddCurvePieces(segments, run, i);
+            else
+                AddSegment(segments, run[i - 1].X, run[i - 1].Y, run[i].X, run[i].Y);
+        }
+    }
+
+    /// <summary>The stair <see cref="AppendSteps"/> draws: across to halfway, up or down to the next value, and across to the last point.</summary>
+    private static void AddStepPieces(List<ChartSegment> segments, List<(double X, double Y)> run)
+    {
+        var atX = run[0].X;
+        var atY = run[0].Y;
+
+        for (var i = 1; i < run.Count; i++)
+        {
+            var middle = (run[i - 1].X + run[i].X) / 2;
+
+            AddSegment(segments, atX, atY, middle, atY);
+            AddSegment(segments, middle, atY, middle, run[i].Y);
+            atX = middle;
+            atY = run[i].Y;
+        }
+
+        AddSegment(segments, atX, atY, run[^1].X, atY);
+    }
+
+    /// <summary>
+    /// The curve <see cref="AppendCurve"/> draws into a point, cut into pieces about <see cref="CurvePiece"/> long.
+    /// </summary>
+    private static void AddCurvePieces(List<ChartSegment> segments, List<(double X, double Y)> run, int index)
+    {
+        var before = Math.Max(0, index - 2);
+        var after = Math.Min(run.Count - 1, index + 1);
+
+        (var startX, var startY) = run[index - 1];
+        (var endX, var endY) = run[index];
+        var firstX = startX + ((endX - run[before].X) / 6);
+        var firstY = startY + ((endY - run[before].Y) / 6);
+        var secondX = endX - ((run[after].X - startX) / 6);
+        var secondY = endY - ((run[after].Y - startY) / 6);
+
+        var reach = Distance(startX, startY, firstX, firstY) + Distance(firstX, firstY, secondX, secondY) + Distance(secondX, secondY, endX, endY);
+        var pieces = Math.Max(1, (int)Math.Ceiling(reach / CurvePiece));
+        var atX = startX;
+        var atY = startY;
+
+        for (var k = 1; k <= pieces; k++)
+        {
+            var t = (double)k / pieces;
+            var rest = 1 - t;
+            var a = rest * rest * rest;
+            var b = 3 * rest * rest * t;
+            var c = 3 * rest * t * t;
+            var d = t * t * t;
+            var nextX = (a * startX) + (b * firstX) + (c * secondX) + (d * endX);
+            var nextY = (a * startY) + (b * firstY) + (c * secondY) + (d * endY);
+
+            AddSegment(segments, atX, atY, nextX, nextY);
+            atX = nextX;
+            atY = nextY;
+        }
+    }
+
+    private static double Distance(double fromX, double fromY, double toX, double toY)
+        => Math.Sqrt(((toX - fromX) * (toX - fromX)) + ((toY - fromY) * (toY - fromY)));
+
+    /// <summary>A piece from one place to another; none where the two are the same place, which would draw a dot of the line's cap.</summary>
+    internal static void AddSegment(List<ChartSegment> segments, double fromX, double fromY, double toX, double toY)
+    {
+        if (fromX != toX || fromY != toY)
+            segments.Add(new ChartSegment(fromX, fromY, toX, toY));
     }
 
     /// <summary>A coordinate as the markup carries it: two decimals at most, invariant, and never a negative zero.</summary>

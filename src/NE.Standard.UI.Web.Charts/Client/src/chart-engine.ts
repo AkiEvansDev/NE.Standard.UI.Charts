@@ -1,52 +1,57 @@
 // Runs every chart on the page: re-draws it at its real size, takes its collection through the sink, and reads the viewer's
 // zoom, pan and legend clicks.
 
-import type { CollectionChange, ObserveSize, PluginEngineContext, Tooltips } from "ne-standard-ui";
+import type { CollectionChange, ComponentStates, ObserveSize, PluginEngineContext, Tooltips, WheelReading } from "ne-standard-ui";
 import { drawChart } from "./chart-draw.ts";
 import type { ChartColumn, ChartFormatting, ChartFrame } from "./chart-draw.ts";
-import { applyGaugeValue } from "./chart-gauge.ts";
-import { ModelAttribute, PointAttribute, RowsAttribute, SeriesAttribute, WindowAttribute, readModel } from "./chart-model.ts";
+import { applyGaugeValue, rewriteGauges } from "./chart-gauge.ts";
+import { readModel, translateModel } from "./chart-model.ts";
 import type { ChartModel } from "./chart-model.ts";
+import { ChartAttributes, ChartClasses, ChartEvents, ClientNames } from "./chart-names.ts";
+import { DoublePressWait, PointPress, seriesOf } from "./chart-press.ts";
 import { applyChange, readRows } from "./chart-rows.ts";
 import type { ChartRow } from "./chart-rows.ts";
 import { valueOf } from "./chart-ticks.ts";
-import { panWindow, zoomWindow } from "./chart-window.ts";
+import { sameWindow, wheelWindow, zoomNotches } from "./chart-wheel.ts";
+import { panWindow } from "./chart-window.ts";
 import type { Span } from "./chart-window.ts";
 
-const RootSelector = ".ui-chart";
-const CanvasSelector = ".ui-chart__canvas";
-const SeriesSelector = ".ui-chart__series";
-const PointSelector = "[data-ui-chart-point]";
-const PointClickEvent = "point-click";
-const AreaSelector = ".ui-chart__area";
-const RuleSelector = ".ui-chart__rule";
-const RuleOnClass = "ui-chart__rule--on";
-const WindowSelector = ".ui-chart__window";
-const WindowChangeEvent = "window-change";
+const RootSelector = `.${ChartClasses.root}`;
+const CanvasSelector = `.${ChartClasses.canvas}`;
+const PlotSelector = `.${ChartClasses.plot}`;
+const SeriesSelector = `.${ChartClasses.series}`;
+const BandsSelector = `:scope > .${ChartClasses.bands}`;
+const FillSelector = `.${ChartClasses.fill}`;
+const PointSelector = `[${ChartAttributes.point}]`;
+const AreaSelector = `.${ChartClasses.area}`;
+const RuleSelector = `.${ClientNames.rule}`;
+const WindowSelector = `.${ChartClasses.window}`;
 /** How long after the last notch of the wheel the window is sent; a drag sends its own on the release. */
 const SettleDelay = 250;
 /** How much of the window one notch of the wheel takes away, or gives back. */
 const WheelStep = 1.2;
-/** The pixels one notch of a mouse wheel scrolls by, which is what a delta is measured against: a trackpad sends many small ones. */
-const NotchPixels = 100;
-/** The pixels a line and a page of a wheel's delta stand for, where the browser counts it in those. */
-const LinePixels = NotchPixels / 3;
+/** The pixels a page of a wheel's delta stands for, where the browser counts it in pages: this package's own factor. */
 const PagePixels = 800;
 /** No single event zooms by more than this many notches, however large a delta the device reports. */
 const MostNotches = 3;
 /** A press that moved this far was a drag, and the point under it is not what the viewer meant to press. */
 const DragSlack = 3;
-const LegendEntrySelector = ".ui-chart__legend-entry";
-const LegendOffClass = "ui-chart__legend-entry--off";
-const BackSeriesClass = "ui-chart__series--back";
-const BarSelector = ".ui-chart__bar";
-const HoveredBarSelector = ".ui-chart__bar:hover";
-const FrontBarClass = "ui-chart__bar--front";
+const LegendEntrySelector = `.${ChartClasses.legendEntry}`;
+const BarSelector = `.${ChartClasses.bar}`;
+const SectorSelector = `.${ChartClasses.sector}`;
+const SectorAnchorSelector = `.${ChartClasses.sectorAnchor}`;
+
+/** One bar as the pointer reads it: its series and its point, which name it again after a redraw replaced the element. */
+type BarKey = {
+    readonly series: string;
+    readonly point: string;
+};
 
 /** One chart as this engine holds it, with the attributes it was built from so a re-render is noticed. */
 type ChartEntry = {
     readonly root: HTMLElement;
-    readonly model: ChartModel;
+    /** The model in the page's words, translated again at a language switch. */
+    model: ChartModel;
     readonly rows: ChartRow[];
     readonly hidden: Set<string>;
     readonly modelText: string;
@@ -59,11 +64,17 @@ type ChartEntry = {
     anchored: boolean;
     /** Whether a point arrived while the window stood at the far end, for the next draw to slide it along. */
     follow: boolean;
-    /** The box the chart was last drawn at, so a size that did not really change draws nothing. */
+    /** The box the chart was last drawn at, which the draw records, so a size that did not really change draws nothing. */
     width: number;
     height: number;
     /** What stops following the chart's size; kept so a chart the page let go of is let go of here too. */
     release: (() => void) | null;
+    /**
+     * The series being read through its legend entry or its band, and the bar being read: kept here rather than read off
+     * `:hover`, since a redraw replaces what the pointer stands on and the new element is not hovered until the pointer moves.
+     */
+    front: string | null;
+    bar: BarKey | null;
 };
 
 /** The drag in hand: the chart, where the press started along its band axis, and the window it started from. */
@@ -78,12 +89,16 @@ export class ChartEngine {
     private readonly charts = new WeakMap<HTMLElement, ChartEntry>();
     private readonly formatting: ChartFormatting;
     private readonly tooltips: Tooltips;
+    private readonly states: ComponentStates;
+    private readonly wheel: WheelReading;
     private readonly observeSize: ObserveSize;
     private readonly readPath: (item: unknown, path: string) => unknown;
     /** The chart whose shared tooltip is up, so it is taken down when the pointer goes elsewhere. */
     private shared: HTMLElement | null = null;
     /** The column that tooltip names, so a pointer moving within one column does not show the same words again. */
     private sharedColumn: ChartColumn | null = null;
+    /** The sector whose tooltip is up, so leaving it takes the tooltip down and leaving anything else does not. */
+    private sector: Element | null = null;
     /** The charts waiting to be drawn at the next frame: a burst of changes, a drag's moves and a wheel's notches draw once. */
     private readonly dirty = new Set<HTMLElement>();
     private frameRequested = false;
@@ -92,12 +107,19 @@ export class ChartEngine {
     private dragged = false;
     /** The wheel's own settling, per chart: the timer its window waits on before it is sent. */
     private readonly settling = new Map<HTMLElement, number>();
+    /**
+     * A press on a point of a zoomable chart, held until no second press follows — a double press there resets the window — and
+     * its point marked as taken meanwhile.
+     */
+    private readonly pointPress = new PointPress(DoublePressWait);
 
     public constructor(context: PluginEngineContext) {
         const root = context.root;
 
-        this.formatting = { numbers: context.numbers, temporal: context.temporal, strings: context.strings };
+        this.formatting = { numbers: context.numbers, temporal: context.temporal, strings: context.strings, names: context.names, focusReturn: context.popups.focusReturn };
         this.tooltips = context.tooltips;
+        this.states = context.states;
+        this.wheel = context.wheel;
         this.observeSize = context.observeSize;
         this.readPath = context.rows.readPath;
 
@@ -105,16 +127,22 @@ export class ChartEngine {
             this.adopt(chart);
 
         // The charts a navigation brings, and a chart the server rendered again: its model and its rows are attributes of the root.
-        context.observeComponents(root, RootSelector, { childList: true, attributeFilter: [ModelAttribute, RowsAttribute] }, charts => {
+        context.observeComponents(root, RootSelector, { childList: true, attributeFilter: [ChartAttributes.model, ChartAttributes.rows] }, charts => {
             for (const chart of charts)
                 this.onMutated(chart);
         });
 
+        // A caption is the author's words, translated off the model: a language switch translates it again and draws every chart and
+        // gauge anew.
+        context.strings.onChange(() => this.wordsChanged(root));
+
         root.addEventListener("click", domEvent => this.onPress(domEvent), true);
-        root.addEventListener("pointerover", domEvent => this.onLegendHover(domEvent), true);
-        root.addEventListener("pointerout", domEvent => this.onLegendHover(domEvent), true);
+        root.addEventListener("pointerover", domEvent => this.onSeriesHover(domEvent), true);
+        root.addEventListener("pointerout", domEvent => this.onSeriesHover(domEvent), true);
         root.addEventListener("pointerover", domEvent => this.onBarHover(domEvent), true);
         root.addEventListener("pointerout", domEvent => this.onBarHover(domEvent), true);
+        root.addEventListener("pointerover", domEvent => this.onSectorHover(domEvent), true);
+        root.addEventListener("pointerout", domEvent => this.onSectorHover(domEvent), true);
 
         // Only a chart the author made zoomable answers the wheel and the drag, so a page still scrolls under the rest.
         root.addEventListener("wheel", domEvent => this.onWheel(domEvent), { capture: true, passive: false });
@@ -125,6 +153,21 @@ export class ChartEngine {
         // with no columns is left alone.
         root.addEventListener("pointermove", domEvent => this.onSharedTooltip(domEvent), true);
         root.addEventListener("pointerout", domEvent => this.onSharedTooltip(domEvent), true);
+    }
+
+    private wordsChanged(root: ParentNode): void {
+        for (const chart of root.querySelectorAll<HTMLElement>(RootSelector)) {
+            const entry = this.charts.get(chart);
+            const written = entry === undefined ? null : readModel(chart);
+
+            if (entry === undefined || written === null)
+                continue;
+
+            entry.model = translateModel(written, text => this.formatting.strings.resolveText(text));
+            this.schedule(chart);
+        }
+
+        rewriteGauges(root, this.formatting);
     }
 
     /** Takes a chart in hand: reads what the server said, draws it at its real size, and follows that size from then on. */
@@ -139,13 +182,10 @@ export class ChartEngine {
         this.schedule(root);
     }
 
-    /**
-     * The chart's entry, built or rebuilt when the server sends a new model. Rows the sink has patched stay as they are — the
-     * attribute reflects the first frame, not the page's current rows.
-     */
+    /** The chart's entry, rebuilt when the server sends a new model; patched rows stay, since the attribute reflects the first frame. */
     private resolve(root: HTMLElement): ChartEntry | null {
-        const modelText = root.getAttribute(ModelAttribute) ?? "";
-        const rowsText = root.getAttribute(RowsAttribute) ?? "";
+        const modelText = root.getAttribute(ChartAttributes.model) ?? "";
+        const rowsText = root.getAttribute(ChartAttributes.rows) ?? "";
         const existing = this.charts.get(root);
 
         if (existing !== undefined && existing.modelText === modelText) {
@@ -158,10 +198,12 @@ export class ChartEngine {
             return existing;
         }
 
-        const model = readModel(root);
+        const written = readModel(root);
 
-        if (model === null)
+        if (written === null)
             return null;
+
+        const model = translateModel(written, text => this.formatting.strings.resolveText(text));
 
         const entry: ChartEntry = {
             root,
@@ -177,7 +219,9 @@ export class ChartEngine {
             frame: null,
             width: 0,
             height: 0,
-            release: existing?.release ?? null
+            release: existing?.release ?? null,
+            front: existing?.front ?? null,
+            bar: existing?.bar ?? null
         };
 
         this.charts.set(root, entry);
@@ -213,14 +257,16 @@ export class ChartEngine {
         if (entry === undefined || !root.isConnected)
             return;
 
-        const box = measure(root);
         const following = entry.follow && entry.view !== null;
 
-        entry.width = box.width;
-        entry.height = box.height;
+        // The draw records the box it measured once the legend was in step, so the observer answering the legend's own change finds
+        // nothing new to draw.
         entry.frame = drawChart(entry, this.formatting);
-        // The canvas is new, and the pointer that stood on a bar of the old one has not moved to say so again.
-        markBar(root, root.querySelector(HoveredBarSelector));
+        // The canvas is new, and the pointer that stood on a series or a bar of the old one has not moved to say so again.
+        markFront(entry);
+        markBar(root, entry.bar);
+
+        this.pointPress.redrawn(root);
 
         // The window slid along with the data, diverging from what the controller holds; settling coalesces a burst of readings
         // into one message.
@@ -260,7 +306,7 @@ export class ChartEngine {
     private onMutated(root: HTMLElement): void {
         const known = this.charts.get(root);
 
-        if (known !== undefined && known.modelText === (root.getAttribute(ModelAttribute) ?? "") && known.rowsText === (root.getAttribute(RowsAttribute) ?? ""))
+        if (known !== undefined && known.modelText === (root.getAttribute(ChartAttributes.model) ?? "") && known.rowsText === (root.getAttribute(ChartAttributes.rows) ?? ""))
             return;
 
         this.adopt(root);
@@ -287,19 +333,16 @@ export class ChartEngine {
         this.schedule(change.component);
     }
 
-    /**
-     * A window the server pushed: the attribute is written so a reload agrees with what is drawn, and the chart moves to it. A
-     * value this page produced is already drawn, so it's not read again.
-     */
+    /** A window the server pushed, written to the attribute so a reload agrees, and drawn; one this page produced already is. */
     public applyWindow(target: Element, value: unknown, local: boolean): void {
         const root = target.closest<HTMLElement>(RootSelector);
         const entry = root === null ? undefined : this.charts.get(root);
         const wire = readWindowValue(value);
 
         if (wire === null)
-            target.removeAttribute(WindowAttribute);
+            target.removeAttribute(ChartAttributes.window);
         else
-            target.setAttribute(WindowAttribute, JSON.stringify(wire));
+            target.setAttribute(ChartAttributes.window, JSON.stringify(wire));
 
         if (root === null || entry === undefined || local)
             return;
@@ -315,17 +358,25 @@ export class ChartEngine {
         applyGaugeValue(target, value, this.formatting);
     }
 
-    /** The x the pointer names, marked with a line and named by one tooltip; the pointer leaving the plot takes both down. */
+    /** The element an event landed on, where the chart it belongs to answers the reader: not disabled, loading or inert. */
+    private answering(target: EventTarget | null): Element | null {
+        return target instanceof Element && !this.states.isInert(target) ? target : null;
+    }
+
+    /**
+     * The x the pointer names, marked by a rule and one tooltip until it leaves the plot; the words wait as a hover's do, so a
+     * pointer crossing on its way elsewhere shows none.
+     */
     private onSharedTooltip(domEvent: Event): void {
         if (!(domEvent instanceof PointerEvent) || !(domEvent.target instanceof Element))
             return;
 
-        const root = domEvent.target.closest<HTMLElement>(RootSelector);
+        const target = domEvent.target;
+        const root = target.closest<HTMLElement>(RootSelector);
         const entry = root === null ? undefined : this.charts.get(root);
         const frame = entry?.frame ?? null;
-        const inside = domEvent.type === "pointermove" && domEvent.target.closest(AreaSelector) !== null;
 
-        if (root === null || entry === undefined || frame === null || frame.columns.length === 0 || !inside) {
+        if (domEvent.type !== "pointermove" || root === null || entry === undefined || frame === null || frame.columns.length === 0 || target.closest(AreaSelector) === null || this.states.isInert(target)) {
             this.closeShared();
             return;
         }
@@ -337,6 +388,12 @@ export class ChartEngine {
             return;
 
         const box = canvas.getBoundingClientRect();
+
+        if (!withinPlot(frame, domEvent.clientX - box.left, domEvent.clientY - box.top)) {
+            this.closeShared();
+            return;
+        }
+
         const horizontal = entry.model.horizontal;
         const column = nearestColumn(frame.columns, horizontal ? domEvent.clientY - box.top : domEvent.clientX - box.left);
 
@@ -345,56 +402,66 @@ export class ChartEngine {
             return;
 
         rule.setAttribute(horizontal ? "y" : "x", String(Math.round(column.at * 100) / 100));
-        rule.classList.add(RuleOnClass);
+        rule.classList.add(ClientNames.ruleOn);
         this.shared = root;
         this.sharedColumn = column;
-        this.tooltips.show(rule, column.text);
+        this.tooltips.show(rule, column.text, { delay: true });
     }
 
     private closeShared(): void {
         if (this.shared === null)
             return;
 
-        this.shared.querySelector<SVGElement>(RuleSelector)?.classList.remove(RuleOnClass);
+        this.shared.querySelector<SVGElement>(RuleSelector)?.classList.remove(ClientNames.ruleOn);
         this.shared = null;
         this.sharedColumn = null;
         this.tooltips.hide();
     }
 
-    /** The chart the pointer is over, where it is one the viewer may move. */
-    private zoomable(target: EventTarget | null): { root: HTMLElement; entry: ChartEntry; frame: ChartFrame } | null {
-        if (!(target instanceof Element))
-            return null;
-
-        const root = target.closest<HTMLElement>(RootSelector);
+    /** The chart under the pointer, where the viewer may move it and the pointer is on its plot, not the axes' gutters. */
+    private zoomable(domEvent: Event): { root: HTMLElement; entry: ChartEntry; frame: ChartFrame } | null {
+        const element = this.answering(domEvent.target);
+        const root = element?.closest<HTMLElement>(RootSelector) ?? null;
         const entry = root === null ? undefined : this.charts.get(root);
+        const canvas = root?.querySelector<SVGSVGElement>(CanvasSelector) ?? null;
 
-        if (root === null || entry === undefined || !entry.model.zoomable || entry.frame === null)
+        if (!(domEvent instanceof MouseEvent) || element === null || root === null || entry === undefined || !entry.model.zoomable || entry.frame === null || canvas === null)
             return null;
 
-        return target.closest(AreaSelector) === null ? null : { root, entry, frame: entry.frame };
+        const box = canvas.getBoundingClientRect();
+
+        if (element.closest(AreaSelector) === null || !withinPlot(entry.frame, domEvent.clientX - box.left, domEvent.clientY - box.top))
+            return null;
+
+        return { root, entry, frame: entry.frame };
     }
 
     /**
-     * The wheel: the window narrows or widens about the value under the pointer, which stays where it is. By how far the wheel
-     * turned, not once per event, since a trackpad sends dozens of small ones for a gesture a mouse sends as one notch.
+     * The wheel zooms about the value under the pointer, by how far it turned, since a trackpad sends dozens of small events for
+     * one notch; a turn with nothing to change is the page's to scroll.
      */
     private onWheel(domEvent: Event): void {
-        const found = this.zoomable(domEvent.target);
+        const found = this.zoomable(domEvent);
 
-        if (found === null || !(domEvent instanceof WheelEvent) || domEvent.deltaY === 0)
+        if (found === null || !(domEvent instanceof WheelEvent))
             return;
 
-        domEvent.preventDefault();
+        const notches = zoomNotches(this.wheel.pixels(domEvent, PagePixels), this.wheel.notch, MostNotches);
+
+        if (notches === 0)
+            return;
 
         const { entry, frame } = found;
         // Read against the window as it now stands, which a notch since the last frame may already have moved.
         const current = entry.view ?? frame.whole;
         const at = valueOf({ ...frame.x, min: current.from, max: current.to }, share(domEvent, found.root, frame, entry.model.horizontal));
-        const notches = Math.min(Math.max(wheelPixels(domEvent) / NotchPixels, -MostNotches), MostNotches);
-        const moved = zoomWindow(current, at, WheelStep ** notches, frame.whole.from, frame.whole.to);
+        const view = wheelWindow(entry.view, frame.whole, at, WheelStep ** notches);
 
-        entry.view = narrowed(moved, frame.whole);
+        if (sameWindow(view, entry.view))
+            return;
+
+        domEvent.preventDefault();
+        entry.view = view;
         entry.follow = false;
         this.schedule(found.root);
         anchor(entry);
@@ -420,18 +487,19 @@ export class ChartEngine {
 
         this.settling.delete(root);
 
-        if (entry === undefined || target === null)
+        // A chart that turned disabled or loading while its window settled sends nothing; the window stays drawn as the viewer left it.
+        if (entry === undefined || target === null || this.states.isInert(root))
             return;
 
         const text = entry.view === null ? "" : JSON.stringify({ from: entry.view.from, to: entry.view.to });
 
         if (text.length === 0)
-            target.removeAttribute(WindowAttribute);
+            target.removeAttribute(ChartAttributes.window);
         else
-            target.setAttribute(WindowAttribute, text);
+            target.setAttribute(ChartAttributes.window, text);
 
         target.dispatchEvent(new Event("change", { bubbles: true }));
-        root.dispatchEvent(new CustomEvent(WindowChangeEvent, { bubbles: true }));
+        root.dispatchEvent(new CustomEvent(ChartEvents.windowChange, { bubbles: true }));
     }
 
     /** A press on the plot takes the window in hand; what follows the pointer is the drag itself. */
@@ -439,7 +507,7 @@ export class ChartEngine {
         // A new press: whatever the last one was, the click that follows this one is its own.
         this.dragged = false;
 
-        const found = this.zoomable(domEvent.target);
+        const found = this.zoomable(domEvent);
 
         if (found === null || !(domEvent instanceof PointerEvent) || domEvent.button !== 0)
             return;
@@ -459,6 +527,7 @@ export class ChartEngine {
         window.addEventListener("pointercancel", end, true);
     }
 
+    /** The drag moves the window only once it is past the slack: a press that stayed within it is a click, and moves nothing. */
     private onDragMove(domEvent: Event): void {
         const drag = this.drag;
         const entry = drag === null ? undefined : this.charts.get(drag.root);
@@ -466,14 +535,24 @@ export class ChartEngine {
         if (drag === null || entry === undefined || entry.frame === null || !(domEvent instanceof PointerEvent))
             return;
 
+        // The chart turned disabled or loading in the middle of the drag: the window stays where the drag had it.
+        if (this.states.isInert(drag.root))
+            return;
+
         // Along the band axis: across the plot, or down it where the chart lies on its side.
         const horizontal = entry.model.horizontal;
-        const length = horizontal ? entry.frame.plot.height : entry.frame.plot.width;
-        const span = drag.window.to - drag.window.from;
         const at = along(domEvent, horizontal);
-        const by = length > 0 ? ((drag.start - at) / length) * span : 0;
 
         drag.moved = Math.max(drag.moved, Math.abs(at - drag.start));
+
+        if (drag.moved <= DragSlack)
+            return;
+
+        const length = horizontal ? entry.frame.plot.height : entry.frame.plot.width;
+        const span = drag.window.to - drag.window.from;
+        const by = length > 0 ? ((drag.start - at) / length) * span : 0;
+
+        drag.root.classList.add(ClientNames.dragging);
         entry.view = panWindow(drag.window, by, entry.frame.whole.from, entry.frame.whole.to);
         entry.follow = false;
         this.schedule(drag.root);
@@ -484,17 +563,29 @@ export class ChartEngine {
         // A press that moved is a drag, and the click that follows it is not a press on the point underneath.
         this.dragged = this.drag !== null && this.drag.moved > DragSlack;
 
-        if (this.dragged && this.drag !== null)
-            this.send(this.drag.root);
+        if (this.drag !== null) {
+            this.drag.root.classList.remove(ClientNames.dragging);
+
+            if (this.dragged)
+                this.send(this.drag.root);
+        }
 
         this.drag = null;
     }
 
-    /** Two presses give the whole of the data back; on a chart already showing the whole, they change nothing and say nothing. */
+    /**
+     * Two presses give the whole of the data back, and are never a point's command; on a chart already showing the whole, they
+     * change nothing and say nothing.
+     */
     private onReset(domEvent: Event): void {
-        const found = this.zoomable(domEvent.target);
+        const found = this.zoomable(domEvent);
 
-        if (found === null || found.entry.view === null)
+        if (found === null)
+            return;
+
+        this.pointPress.cancel();
+
+        if (found.entry.view === null)
             return;
 
         found.entry.view = null;
@@ -505,52 +596,79 @@ export class ChartEngine {
     }
 
     /**
-     * The legend reads like the plot: the series under the pointer stays forward, the rest go back until the pointer leaves.
-     * The plot's own hover is the stylesheet's work; only the legend needs its key matched to a group here.
+     * The series being read stays forward and the rest go back. Lines, marks and sectors are the stylesheet's (`:has()`); a band
+     * lies in its own layer, outside its series' group, so only the engine can match it, and a legend entry, by key.
      */
-    private onLegendHover(domEvent: Event): void {
+    private onSeriesHover(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
 
-        const button = domEvent.target.closest<HTMLElement>(LegendEntrySelector);
         const root = domEvent.target.closest<HTMLElement>(RootSelector);
+        const entry = root === null ? undefined : this.charts.get(root);
 
-        if (root === null)
+        if (entry === undefined)
             return;
 
-        const over = domEvent.type === "pointerover";
-        const related = domEvent instanceof PointerEvent ? domEvent.relatedTarget : null;
+        const target = domEvent.type === "pointerover" ? this.answering(domEvent.target) : null;
+        const key = target === null ? null : readingKey(target);
 
-        // Moving between an entry's own mark and its words leaves and enters it again; the series it names has not changed.
-        if (!over && button !== null && related instanceof Node && button.contains(related))
+        if (key === entry.front)
             return;
 
-        const key = over && button !== null ? button.getAttribute(SeriesAttribute) : null;
-
-        for (const series of root.querySelectorAll<SVGElement>(SeriesSelector))
-            series.classList.toggle(BackSeriesClass, key !== null && series.getAttribute(SeriesAttribute) !== key);
+        entry.front = key;
+        markFront(entry);
     }
 
-    /**
-     * The bar under the pointer comes forward; every other bar, including ones stacked in its column, goes back. Marked here
-     * rather than left to :hover, so a redraw under a still pointer keeps it.
-     */
+    /** The bar under the pointer comes forward; every other bar, including ones stacked in its column, goes back. */
     private onBarHover(domEvent: Event): void {
         if (!(domEvent.target instanceof Element))
             return;
 
         const root = domEvent.target.closest<HTMLElement>(RootSelector);
+        const entry = root === null ? undefined : this.charts.get(root);
 
-        if (root !== null)
-            markBar(root, domEvent.type === "pointerover" ? domEvent.target.closest(BarSelector) : null);
+        if (root === null || entry === undefined)
+            return;
+
+        const bar = domEvent.type === "pointerover" ? this.answering(domEvent.target)?.closest(BarSelector) ?? null : null;
+
+        entry.bar = bar === null ? null : { series: bar.parentElement?.getAttribute(ChartAttributes.series) ?? "", point: bar.getAttribute(ChartAttributes.point) ?? "" };
+        markBar(root, entry.bar);
+    }
+
+    /** A sector's tooltip, shown mid-arc, since the framework places a tooltip by its target's box and a sector's is the whole ring's. */
+    private onSectorHover(domEvent: Event): void {
+        if (!(domEvent.target instanceof Element))
+            return;
+
+        if (domEvent.type === "pointerout") {
+            const related = domEvent instanceof PointerEvent ? domEvent.relatedTarget : null;
+
+            if (this.sector !== null && this.sector.contains(domEvent.target) && !(related instanceof Node && this.sector.contains(related))) {
+                this.sector = null;
+                this.tooltips.hide();
+            }
+
+            return;
+        }
+
+        const sector = this.answering(domEvent.target)?.closest(SectorSelector) ?? null;
+        const words = sector?.getAttribute(ChartAttributes.sectorTooltip) ?? null;
+        const mark = sector?.parentElement?.querySelector(SectorAnchorSelector) ?? null;
+
+        if (sector === null || words === null || mark === null || sector === this.sector)
+            return;
+
+        this.sector = sector;
+        this.tooltips.show(mark, words, { delay: true });
     }
 
     /**
-     * A press inside a chart: the legend's own press is handled here and never sent; a press on a point raises this package's
-     * own event, naming which point and which series.
+     * A press inside a chart: the legend's is handled here; a point's raises the package's event, on a zoomable chart once no
+     * second press made it the reset.
      */
     private onPress(domEvent: Event): void {
-        if (domEvent.defaultPrevented || !(domEvent.target instanceof Element))
+        if (domEvent.defaultPrevented || this.answering(domEvent.target) === null || !(domEvent.target instanceof Element))
             return;
 
         if (this.onLegendPress(domEvent))
@@ -564,17 +682,27 @@ export class ChartEngine {
 
         const point = domEvent.target.closest<Element>(PointSelector);
         const root = point?.closest<HTMLElement>(RootSelector) ?? null;
+        const entry = root === null ? undefined : this.charts.get(root);
 
         if (point === null || root === null)
             return;
 
-        // A sector names its series itself, its group being named by its row.
-        const series = point.getAttribute(SeriesAttribute) ?? point.closest<Element>(SeriesSelector)?.getAttribute(SeriesAttribute) ?? "";
+        const detail = { point: point.getAttribute(ChartAttributes.point) ?? "", series: seriesOf(point) };
+        // A press held for the double-press wait answers nothing where the chart left the page or turned disabled in the meantime.
+        const answer = (): void => {
+            if (root.isConnected && !this.states.isInert(root))
+                root.dispatchEvent(new CustomEvent(ChartEvents.pointClick, { bubbles: true, detail }));
+        };
+        const count = domEvent instanceof MouseEvent ? domEvent.detail : 0;
 
-        root.dispatchEvent(new CustomEvent(PointClickEvent, {
-            bubbles: true,
-            detail: { point: point.getAttribute(PointAttribute) ?? "", series }
-        }));
+        // A click no pointer made (count none) has no second press coming.
+        if (entry?.model.zoomable !== true || count === 0) {
+            answer();
+            return;
+        }
+
+        // The point keeps its pressed look from the release until its command runs or a second press calls it off.
+        this.pointPress.press(count, { root, ...detail }, answer);
     }
 
     /** A press on a legend entry hides its series, or brings it back; the range then follows what is left. */
@@ -584,7 +712,7 @@ export class ChartEngine {
 
         const button = domEvent.target.closest<HTMLElement>(LegendEntrySelector);
         const root = button?.closest<HTMLElement>(RootSelector) ?? null;
-        const key = button?.getAttribute(SeriesAttribute) ?? null;
+        const key = button?.getAttribute(ChartAttributes.series) ?? null;
 
         if (button === null || root === null || key === null)
             return false;
@@ -604,7 +732,7 @@ export class ChartEngine {
         const hidden = entry.hidden.has(key);
 
         button.setAttribute("aria-pressed", hidden ? "false" : "true");
-        button.classList.toggle(LegendOffClass, hidden);
+        button.classList.toggle(ClientNames.legendOff, hidden);
 
         this.schedule(root);
 
@@ -614,7 +742,7 @@ export class ChartEngine {
 
 /** The window as the chart's value reads it: the two ends the engine wrote, or none at all. */
 export function readChartWindow(element: Element): unknown {
-    const text = element.getAttribute(WindowAttribute);
+    const text = element.getAttribute(ChartAttributes.window);
 
     if (text === null || text.length === 0)
         return null;
@@ -644,10 +772,14 @@ function safeParse(text: string): unknown {
     }
 }
 
-/**
- * The column nearest the pointer, which is the x the viewer means whether or not a point of it is under them. The columns stand
- * in order across the plot, so the search halves them.
- */
+/** Whether a place on the canvas lies on the plot itself, not in the gutters its axes' labels stand in. */
+function withinPlot(frame: ChartFrame, x: number, y: number): boolean {
+    const plot = frame.plot;
+
+    return x >= plot.left && x <= plot.left + plot.width && y >= plot.top && y <= plot.top + plot.height;
+}
+
+/** The column nearest the pointer, which is the x the viewer means; the columns stand in order, so the search halves them. */
 function nearestColumn(columns: readonly ChartColumn[], at: number): ChartColumn {
     let low = 0;
     let high = columns.length - 1;
@@ -664,14 +796,6 @@ function nearestColumn(columns: readonly ChartColumn[], at: number): ChartColumn
     return low > 0 && Math.abs(columns[low - 1].at - at) <= Math.abs(columns[low].at - at) ? columns[low - 1] : columns[low];
 }
 
-/** How far a wheel event turned, in pixels whatever unit the browser counted it in. */
-function wheelPixels(domEvent: WheelEvent): number {
-    if (domEvent.deltaMode === WheelEvent.DOM_DELTA_LINE)
-        return domEvent.deltaY * LinePixels;
-
-    return domEvent.deltaMode === WheelEvent.DOM_DELTA_PAGE ? domEvent.deltaY * PagePixels : domEvent.deltaY;
-}
-
 /**
  * Whether the window now stands at the far end of the data, as of the last draw. A window left there follows a point arriving
  * past it; one moved back stays put, so the viewer can read an older stretch while data keeps growing.
@@ -680,16 +804,6 @@ function anchor(entry: ChartEntry): void {
     const whole = entry.frame?.whole ?? null;
 
     entry.anchored = entry.view === null || whole === null || entry.view.to >= whole.to - (whole.to - whole.from) * 1e-6;
-}
-
-/**
- * A window covering the whole of the data is no window at all: widening past the ends returns the chart's own range, so it
- * follows new data as before instead of sliding.
- */
-function narrowed(view: Span, whole: Span): Span | null {
-    const slack = (whole.to - whole.from) * 1e-6;
-
-    return view.to - view.from >= whole.to - whole.from - slack ? null : view;
 }
 
 /** Where a pointer stands along the band axis of the plot, from none of it to all of it. */
@@ -722,8 +836,40 @@ function measure(root: HTMLElement): { width: number; height: number } {
     return { width: Math.round(box.width), height: Math.round(box.height) };
 }
 
-/** Marks `bar` as the one being read and takes the mark off every other bar; no bar takes it off them all. */
-function markBar(root: HTMLElement, bar: Element | null): void {
-    for (const each of root.querySelectorAll<SVGElement>(BarSelector))
-        each.classList.toggle(FrontBarClass, each === bar);
+/**
+ * The series an element under the pointer stands for, where the engine is the one to say so: a legend entry, or — in a plot
+ * whose bands lie in a layer of their own — a band or a series' group. None elsewhere, bars being read one at a time.
+ */
+function readingKey(target: Element): string | null {
+    const button = target.closest(LegendEntrySelector);
+
+    if (button !== null)
+        return button.getAttribute(ChartAttributes.series);
+
+    const plot = target.closest(PlotSelector);
+
+    if (plot === null || plot.querySelector(BandsSelector) === null)
+        return null;
+
+    return target.closest(FillSelector)?.getAttribute(ChartAttributes.series) ?? target.closest(SeriesSelector)?.getAttribute(ChartAttributes.series) ?? null;
+}
+
+/**
+ * Sends back every series and band but the one being read; none when nothing is. An entry the viewer put aside names nothing
+ * drawn, so hovering it dims nothing.
+ */
+function markFront(entry: ChartEntry): void {
+    const key = entry.front !== null && !entry.hidden.has(entry.front) ? entry.front : null;
+
+    for (const each of entry.root.querySelectorAll<SVGElement>(`${SeriesSelector}, ${FillSelector}`))
+        each.classList.toggle(ClientNames.backSeries, key !== null && each.getAttribute(ChartAttributes.series) !== key);
+}
+
+/** Marks the bar `bar` names as the one being read and takes the mark off every other bar; no bar takes it off them all. */
+function markBar(root: HTMLElement, bar: BarKey | null): void {
+    for (const each of root.querySelectorAll<SVGElement>(BarSelector)) {
+        const front = bar !== null && each.getAttribute(ChartAttributes.point) === bar.point && each.parentElement?.getAttribute(ChartAttributes.series) === bar.series;
+
+        each.classList.toggle(ClientNames.frontBar, front);
+    }
 }

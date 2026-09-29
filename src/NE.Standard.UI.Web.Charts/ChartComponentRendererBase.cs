@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text.Json;
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -11,9 +12,10 @@ namespace NE.Standard.UI.Web.Charts;
 
 /// <summary>
 /// A chart as SVG the server writes and the browser keeps: the first frame is drawn here, and the engine re-draws it once sized
-/// and whenever a point is patched. Split across four files: this one reads the chart and writes the root, <c>.Model</c> what
-/// the browser is told, <c>.Axes</c> the frame, <c>.Plot</c> the series.
+/// and whenever a point is patched.
 /// </summary>
+// Split across four files: this one reads the chart and writes the root, .Model what the browser is told, .Axes the frame,
+// .Plot the series.
 public abstract partial class ChartComponentRendererBase : WebComponentRendererBase
 {
     /// <summary>The sink a chart's bound collection reaches the browser through, as values rather than rows.</summary>
@@ -34,6 +36,11 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     /// <summary>On a point's mark: the key of the row it came from.</summary>
     public const string PointAttribute = "data-ui-chart-point";
 
+    /// <summary>
+    /// On a sector: its tooltip, which the engine shows mid-arc, since a sector's box is the whole ring's.
+    /// </summary>
+    public const string SectorTooltipAttribute = "data-ui-chart-tooltip";
+
     /// <summary>The window on a hidden element of its own, which is the chart's one writable value.</summary>
     public const string WindowValueKind = "chart-window";
 
@@ -48,10 +55,12 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string ScatterKind = "scatter";
     protected const string RadarKind = "radar";
 
+    protected const string RootClassName = "ui-chart";
     protected const string AreaClassName = "ui-chart__area";
     protected const string CanvasClassName = "ui-chart__canvas";
     protected const string GridClassName = "ui-chart__grid";
     protected const string GridLineClassName = "ui-chart__grid-line";
+    protected const string AxesClassName = "ui-chart__axes";
     protected const string AxisLineClassName = "ui-chart__axis-line";
     protected const string LabelClassName = "ui-chart__label";
     protected const string CaptionClassName = "ui-chart__caption";
@@ -62,8 +71,15 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string FillClassName = "ui-chart__fill";
     protected const string BarClassName = "ui-chart__bar";
     protected const string BareClassName = "ui-chart--bare";
+    /// <summary>What the root's legend placement class starts with, finished with the placement: <c>ui-chart--legend-bottom</c>.</summary>
+    protected const string LegendClassPrefix = "ui-chart--legend-";
+    protected const string ZoomableClassName = "ui-chart--zoomable";
+    protected const string HorizontalClassName = "ui-chart--horizontal";
+    protected const string PressableClassName = "ui-chart--pressable";
     protected const string SectorClassName = "ui-chart__sector";
     protected const string SectorEdgeClassName = "ui-chart__sector-edge";
+    protected const string SectorAnchorClassName = "ui-chart__sector-anchor";
+    protected const string BandsClassName = "ui-chart__bands";
     protected const string CentreClassName = "ui-chart__centre";
     protected const string PointClassName = "ui-chart__point";
     protected const string MarkerClassName = "ui-chart__marker";
@@ -76,6 +92,8 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string EmptyClassName = "ui-chart__empty";
     protected const string WindowClassName = "ui-chart__window";
     protected const string SeriesColorVariable = "--ui-chart-series-color";
+    /// <summary>What a chart's clip is named by, finished with the component's id; the browser names the one it draws the same way.</summary>
+    protected const string ClipIdPrefix = "ui-chart-clip-";
 
     // The first frame's box: text doesn't scale with the viewBox, so the browser re-draws at the real size and this only shapes
     // the first paint.
@@ -93,7 +111,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
 
     private static readonly JsonSerializerOptions ModelJsonOptions = WebWireJson.CreateOptions();
 
-    protected override string ClassName => "ui-chart";
+    protected override string ClassName => RootClassName;
 
     /// <summary>The kind the browser draws this chart as.</summary>
     protected abstract string ChartKind { get; }
@@ -121,9 +139,16 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected virtual bool ReadHorizontal(WebRenderContext context)
         => false;
 
-    /// <summary>The hole in the middle of this chart and the words in it; a chart with no middle has neither.</summary>
-    protected virtual ChartCentre ReadCentre(WebRenderContext context)
-        => new(0, null);
+    /// <summary>How much of the radius the hole in the middle of this chart takes; a chart with no middle has none.</summary>
+    protected virtual double ReadDonut(WebRenderContext context)
+        => 0;
+
+    /// <summary>
+    /// Writes the words in the hole: a static caption recorded for a language switch, a bound one following its pushes.
+    /// </summary>
+    protected virtual void RenderCentre(WebRenderContext context, IHtmlElementBuilder centre)
+    {
+    }
 
     protected override void RenderComponent(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -141,16 +166,26 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         TemporalCultureRenderer.RenderTemporalCulture(root, culture);
 
         _ = root.Attribute(WebAttributes.CollectionSink, SinkKind);
-        _ = root.Class($"ui-chart--legend-{spec.Legend.ToString().ToLowerInvariant()}");
+        _ = root.Class(LegendClassPrefix + spec.Legend.ToString().ToLowerInvariant());
 
         if (spec.Bare)
             _ = root.Class(BareClassName);
 
+        // What the stylesheet says a press and a drag do: a hand over a point a command answers, a grip over a plot that moves.
+        if (spec.Zoomable)
+            _ = root.Class(ZoomableClassName);
+
+        if (spec.Horizontal)
+            _ = root.Class(HorizontalClassName);
+
+        if (spec.Pressable)
+            _ = root.Class(PressableClassName);
+
         _ = root.Attribute(ModelAttribute, JsonSerializer.Serialize(BuildModel(spec, data, context), ModelJsonOptions));
         _ = root.Attribute(RowsAttribute, JsonSerializer.Serialize(data.Rows, ModelJsonOptions));
 
-        // The window is the x axis this frame draws on; the y axis covers what the series reach inside it. Formats follow the
-        // resolved scales, matching the browser's, so a tick and tooltip read the same on both sides.
+        // The window is the x axis this frame draws; the y axis covers what the series reach inside it. Formats follow the
+        // resolved scales, as the browser's do, so a tick and tooltip read the same on both sides.
         ChartScale whole = ChartRange.Resolve(spec.XAxis, data.XMin, data.XMax, data.Categories.Count);
         UIChartWindow? window = spec.VisibleRange is UIChartWindow given ? ChartWindow.Clamp(given, whole.Min, whole.Max) : null;
         ChartScale x = window is UIChartWindow view ? whole with { Min = view.From, Max = view.To } : whole;
@@ -189,13 +224,11 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     }
 
     /// <summary>
-    /// The chart's settings, read off the component once. A pie, a radar or a bare chart never zooms regardless, and a radar has no
-    /// x to share a tooltip along or to narrow to a window.
+    /// The chart's settings, read once; a pie, a radar or a bare chart never zooms, and a radar has no x to share or window.
     /// </summary>
     private ChartSpec ReadSpec(WebRenderContext context)
     {
         ChartLineOptions lines = ReadLineOptions(context);
-        ChartCentre centre = ReadCentre(context);
         var kind = ReadKind(context);
         var bare = ReadBare(context);
         var radar = kind == RadarKind;
@@ -218,17 +251,16 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             Stacked = ReadStacked(context),
             SharedTooltip = !radar && ReadRenderValue(context, IChartComponent.SharedTooltipProperty, false),
             Zoomable = kind != PieKind && !radar && !bare && ReadRenderValue(context, IChartComponent.ZoomableProperty, false),
+            Pressable = context.ViewResolution.View.Events.TryGet(new CompiledUIEventAddress(context.Node.ComponentId, ChartEvents.PointClick), out _),
             FollowLatest = ReadRenderValue(context, IChartComponent.FollowLatestProperty, false),
             VisibleRange = radar ? null : ReadRenderValue<UIChartWindow?>(context, IChartComponent.VisibleRangeProperty, null),
             Horizontal = ReadHorizontal(context),
-            Donut = centre.Donut,
-            CentreCaption = centre.Caption
+            Donut = ReadDonut(context)
         };
     }
 
     /// <summary>
-    /// The series standing on one another: each is drawn from the running total, and keeps its own values for the tooltip. What the
-    /// y axis then has to cover is the totals, not the parts.
+    /// The series drawn from their running totals, keeping their own values for the tooltip.
     /// </summary>
     private static void ApplyStacking(ChartSpec spec, ChartRenderData data)
     {
@@ -278,8 +310,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         => kind is AreaKind or BarKind or RadarKind;
 
     /// <summary>
-    /// The window on a hidden element of its own — the chart's one writable value, like an items component's query. Every chart
-    /// carries it, so a bound <c>VisibleRange</c> always lands somewhere.
+    /// The window on a hidden element of its own, which every chart carries so a bound <c>VisibleRange</c> always lands somewhere.
     /// </summary>
     private static void RenderWindowValue(WebRenderContext context, IHtmlElementBuilder root)
     {

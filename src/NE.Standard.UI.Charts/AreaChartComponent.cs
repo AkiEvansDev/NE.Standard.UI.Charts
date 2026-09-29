@@ -25,8 +25,6 @@ public abstract partial class AreaChartComponent<T> : LineChartComponent<T>, ISt
 /// </summary>
 public sealed class AreaChartComponent(string? id = null) : AreaChartComponent<AreaChartComponent>(id), IUIComponentDefinition
 {
-    /// <summary>
-    /// Gets the component type key used to identify this component in the compiled graph.
-    /// </summary>
+    /// <inheritdoc/>
     public static string ComponentTypeKey => "charts.area";
 }

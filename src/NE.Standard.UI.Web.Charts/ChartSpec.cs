@@ -41,6 +41,9 @@ internal sealed record ChartSpec
     /// <summary>Whether the viewer may zoom and pan along the x axis.</summary>
     public bool Zoomable { get; init; }
 
+    /// <summary>Whether a press on a point, a bar or a sector reaches a command the author wired (<c>OnPointClick</c>).</summary>
+    public bool Pressable { get; init; }
+
     /// <summary>Whether a window narrower than the data stays on the far end as the data grows past it.</summary>
     public bool FollowLatest { get; init; }
 
@@ -55,9 +58,6 @@ internal sealed record ChartSpec
 
     /// <summary>How much of a pie's radius the hole in the middle takes.</summary>
     public double Donut { get; init; }
-
-    /// <summary>The words in the middle of a donut.</summary>
-    public string? CentreCaption { get; init; }
 
     /// <summary>Whether a row is one point of the series it names, rather than an x with a value per series.</summary>
     public bool IsLongForm => !string.IsNullOrWhiteSpace(SeriesPath);

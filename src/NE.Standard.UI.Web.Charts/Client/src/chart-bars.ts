@@ -15,10 +15,7 @@ export type Bar = {
     readonly thickness: number;
 };
 
-/**
- * How many places along the band axis the bars share: one per x the data holds inside the range the axis shows, so a window zoomed
- * in widens the bars it keeps.
- */
+/** How many places the bars share: one per x inside the range shown, so a zoomed window widens the bars it keeps. */
 export function barSlots(series: readonly (readonly ChartPoint[])[], band: Scale): number {
     const places = new Set<number>();
 
