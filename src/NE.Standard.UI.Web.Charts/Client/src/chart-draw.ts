@@ -20,7 +20,7 @@ import { clampWindow, followWindow, windowExtent } from "./chart-window.ts";
 import type { Span } from "./chart-window.ts";
 import { defaultFormat, plotBottom, plotDown, plotRight, plotX, plotY, resolveRange, step, ticks, within } from "./chart-ticks.ts";
 import type { Plot, Scale } from "./chart-ticks.ts";
-import type { ClientStrings, DomNames, NumberCulturePack, NumberFormatting, Popups, TemporalCulturePack, TemporalFormatting } from "ne-standard-ui";
+import type { ClientStrings, DomNames, DomRegistry, NumberCulturePack, NumberFormatting, Popups, TemporalCulturePack, TemporalFormatting } from "ne-standard-ui";
 
 const SvgNamespace = "http://www.w3.org/2000/svg";
 
@@ -42,6 +42,7 @@ export type ChartFormatting = {
     readonly strings: ClientStrings;
     readonly names: DomNames;
     readonly focusReturn: Popups["focusReturn"];
+    readonly ensureId: DomRegistry["ensureId"];
 };
 
 /** What one chart holds between draws: what the server said, the rows as they now stand, and the series the viewer put away. */
@@ -57,6 +58,8 @@ export type ChartState = {
     /** The box the canvas was last measured at by a draw, once the legend beside it was in step. */
     width: number;
     height: number;
+    /** The id this chart's clip goes by, taken from the page's run of ids the first time the plot is cut. */
+    clip: string | null;
 };
 
 /** What a draw settled on, so a wheel and a drag can be read against the picture they land on. */
@@ -715,12 +718,18 @@ function drawAxes(
     }
 }
 
-/** The frame the plot is cut at, so a line out of a narrowed window isn't drawn over the axes; the id is the chart's own. */
-function clipPlot(canvas: SVGSVGElement, group: SVGElement, root: HTMLElement, plot: Plot, names: DomNames): void {
-    const id = `${ChartClasses.clipPrefix}${root.getAttribute(names.componentId) ?? "0"}`;
+/**
+ * The frame the plot is cut at, so a line out of a narrowed window isn't drawn over the axes. The id is this chart's alone: its
+ * component id is shared by every copy down a list, and `url(#id)` takes the first element of that id in the document.
+ */
+export function clipPlot(canvas: SVGSVGElement, group: SVGElement, state: ChartState, plot: Plot, formatting: ChartFormatting): void {
     const clip = append(canvas, "clipPath", "");
 
-    clip.setAttribute("id", id);
+    // "drawn" after the prefix keeps it apart from the server's first frame, whose ids go on with the component id's digits.
+    if (state.clip === null)
+        state.clip = formatting.ensureId(clip, `${ChartClasses.clipPrefix}drawn`);
+    else
+        clip.setAttribute("id", state.clip);
 
     const shape = append(clip, "rect", "");
 
@@ -729,7 +738,7 @@ function clipPlot(canvas: SVGSVGElement, group: SVGElement, root: HTMLElement, p
     shape.setAttribute("width", coord(plot.width));
     shape.setAttribute("height", coord(plot.height));
 
-    group.setAttribute("clip-path", `url(#${id})`);
+    group.setAttribute("clip-path", `url(#${state.clip})`);
 }
 
 /**
@@ -755,7 +764,7 @@ function drawSeries(
     const model = state.model;
 
     if (state.view !== null)
-        clipPlot(canvas, group, state.root, plot, formatting.names);
+        clipPlot(canvas, group, state, plot, formatting);
 
     // Every band under every series' line and marks: a later series' band laid over an earlier one would take its points from the
     // pointer.

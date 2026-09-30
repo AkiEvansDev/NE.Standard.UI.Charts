@@ -60,7 +60,10 @@ export function followWindow(span: Span, min: number, max: number): Span {
     return clampWindow({ from: max - spanWidth(span), to: max }, min, max);
 }
 
-/** What the series reach inside the window, with the point either side so a line entering the view starts at its true value. */
+/**
+ * What the series reach inside the window, with the point either side so a line entering the view starts at its true value — the
+ * two ends of the one piece of line a window between two points lies inside included.
+ */
 export function windowExtent(series: readonly (readonly ChartPoint[])[], window: Span | null): { min: number; max: number } {
     let min = Number.POSITIVE_INFINITY;
     let max = Number.NEGATIVE_INFINITY;
@@ -80,16 +83,19 @@ export function windowExtent(series: readonly (readonly ChartPoint[])[], window:
     return { min, max };
 }
 
-/** Whether a point is drawn in the window, or is the one either side of it that the line comes from. */
+/** Whether a point is drawn in the window, or the line from it to a neighbour crosses the window on its way. */
 function reaches(points: readonly ChartPoint[], index: number, window: Span | null): boolean {
     if (window === null)
         return true;
 
     const x = points[index].x;
 
-    if (x >= window.from && x <= window.to)
-        return true;
+    return meets(x, x, window)
+        || (index + 1 < points.length && meets(x, points[index + 1].x, window))
+        || (index > 0 && meets(points[index - 1].x, x, window));
+}
 
-    return (index + 1 < points.length && points[index + 1].x >= window.from && points[index + 1].x <= window.to)
-        || (index > 0 && points[index - 1].x >= window.from && points[index - 1].x <= window.to);
+/** Whether the stretch between two x's, whichever way round, meets the window. */
+function meets(a: number, b: number, window: Span): boolean {
+    return Math.min(a, b) <= window.to && Math.max(a, b) >= window.from;
 }

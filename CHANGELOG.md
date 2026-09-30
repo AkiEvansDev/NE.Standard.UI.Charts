@@ -4,6 +4,36 @@ One section per release of this slice, headed `## X.Y.Z` and named by the tag �
 workflow cuts the matching section out to become the body of the GitHub release, and a tag with no section
 fails the release before anything is published.
 
+## 1.4.0-rc.1
+
+- **A chart and a gauge follow a language switch in their numbers and dates.** Their culture packs stayed the language the page
+  was rendered in, so after a switch the ticks, tooltips and a gauge's reading kept the old separators and month names until the
+  next render; the packs are now marked the page's (`data-ui-page-culture`), which the framework writes again from the new
+  language's words before the chart draws itself anew.
+- **Zooming into the gap between two points keeps the line in view.** The y axis followed only the points inside the window and
+  the one either side of a point inside it, so a window lying between two points reached none and read 0 to 1 with the line off
+  the plot; the piece of line the window lies inside counts now, on the server's first frame and in the browser (`ChartWindow`,
+  `chart-window.ts`, held together by the corpus).
+- **A text x on a time axis is read the same on both sides.** The server read it through `DateTimeOffset.TryParse`, so
+  `09/29/2026 10:00`, `Sep 29 2026` or a bare `10:30` (today's date on the server) were placed on the first frame and dropped by
+  the browser's first redraw; the server now reads only the wire's shape, as the browser does. **Breaking** for an application
+  that fed a time axis text in another shape, and for a caller of `ChartValues.TryToNumber`: pass a `DateTime`, or text in the
+  wire's shape — `yyyy-MM-dd`, then a clock after a `T` or a space, then a zone, the last two optional.
+- **A moment in a year under a hundred is placed on both sides.** The browser's reader took the years 1 to 99 for 1901 to 1999
+  and dropped the point the server had placed; the framework's reader is fixed, and the server reads a moment through the
+  framework's `UIWrittenMoment` rather than a copy of its own, both held to the framework's written-moment corpus.
+- **Every chart cuts at a clip of its own.** A narrowed chart repeated down a list, or in a grid's details, named its clip by its
+  component id alone, and every copy took the first copy's frame. The server's first frame now names a clip by the component id
+  only where the chart stands once, and writes none in a row, a template or a copy — the framework's own rule for an id — so such a
+  chart's first frame is drawn uncut until the browser's redraw, which takes an id from the page's run.
+- **An axis over values too large for its step marks each value once.** A step below the precision of values like `1e17` left a
+  running sum standing still, and the axis wrote one mark two hundred times; each mark is counted from the first, and one that
+  rounds onto the one before is left out, in both ports.
+- **The charts' words ship in Russian and Simplified Chinese.** `ChartsStrings.Translations` carries `ru` and `zh-Hans`, and an
+  application turns them on with the framework's `application.AddFrameworkWords("ru", "zh-Hans")`: a registered chart package
+  brings its table along, ranked below the application's own words. The Russian is new; the Chinese is the demo's. The demo keeps
+  only its own `charts.*` words.
+
 ## 1.3.0
 
 - **Needs the framework's plugin contract 2**, which this version is built against: the wheel's reading, the delayed

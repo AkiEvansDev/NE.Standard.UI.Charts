@@ -1,5 +1,6 @@
-// A document just big enough for the legend and the pending mark: elements in a tree, their classes and attributes, the focus, and
-// the simple selectors the client asks with (`.class`, `[attribute]`). Installed on globalThis before a module under test runs.
+// A document just big enough for the legend, the pending mark and the plot's clip: elements in a tree, their classes and
+// attributes, the focus, and the simple selectors the client asks with (`.class`, `[attribute]`). Installed on globalThis before a
+// module under test runs.
 
 type Listener = (domEvent: { readonly target: StubElement }) => void;
 
@@ -63,6 +64,12 @@ export class StubElement {
 
     public removeAttribute(name: string): void {
         this.attributes.delete(name);
+    }
+
+    public appendChild(child: StubElement): StubElement {
+        this.insertBefore(child, null);
+
+        return child;
     }
 
     public append(...children: StubElement[]): void {
@@ -205,7 +212,8 @@ class StubStyle {
 export const stubDocument = {
     body: new StubElement("body"),
     activeElement: null as StubElement | null,
-    createElement: (tagName: string): StubElement => new StubElement(tagName)
+    createElement: (tagName: string): StubElement => new StubElement(tagName),
+    createElementNS: (_namespace: string, tagName: string): StubElement => new StubElement(tagName)
 };
 
 /** Stands the stub in for the browser's document, and its elements for `HTMLElement`, so `instanceof` reads them as the page's. */

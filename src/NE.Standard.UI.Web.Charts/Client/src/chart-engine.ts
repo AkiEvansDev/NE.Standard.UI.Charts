@@ -67,6 +67,8 @@ type ChartEntry = {
     /** The box the chart was last drawn at, which the draw records, so a size that did not really change draws nothing. */
     width: number;
     height: number;
+    /** The id the chart's clip goes by, kept across the draws and the chart's own re-reads. */
+    clip: string | null;
     /** What stops following the chart's size; kept so a chart the page let go of is let go of here too. */
     release: (() => void) | null;
     /**
@@ -116,7 +118,14 @@ export class ChartEngine {
     public constructor(context: PluginEngineContext) {
         const root = context.root;
 
-        this.formatting = { numbers: context.numbers, temporal: context.temporal, strings: context.strings, names: context.names, focusReturn: context.popups.focusReturn };
+        this.formatting = {
+            numbers: context.numbers,
+            temporal: context.temporal,
+            strings: context.strings,
+            names: context.names,
+            focusReturn: context.popups.focusReturn,
+            ensureId: context.dom.ensureId.bind(context.dom)
+        };
         this.tooltips = context.tooltips;
         this.states = context.states;
         this.wheel = context.wheel;
@@ -219,6 +228,7 @@ export class ChartEngine {
             frame: null,
             width: 0,
             height: 0,
+            clip: existing?.clip ?? null,
             release: existing?.release ?? null,
             front: existing?.front ?? null,
             bar: existing?.bar ?? null

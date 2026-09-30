@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using NE.Standard.UI.Primitives.Text;
 
 namespace NE.Standard.UI.Charts;
 
@@ -66,12 +67,12 @@ public static class ChartValues
                 if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out number))
                     return double.IsFinite(number);
 
-                // Only a time axis reads text as a moment: on a value axis a date would be a number no one wrote. Parsed as an
-                // offset so the text's zone is dropped, not shifted into the server's; a text naming none is universal, so the
-                // calendar's first and last days parse in any zone.
-                if (kind == UIChartAxisKind.Time && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTimeOffset parsed))
+                // Only a time axis reads text as a moment: on a value axis a date would be a number no one wrote. Only in the wire's
+                // shapes, as the browser's redraw reads it: a text .NET reads in another ("09/29/2026", "Sep 29 2026", a bare clock
+                // on today's date) would be placed on the first frame and dropped by the redraw.
+                if (kind == UIChartAxisKind.Time && UIWrittenMoment.TryRead(text, out DateTime parsed))
                 {
-                    number = FromDateTime(parsed.DateTime);
+                    number = FromDateTime(parsed);
                     return true;
                 }
 

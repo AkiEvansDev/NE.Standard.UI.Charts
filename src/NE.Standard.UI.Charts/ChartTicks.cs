@@ -85,9 +85,21 @@ public static class ChartTicks
         var first = Math.Ceiling(scale.Min / step) * step;
         List<double> values = [];
 
-        // Never a negative zero, which a mark just under the low end can be and which would be written as "-0".
-        for (var value = first; value <= scale.Max + slack && values.Count < MaximumTicks; value += step)
-            values.Add(value == 0 ? 0 : value);
+        // Each mark counted from the first rather than added to the last: under values so large that the step is below their
+        // precision a running sum stands still, and the axis would repeat one mark as often as it carries marks. A mark that rounds
+        // onto the one before it is left out.
+        for (var index = 0; values.Count < MaximumTicks; index++)
+        {
+            var value = first + (index * step);
+
+            // Past the high end, or no number at all where an end of the range is none.
+            if (value > scale.Max + slack || !double.IsFinite(value))
+                break;
+
+            // Never a negative zero, which a mark just under the low end can be and which would be written as "-0".
+            if (values.Count == 0 || value > values[^1])
+                values.Add(value == 0 ? 0 : value);
+        }
 
         return [.. values];
     }

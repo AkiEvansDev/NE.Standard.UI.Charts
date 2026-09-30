@@ -151,9 +151,20 @@ export function ticks(kind: AxisKind, scale: Scale, count: number): number[] {
     const first = Math.ceil(scale.min / size) * size;
     const values: number[] = [];
 
-    // Never a negative zero, which a mark just under the low end can be and which would be written as "-0".
-    for (let value = first; value <= scale.max + slack && values.length < MaximumTicks; value += size)
-        values.push(value === 0 ? 0 : value);
+    // Each mark counted from the first rather than added to the last: under values so large that the step is below their
+    // precision a running sum stands still, and the axis would repeat one mark as often as it carries marks. A mark that rounds
+    // onto the one before it is left out.
+    for (let index = 0; values.length < MaximumTicks; index++) {
+        const value = first + index * size;
+
+        // Past the high end, or no number at all where an end of the range is none.
+        if (value > scale.max + slack || !Number.isFinite(value))
+            break;
+
+        // Never a negative zero, which a mark just under the low end can be and which would be written as "-0".
+        if (values.length === 0 || value > values[values.length - 1])
+            values.push(value === 0 ? 0 : value);
+    }
 
     return values;
 }

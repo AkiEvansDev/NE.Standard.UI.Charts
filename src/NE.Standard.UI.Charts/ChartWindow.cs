@@ -55,7 +55,8 @@ public static class ChartWindow
         => Clamp(new UIChartWindow(max - span.Width, max), min, max);
 
     /// <summary>
-    /// What the series reach inside the window, with the point either side so a line entering the view starts at its true value.
+    /// What the series reach inside the window, with the point either side so a line entering the view starts at its true value —
+    /// the two ends of the one piece of line a window between two points lies inside included.
     /// </summary>
     public static (double Min, double Max) Extent(IReadOnlyList<IReadOnlyList<ChartPoint>> series, UIChartWindow? window)
     {
@@ -81,7 +82,7 @@ public static class ChartWindow
         return (min, max);
     }
 
-    /// <summary>Whether a point is drawn in the window, or is the one either side of it that the line comes from.</summary>
+    /// <summary>Whether a point is drawn in the window, or the line from it to a neighbour crosses the window on its way.</summary>
     private static bool Reaches(IReadOnlyList<ChartPoint> points, int index, UIChartWindow? window)
     {
         if (window is not UIChartWindow span)
@@ -89,10 +90,12 @@ public static class ChartWindow
 
         var x = points[index].X;
 
-        if (x >= span.From && x <= span.To)
-            return true;
-
-        return (index + 1 < points.Count && points[index + 1].X >= span.From && points[index + 1].X <= span.To)
-            || (index > 0 && points[index - 1].X >= span.From && points[index - 1].X <= span.To);
+        return Meets(x, x, span)
+            || (index + 1 < points.Count && Meets(x, points[index + 1].X, span))
+            || (index > 0 && Meets(points[index - 1].X, x, span));
     }
+
+    /// <summary>Whether the stretch between two x's, whichever way round, meets the window.</summary>
+    private static bool Meets(double a, double b, UIChartWindow span)
+        => Math.Min(a, b) <= span.To && Math.Max(a, b) >= span.From;
 }

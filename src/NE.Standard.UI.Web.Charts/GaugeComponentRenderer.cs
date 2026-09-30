@@ -70,7 +70,9 @@ public class GaugeComponentRenderer : WebComponentRendererBase
 
         CultureInfo culture = ResolveCulture(context);
 
+        // The page's pack: a language switch writes it again before the reading is written anew.
         NumberCultureRenderer.RenderNumberCulture(root, culture);
+        _ = root.Attribute(WebAttributes.PageCulture);
 
         var low = ReadRenderValue(context, GaugeComponent.MinProperty, 0d);
         var max = ReadRenderValue<double?>(context, GaugeComponent.MaxProperty, null);

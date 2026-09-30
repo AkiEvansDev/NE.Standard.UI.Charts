@@ -8,7 +8,7 @@ namespace NE.Standard.UI.Web.Charts;
 /// <summary>
 /// The words a chart's chrome writes, translated as the framework's own strings are; the client writes them by the same keys.
 /// </summary>
-public sealed class ChartsStrings : IUIStringsSource
+public sealed partial class ChartsStrings : IUIStringsSource
 {
     /// <summary>What a chart with no rows says in its plot.</summary>
     public const string Empty = "ui.chart.empty";

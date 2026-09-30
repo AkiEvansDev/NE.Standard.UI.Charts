@@ -1,16 +1,12 @@
 {
-    "note": "The arithmetic both ports have to agree on, case by case, with the answer written out. The browser's tests read this file and so does NE.Test.Standard.UI.Charts, so a change to one port that the other did not get fails on both sides. The answers are the ones the browser's own tests already pinned by hand; a number is compared to nine decimals, a path string exactly. A moment is here too: both ports number it by the wall clock it is written with, since a round step has to land on a round clock reading on both. A name is not, its number being the order the rows happened to arrive in.",
+    "note": "The arithmetic both ports have to agree on, case by case, with the answer written out. The browser's tests read this file and so does NE.Test.Standard.UI.Charts, so a change to one port that the other did not get fails on both sides. The answers are the ones the browser's own tests already pinned by hand; a number is compared to nine decimals, a path string exactly. A moment is here too: both ports number it by the wall clock it is written with, since a round step has to land on a round clock reading on both; how a text reads as a moment is the framework's written-moment corpus's, and only the number it comes to is here. A name is not, its number being the order the rows happened to arrive in.",
     "moments": [
         { "case": "the epoch itself", "text": "1970-01-01T00:00:00.000", "written": { "year": 1970, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 0, "millisecond": 0 }, "expected": 0 },
         { "case": "a moment is the wall clock it is written with, whatever zone the reader sits in", "text": "1970-01-01T00:00:10.000", "written": { "year": 1970, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 10, "millisecond": 0 }, "expected": 10000 },
-        { "case": "a zone the text carries is no part of the number", "text": "1970-01-01T00:00:10.000Z", "written": { "year": 1970, "month": 1, "day": 1, "hour": 0, "minute": 0, "second": 10, "millisecond": 0 }, "expected": 10000 },
         { "case": "a date with no clock on it", "text": "2026-09-13", "written": { "year": 2026, "month": 9, "day": 13, "hour": 0, "minute": 0, "second": 0, "millisecond": 0 }, "expected": 1789257600000 },
         { "case": "a day of the month, to the minute", "text": "2026-09-13T14:35", "written": { "year": 2026, "month": 9, "day": 13, "hour": 14, "minute": 35, "second": 0, "millisecond": 0 }, "expected": 1789310100000 },
-        { "case": "a space where the T would be", "text": "2026-09-13 14:35:09.250", "written": { "year": 2026, "month": 9, "day": 13, "hour": 14, "minute": 35, "second": 9, "millisecond": 250 }, "expected": 1789310109250 },
-        { "case": "an offset the text carries is no part of the number either", "text": "2026-09-13T14:35+05:00", "written": { "year": 2026, "month": 9, "day": 13, "hour": 14, "minute": 35, "second": 0, "millisecond": 0 }, "expected": 1789310100000 },
-        { "case": "text that names no moment", "text": "not a moment", "expected": null },
-        { "case": "a moment with a tail that is neither a clock nor a zone is no moment", "text": "2026-09-13XYZ", "expected": null },
-        { "case": "a field outside its own range names no moment, rather than the day it would roll on to", "text": "2026-02-30T10:00", "expected": null }
+        { "case": "a moment to the millisecond", "text": "2026-09-13T14:35:09.250", "written": { "year": 2026, "month": 9, "day": 13, "hour": 14, "minute": 35, "second": 9, "millisecond": 250 }, "expected": 1789310109250 },
+        { "case": "a year under a hundred is that year, not one in the 1900s", "text": "0050-06-15T12:00:00", "written": { "year": 50, "month": 6, "day": 15, "hour": 12, "minute": 0, "second": 0, "millisecond": 0 }, "expected": -60574996800000 }
     ],
     "texts": [
         { "case": "a number as itself", "text": "12.5", "kind": "Linear", "expected": 12.5 },
@@ -23,7 +19,8 @@
         { "case": "a flag", "text": "true", "kind": "Linear", "expected": null },
         { "case": "a number too large to hold", "text": "1e999", "kind": "Linear", "expected": null },
         { "case": "a moment on a value axis", "text": "2026-01-01T00:00:00.000", "kind": "Linear", "expected": null },
-        { "case": "a number on a time axis is its milliseconds", "text": "10000", "kind": "Time", "expected": 10000 }
+        { "case": "a number on a time axis is its milliseconds", "text": "10000", "kind": "Time", "expected": 10000 },
+        { "case": "a moment on a time axis in a shape other than the wire's is no value", "text": "09/29/2026 10:00", "kind": "Time", "expected": null }
     ],
     "ranges": [
         { "case": "both ends open follow the data, rounded outward to the step", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": 3, "dataMax": 47, "categories": 0, "includeZero": false, "expected": { "min": 0, "max": 50, "logarithmic": false } },
@@ -63,7 +60,8 @@
         { "case": "a step of a month marks the first of every month, not every thirty days", "kind": "Time", "scale": { "min": 1800403200000, "max": 1812585600000, "logarithmic": false }, "count": 5, "expected": [1801440000000, 1803859200000, 1806537600000, 1809129600000, 1811808000000] },
         { "case": "a step of a quarter marks January, April, July and October", "kind": "Time", "scale": { "min": 1768435200000, "max": 1799539200000, "logarithmic": false }, "count": 5, "expected": [1775001600000, 1782864000000, 1790812800000, 1798761600000] },
         { "case": "a step of two years marks the first of January of the even years", "kind": "Time", "scale": { "min": 1583020800000, "max": 1777593600000, "logarithmic": false }, "count": 5, "expected": [1640995200000, 1704067200000, 1767225600000] },
-        { "case": "more names than an axis marks are thinned by a stride, not cut off", "kind": "Category", "scale": { "min": -0.5, "max": 399.5, "logarithmic": false }, "count": 5, "expected": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 168, 170, 172, 174, 176, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 200, 202, 204, 206, 208, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 232, 234, 236, 238, 240, 242, 244, 246, 248, 250, 252, 254, 256, 258, 260, 262, 264, 266, 268, 270, 272, 274, 276, 278, 280, 282, 284, 286, 288, 290, 292, 294, 296, 298, 300, 302, 304, 306, 308, 310, 312, 314, 316, 318, 320, 322, 324, 326, 328, 330, 332, 334, 336, 338, 340, 342, 344, 346, 348, 350, 352, 354, 356, 358, 360, 362, 364, 366, 368, 370, 372, 374, 376, 378, 380, 382, 384, 386, 388, 390, 392, 394, 396, 398] }
+        { "case": "more names than an axis marks are thinned by a stride, not cut off", "kind": "Category", "scale": { "min": -0.5, "max": 399.5, "logarithmic": false }, "count": 5, "expected": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 168, 170, 172, 174, 176, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 200, 202, 204, 206, 208, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 232, 234, 236, 238, 240, 242, 244, 246, 248, 250, 252, 254, 256, 258, 260, 262, 264, 266, 268, 270, 272, 274, 276, 278, 280, 282, 284, 286, 288, 290, 292, 294, 296, 298, 300, 302, 304, 306, 308, 310, 312, 314, 316, 318, 320, 322, 324, 326, 328, 330, 332, 334, 336, 338, 340, 342, 344, 346, 348, 350, 352, 354, 356, 358, 360, 362, 364, 366, 368, 370, 372, 374, 376, 378, 380, 382, 384, 386, 388, 390, 392, 394, 396, 398] },
+        { "case": "a step below the precision of values so large marks each value it reaches once", "kind": "Linear", "scale": { "min": 100000000000000000, "max": 100000000000000016, "logarithmic": false }, "count": 5, "expected": [100000000000000000, 100000000000000016] }
     ],
     "formats": [
         { "kind": "Linear", "step": 20, "expected": "N0" },
@@ -277,6 +275,7 @@
         { "case": "every point counts where there is no window", "series": [[{ "x": 0, "y": 10 }, { "x": 10, "y": 50 }, { "x": 20, "y": 90 }, { "x": 30, "y": 20 }]], "window": null, "expected": { "min": 10, "max": 90 } },
         { "case": "the point either side of the window counts too", "series": [[{ "x": 0, "y": 10 }, { "x": 10, "y": 50 }, { "x": 20, "y": 90 }, { "x": 30, "y": 20 }]], "window": { "from": 9, "to": 11 }, "expected": { "min": 10, "max": 90 } },
         { "case": "and no further than that", "series": [[{ "x": 0, "y": 10 }, { "x": 10, "y": 50 }, { "x": 20, "y": 90 }, { "x": 30, "y": 20 }]], "window": { "from": 29, "to": 31 }, "expected": { "min": 20, "max": 90 } },
-        { "case": "a point with no value counts for nothing", "series": [[{ "x": 0, "y": null }, { "x": 1, "y": 5 }]], "window": null, "expected": { "min": 5, "max": 5 } }
+        { "case": "a point with no value counts for nothing", "series": [[{ "x": 0, "y": null }, { "x": 1, "y": 5 }]], "window": null, "expected": { "min": 5, "max": 5 } },
+        { "case": "a window between two points takes in the two it lies between", "series": [[{ "x": 0, "y": 110 }, { "x": 10, "y": 150 }, { "x": 20, "y": 190 }, { "x": 30, "y": 120 }]], "window": { "from": 12, "to": 18 }, "expected": { "min": 150, "max": 190 } }
     ]
 }

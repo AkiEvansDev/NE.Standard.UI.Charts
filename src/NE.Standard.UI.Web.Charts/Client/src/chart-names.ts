@@ -45,7 +45,7 @@ export const ChartClasses = {
     legendEntry: "ui-chart__legend-entry",
     legendMark: "ui-chart__legend-mark",
     legendCaption: "ui-chart__legend-caption",
-    /** The prefix of a chart's own clip, finished by its component id so two charts on a page never share one. */
+    /** The prefix of a chart's own clip: the server's first frame finishes it with the component id, the browser's draws with `drawn`. */
     clipPrefix: "ui-chart-clip-",
     gauge: "ui-gauge",
     gaugeNumber: "ui-gauge__number",

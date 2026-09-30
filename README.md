@@ -121,6 +121,8 @@ than an axis carries marks (two hundred) thins them by a stride rather than cutt
 A value an axis cannot place is no value: a text `"NaN"` or `"Infinity"`, or a number too large to hold, is a gap, as a null
 is. A number written as text is read as .NET's invariant culture reads one — a hex, a blank or a thousands separator is no
 number. A moment, or its text, is placed only on a time axis — on a value axis a date would turn into a number no one wrote.
+A text x is a moment only in the wire's own shape — `yyyy-MM-dd`, then a clock after a `T` or a space, then a zone, the last two
+optional — so `09/29/2026 10:00`, `Sep 29 2026` or a bare `10:30` is no value on either side.
 An x is read off the text the browser is told, on both sides, so a point the first frame places is the one every redraw
 places.
 
@@ -163,8 +165,10 @@ donut's centre caption and a gauge's unit and caption are the properties' own wo
 the drawing in the page's own type — the centre over the hole, wrapped inside it; the unit written after the reading's
 number — written again at a switch, and a bound one follows its pushes. What a tooltip or the canvas's name
 puts between its parts is the package's own word with slots — `ui.chart.point` (`{series} — {x}: {y}`), `ui.chart.sector`,
-`ui.chart.reading`, `ui.chart.list` (`{list}, {next}`) — so a language punctuates its own. Numbers and dates keep the
-render's culture until the next render.
+`ui.chart.reading`, `ui.chart.list` (`{list}, {next}`) — so a language punctuates its own. Numbers and dates are the page's
+culture's, and follow a language switch at once: the framework writes the chart's culture packs again, and it draws anew. The
+package ships its words in Russian and Simplified Chinese as well (`ChartsStrings.Translations`), turned on with `application.AddFrameworkWords("ru", "zh-Hans")` and outranked by any word of the
+application's own.
 
 ### What the viewer can do
 

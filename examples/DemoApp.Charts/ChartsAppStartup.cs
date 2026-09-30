@@ -10,6 +10,9 @@ public sealed class ChartsAppStartup : UIStartupBase
 
         _ = application.AddLocalizationSource(ChartsDemoWords.Build());
 
+        // The framework's and its packages' own words in the demo's other languages, as they ship.
+        _ = application.AddFrameworkWords("zh-Hans");
+
         // Only a string starting "charts." is a key: every other string on a translatable property is content, so the missing-word
         // report in Development names only words the demo has not translated.
         _ = application.ConfigureLocalization(options => options.KeyPrefixes.Add(ChartsDemoWords.KeyPrefix));

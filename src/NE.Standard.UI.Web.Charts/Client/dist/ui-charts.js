@@ -269,7 +269,11 @@ function ue(e, t, n) {
 	if (a > 0) return de(t, a, i);
 	e === "Category" && (r = Math.max(1, Math.ceil((Math.floor(t.max) - Math.ceil(t.min) + 1) / D)));
 	let o = Math.ceil(t.min / r) * r, s = [];
-	for (let e = o; e <= t.max + i && s.length < D; e += r) s.push(e === 0 ? 0 : e);
+	for (let e = 0; s.length < D; e++) {
+		let n = o + e * r;
+		if (n > t.max + i || !Number.isFinite(n)) break;
+		(s.length === 0 || n > s[s.length - 1]) && s.push(n === 0 ? 0 : n);
+	}
 	return s;
 }
 function de(e, t, n) {
@@ -808,12 +812,15 @@ function ft(e, t) {
 function pt(e, t, n) {
 	if (n === null) return !0;
 	let r = e[t].x;
-	return r >= n.from && r <= n.to || t + 1 < e.length && e[t + 1].x >= n.from && e[t + 1].x <= n.to || t > 0 && e[t - 1].x >= n.from && e[t - 1].x <= n.to;
+	return mt(r, r, n) || t + 1 < e.length && mt(r, e[t + 1].x, n) || t > 0 && mt(e[t - 1].x, r, n);
+}
+function mt(e, t, n) {
+	return Math.min(e, t) <= n.to && Math.max(e, t) >= n.from;
 }
 //#endregion
 //#region src/chart-draw.ts
-var U = "http://www.w3.org/2000/svg", W = 12, mt = 22, ht = 16, G = 8, gt = 16, _t = 8, vt = `:scope > .${v.area} > .${v.centre}`;
-function yt(e, t) {
+var U = "http://www.w3.org/2000/svg", W = 12, ht = 22, gt = 16, G = 8, _t = 16, vt = 8, yt = `:scope > .${v.area} > .${v.centre}`;
+function bt(e, t) {
 	let n = e.root.querySelector(`.${v.canvas}`);
 	if (n === null) return null;
 	let r = e.model, i = Je(e.rows, r, t.temporal.parse), a = i.series.filter((t) => !e.hidden.has(t.series.key));
@@ -827,18 +834,18 @@ function yt(e, t) {
 	}, u = pe(r.y, c.min, c.max, 0, r.kind === x.area || r.kind === x.bar || r.kind === x.radar), d = t.numbers.readCulture(e.root), f = t.temporal.readCulture(e.root), p = {
 		x: r.x.format ?? fe(r.x.kind, I(r.x.kind, l.min, l.max, r.x.ticks)),
 		y: r.y.format ?? fe(r.y.kind, I(r.y.kind, u.min, u.max, r.y.ticks))
-	}, m = Qt(e.root), h = r.kind === x.pie ? bt(r, i, p, d, f, t, m) : i.series.map((e) => ({
+	}, m = $t(e.root), h = r.kind === x.pie ? xt(r, i, p, d, f, t, m) : i.series.map((e) => ({
 		key: e.series.key,
 		caption: e.series.caption,
-		color: Xt(e, m)
+		color: Zt(e, m)
 	}));
-	r.legend !== "None" && ee(e.root, h, e.hidden, t.names, t.focusReturn), xt(n, h, t);
+	r.legend !== "None" && ee(e.root, h, e.hidden, t.names, t.focusReturn), St(n, h, t);
 	let g = n.getBoundingClientRect(), _ = Math.round(g.width), y = Math.round(g.height);
 	if (e.width = _, e.height = y, _ < 2 || y < 2) return null;
 	n.setAttribute("viewBox", `0 0 ${R(_)} ${R(y)}`);
 	let b = document.createElementNS(U, "svg");
-	if (r.kind === x.pie) return Ct(b, e, i, _, y, p, d, f, t, m), n.replaceChildren(...b.childNodes), null;
-	if (r.kind === x.radar) return Et(b, n, e, i, a, u, _, y, p, d, f, t, m), n.replaceChildren(...b.childNodes), null;
+	if (r.kind === x.pie) return wt(b, e, i, _, y, p, d, f, t, m), n.replaceChildren(...b.childNodes), null;
+	if (r.kind === x.radar) return Dt(b, n, e, i, a, u, _, y, p, d, f, t, m), n.replaceChildren(...b.childNodes), null;
 	if (r.bare) {
 		let r = {
 			left: 2,
@@ -846,7 +853,7 @@ function yt(e, t) {
 			width: _ - 4,
 			height: y - 4
 		};
-		return Vt(b, e, a, r, l, u, i.categories, p, d, f, t, m), n.replaceChildren(...b.childNodes), {
+		return Ht(b, e, a, r, l, u, i.categories, p, d, f, t, m), n.replaceChildren(...b.childNodes), {
 			plot: r,
 			x: l,
 			whole: {
@@ -856,15 +863,15 @@ function yt(e, t) {
 			columns: []
 		};
 	}
-	let S = Nt(n), C = e.rows.length > 0, w = Mt(r.x, p.x, l, i.categories, d, f, t, S.width, C), T = Mt(r.y, p.y, u, i.categories, d, f, t, S.width, C), te = (r.horizontal ? w : T).reduce((e, t) => Math.max(e, t.width), 0);
+	let S = Pt(n), C = e.rows.length > 0, w = Nt(r.x, p.x, l, i.categories, d, f, t, S.width, C), T = Nt(r.y, p.y, u, i.categories, d, f, t, S.width, C), te = (r.horizontal ? w : T).reduce((e, t) => Math.max(e, t.width), 0);
 	S.release();
-	let E = Pt(r, _, y, te);
-	Lt(b, r, E, l, u, w, T), zt(b, r, E, l, u, w, T, _, y), Vt(b, e, a, E, l, u, i.categories, p, d, f, t, m, {
+	let E = Ft(r, _, y, te);
+	Rt(b, r, E, l, u, w, T), Bt(b, r, E, l, u, w, T, _, y), Ht(b, e, a, E, l, u, i.categories, p, d, f, t, m, {
 		min: i.sizeMin,
 		max: i.sizeMax
-	}), e.rows.length === 0 && qt(b, E, t);
-	let ne = r.sharedTooltip ? Jt(r, a, E, l, i.categories, p, d, f, t) : [];
-	return ne.length > 0 && Yt(b, E, r.horizontal), n.replaceChildren(...b.childNodes), {
+	}), e.rows.length === 0 && Jt(b, E, t);
+	let ne = r.sharedTooltip ? Yt(r, a, E, l, i.categories, p, d, f, t) : [];
+	return ne.length > 0 && Xt(b, E, r.horizontal), n.replaceChildren(...b.childNodes), {
 		plot: E,
 		x: l,
 		whole: {
@@ -874,18 +881,18 @@ function yt(e, t) {
 		columns: ne
 	};
 }
-function bt(e, t, n, r, i, a, o) {
+function xt(e, t, n, r, i, a, o) {
 	return (t.series.length > 0 ? t.series[0].points : []).map((s, c) => ({
 		key: s.key,
 		caption: K(e.x, n.x, s.x, t.categories, r, i, a),
-		color: Zt(c, o)
+		color: Qt(c, o)
 	}));
 }
-function xt(e, t, n) {
-	let r = t.length > 0 ? St(t.map((e) => e.caption), n.strings) : n.strings.text(w.label);
+function St(e, t, n) {
+	let r = t.length > 0 ? Ct(t.map((e) => e.caption), n.strings) : n.strings.text(w.label);
 	e.getAttribute("aria-label") !== r && e.setAttribute("aria-label", r);
 }
-function St(e, t) {
+function Ct(e, t) {
 	let n = e.length > 0 ? e[0] : "";
 	for (let r = 1; r < e.length; r++) n = t.format(w.list, {
 		list: n,
@@ -893,7 +900,7 @@ function St(e, t) {
 	});
 	return n;
 }
-function Ct(e, t, n, r, i, a, o, s, c, l) {
+function wt(e, t, n, r, i, a, o, s, c, l) {
 	let u = t.model, d = n.series.length > 0 ? n.series[0].points : [], f = [];
 	for (let e = 0; e < d.length; e++) t.hidden.has(d[e].key) || f.push({
 		point: d[e],
@@ -906,100 +913,100 @@ function Ct(e, t, n, r, i, a, o, s, c, l) {
 	for (let e = 0; e < f.length; e++) {
 		if (p[e].sweep <= 0 || h <= 0) continue;
 		let t = f[e].point, r = Y(b, "g", v.series);
-		r.setAttribute(_.series, t.key), r.style.setProperty(y.seriesColor, Zt(f[e].index, l));
+		r.setAttribute(_.series, t.key), r.style.setProperty(y.seriesColor, Qt(f[e].index, l));
 		let i = Y(r, "circle", v.sector);
-		if (i.setAttribute("cx", R(m.x)), i.setAttribute("cy", R(m.y)), i.setAttribute("r", R((h + g) / 2)), i.setAttribute("stroke-width", R(h - g)), i.style.setProperty(y.arcStart, wt(p[e].start)), i.style.setProperty(y.arcSweep, wt(p[e].sweep)), i.setAttribute(_.point, t.key), i.setAttribute(_.series, n.series[0].series.key), !u.tooltip) continue;
+		if (i.setAttribute("cx", R(m.x)), i.setAttribute("cy", R(m.y)), i.setAttribute("r", R((h + g) / 2)), i.setAttribute("stroke-width", R(h - g)), i.style.setProperty(y.arcStart, Tt(p[e].start)), i.style.setProperty(y.arcSweep, Tt(p[e].sweep)), i.setAttribute(_.point, t.key), i.setAttribute(_.series, n.series[0].series.key), !u.tooltip) continue;
 		let d = K(u.x, a.x, t.x, n.categories, o, s, c), x = K(u.y, a.y, t.y ?? 0, n.categories, o, s, c), S = z(m, (h + g) / 2, p[e].start + p[e].sweep / 2), C = Y(r, "circle", v.sectorAnchor);
 		i.setAttribute(_.sectorTooltip, c.strings.format(w.sector, {
 			label: d,
 			value: x
 		})), C.setAttribute("cx", R(S.x)), C.setAttribute("cy", R(S.y)), C.setAttribute("r", "1");
 	}
-	Tt(b, p, m, h, g);
-	let x = t.root.querySelector(vt), S = `${R(Math.max(g, 0) * Math.SQRT2)}px`;
-	x !== null && x.style.maxWidth !== S && (x.style.maxWidth = S), d.length === 0 && qt(e, {
+	Et(b, p, m, h, g);
+	let x = t.root.querySelector(yt), S = `${R(Math.max(g, 0) * Math.SQRT2)}px`;
+	x !== null && x.style.maxWidth !== S && (x.style.maxWidth = S), d.length === 0 && Jt(e, {
 		left: 0,
 		top: 0,
 		width: r,
 		height: i
 	}, c);
 }
-function wt(e) {
+function Tt(e) {
 	return `${R(e * 180 / Math.PI)}deg`;
 }
-function Tt(e, t, n, r, i) {
+function Et(e, t, n, r, i) {
 	let a = t.filter((e) => e.sweep > 0);
 	if (!(a.length < 2 || r <= 0)) for (let t of a) {
 		let a = z(n, i, t.start), o = z(n, r, t.start), s = Y(e, "line", v.sectorEdge);
 		s.setAttribute("x1", R(a.x)), s.setAttribute("y1", R(a.y)), s.setAttribute("x2", R(o.x)), s.setAttribute("y2", R(o.y));
 	}
 }
-function Et(e, t, n, r, i, a, o, s, c, l, u, d, f) {
-	let p = n.model, m = Fe(r.series.map((e) => e.drawn)), h = m.map((e) => K(p.x, c.x, e, r.categories, l, u, d)), g = Nt(t), _ = h.reduce((e, t) => Math.max(e, g.width(t)), 0);
+function Dt(e, t, n, r, i, a, o, s, c, l, u, d, f) {
+	let p = n.model, m = Fe(r.series.map((e) => e.drawn)), h = m.map((e) => K(p.x, c.x, e, r.categories, l, u, d)), g = Pt(t), _ = h.reduce((e, t) => Math.max(e, g.width(t)), 0);
 	g.release();
 	let y = {
 		x: o / 2,
 		y: s / 2
 	}, b = Re(o, s, _ + G + W, 36), x = n.rows.length > 0 || p.y.min !== null || p.y.max !== null ? ue(p.y.kind, a, p.y.ticks) : [];
-	m.length > 0 && b > 0 && Dt(e, p, h, x.map((e) => ({
+	m.length > 0 && b > 0 && Ot(e, p, h, x.map((e) => ({
 		value: e,
 		text: K(p.y, c.y, e, [], l, u, d)
 	})), a, y, b);
 	let S = Y(e, "g", v.plot), C = Y(S, "g", v.bands);
-	for (let e of i) At(S, C, p, e, m, a, y, b, r.categories, c, l, u, d, f);
-	n.rows.length === 0 && qt(e, {
+	for (let e of i) jt(S, C, p, e, m, a, y, b, r.categories, c, l, u, d, f);
+	n.rows.length === 0 && Jt(e, {
 		left: 0,
 		top: 0,
 		width: o,
 		height: s
 	}, d);
 }
-function Dt(e, t, n, r, i, a, o) {
+function Ot(e, t, n, r, i, a, o) {
 	let s = n.length;
 	if (t.y.grid) {
 		let t = Y(e, "g", v.grid);
 		for (let e of r) {
 			let n = Le(i, e.value, o);
-			n > 0 && n < o && Ot(t, v.gridLine, s, a, n);
+			n > 0 && n < o && kt(t, v.gridLine, s, a, n);
 		}
 	}
 	let c = Y(e, "g", v.axes);
-	Ot(c, v.axisLine, s, a, o);
+	kt(c, v.axisLine, s, a, o);
 	for (let e = 0; e < s; e++) {
 		let r = Ie(e, s), i = z(a, o, r), l = z(a, o + G, r);
-		t.x.grid && X(c, v.axisLine, a.x, a.y, i.x, i.y), Z(c, v.label, n[e], l.x, kt(r, l.y), Ve(r));
+		t.x.grid && X(c, v.axisLine, a.x, a.y, i.x, i.y), Z(c, v.label, n[e], l.x, At(r, l.y), Ve(r));
 	}
 	let l = NaN;
 	for (let e of r) {
 		let t = Le(i, e.value, o);
-		t <= 0 || Number.isFinite(l) && Math.abs(t - l) < gt || (l = t, Z(c, v.label, e.text, a.x + G, a.y - t + 12, "start"));
+		t <= 0 || Number.isFinite(l) && Math.abs(t - l) < _t || (l = t, Z(c, v.label, e.text, a.x + G, a.y - t + 12, "start"));
 	}
 }
-function Ot(e, t, n, r, i) {
+function kt(e, t, n, r, i) {
 	let a = [];
 	for (let e = 0; e < n; e++) a.push(z(r, i, Ie(e, n)));
-	$t(e, t, Be(a));
+	en(e, t, Be(a));
 }
-function kt(e, t) {
+function At(e, t) {
 	let n = Math.sin(e);
 	return n < -.3 ? t : n > .3 ? t + 12 : t + 4;
 }
-function At(e, t, n, r, i, a, o, s, c, l, u, d, f, p) {
+function jt(e, t, n, r, i, a, o, s, c, l, u, d, f, p) {
 	let m = r.series.markers ?? n.markers, h = /* @__PURE__ */ new Map();
 	for (let e of r.drawn) h.has(e.x) || h.set(e.x, e);
-	let g = i.map((e) => h.get(e) ?? null), b = g.map((e, t) => z(o, Le(a, e?.y ?? null, s), Ie(t, i.length))), x = Y(e, "g", v.series), S = Xt(r, p);
-	if (x.setAttribute(_.series, r.series.key), x.style.setProperty(y.seriesColor, S), jt(t, r.series.key, S, ze(b)), $t(x, v.line, Be(b)), m || n.tooltip) for (let e = 0; e < g.length; e++) {
+	let g = i.map((e) => h.get(e) ?? null), b = g.map((e, t) => z(o, Le(a, e?.y ?? null, s), Ie(t, i.length))), x = Y(e, "g", v.series), S = Zt(r, p);
+	if (x.setAttribute(_.series, r.series.key), x.style.setProperty(y.seriesColor, S), Mt(t, r.series.key, S, ze(b)), en(x, v.line, Be(b)), m || n.tooltip) for (let e = 0; e < g.length; e++) {
 		let t = g[e];
 		if (t === null || t.y === null) continue;
-		let i = n.tooltip ? Kt(n, r, t.x, t.y, c, l, u, d, f) : null;
-		Ut(x, t.key, b[e].x, b[e].y, m ? 3 : 5, m, i, f.names);
+		let i = n.tooltip ? qt(n, r, t.x, t.y, c, l, u, d, f) : null;
+		Wt(x, t.key, b[e].x, b[e].y, m ? 3 : 5, m, i, f.names);
 	}
 }
-function jt(e, t, n, r) {
+function Mt(e, t, n, r) {
 	let i = Y(e, "path", v.fill);
 	i.setAttribute(_.series, t), i.style.setProperty(y.seriesColor, n), i.setAttribute("d", r);
 }
-function Mt(e, t, n, r, i, a, o, s, c) {
+function Nt(e, t, n, r, i, a, o, s, c) {
 	return !c && e.min === null && e.max === null ? [] : ue(e.kind, n, e.ticks).map((n) => {
 		let c = K(e, t, n, r, i, a, o);
 		return {
@@ -1016,15 +1023,15 @@ function K(e, t, n, r, i, a, o) {
 	}
 	return e.kind === "Time" ? o.temporal.format(g(n), t, a) : o.numbers.format(n, t, i);
 }
-function Nt(e) {
+function Pt(e) {
 	let t = document.createElementNS(U, "text");
 	return t.setAttribute("class", v.label), t.setAttribute("visibility", "hidden"), e.appendChild(t), {
 		width: (e) => (t.textContent = e, t.getComputedTextLength()),
 		release: () => t.remove()
 	};
 }
-function Pt(e, t, n, r) {
-	let i = r + 16 + (Ft(e).caption === null ? 0 : ht), a = mt + (It(e).caption === null ? 0 : ht);
+function Ft(e, t, n, r) {
+	let i = r + 16 + (It(e).caption === null ? 0 : gt), a = ht + (Lt(e).caption === null ? 0 : gt);
 	return {
 		left: i,
 		top: W,
@@ -1032,10 +1039,10 @@ function Pt(e, t, n, r) {
 		height: Math.max(1, n - a - W)
 	};
 }
-function Ft(e) {
+function It(e) {
 	return e.horizontal ? e.x : e.y;
 }
-function It(e) {
+function Lt(e) {
 	return e.horizontal ? e.y : e.x;
 }
 function q(e, t, n, r) {
@@ -1044,16 +1051,16 @@ function q(e, t, n, r) {
 function J(e, t, n, r) {
 	return e.horizontal ? N(t, n, r) : P(t, n, r);
 }
-function Lt(e, t, n, r, i, a, o) {
+function Rt(e, t, n, r, i, a, o) {
 	if (!t.x.grid && !t.y.grid) return;
 	let s = Y(e, "g", v.grid);
-	if (t.y.grid) for (let e of o) Rt(s, n, J(t, n, i, e.value), t.horizontal);
-	if (t.x.grid) for (let e of a) Rt(s, n, q(t, n, r, e.value), !t.horizontal);
+	if (t.y.grid) for (let e of o) zt(s, n, J(t, n, i, e.value), t.horizontal);
+	if (t.x.grid) for (let e of a) zt(s, n, q(t, n, r, e.value), !t.horizontal);
 }
-function Rt(e, t, n, r) {
+function zt(e, t, n, r) {
 	r ? X(e, v.gridLine, n, t.top, n, F(t)) : X(e, v.gridLine, t.left, n, le(t), n);
 }
-function zt(e, t, n, r, i, a, o, s, c) {
+function Bt(e, t, n, r, i, a, o, s, c) {
 	let l = Y(e, "g", v.axes);
 	X(l, v.axisLine, n.left, F(n), le(n), F(n)), X(l, v.axisLine, n.left, n.top, n.left, F(n));
 	let u = t.horizontal ? o : a, d = t.horizontal ? a : o, f = -Infinity;
@@ -1064,47 +1071,47 @@ function zt(e, t, n, r, i, a, o, s, c) {
 	let p = NaN;
 	for (let e of d) {
 		let a = t.horizontal ? q(t, n, r, e.value) : J(t, n, i, e.value);
-		Number.isFinite(p) && Math.abs(a - p) < gt || (p = a, Z(l, v.label, e.text, n.left - G, a + 4, "end"));
+		Number.isFinite(p) && Math.abs(a - p) < _t || (p = a, Z(l, v.label, e.text, n.left - G, a + 4, "end"));
 	}
-	let m = It(t).caption, h = Ft(t).caption;
+	let m = Lt(t).caption, h = It(t).caption;
 	if (m !== null && Z(l, v.caption, m, n.left + n.width / 2, c - 2, "middle"), h !== null) {
 		let e = n.top + n.height / 2;
 		Z(l, v.caption, h, 10, e, "middle").setAttribute("transform", `rotate(-90 10 ${R(e)})`);
 	}
 }
-function Bt(e, t, n, r, i) {
-	let a = `${v.clipPrefix}${n.getAttribute(i.componentId) ?? "0"}`, o = Y(e, "clipPath", "");
-	o.setAttribute("id", a);
-	let s = Y(o, "rect", "");
-	s.setAttribute("x", R(r.left)), s.setAttribute("y", R(r.top)), s.setAttribute("width", R(r.width)), s.setAttribute("height", R(r.height)), t.setAttribute("clip-path", `url(#${a})`);
+function Vt(e, t, n, r, i) {
+	let a = Y(e, "clipPath", "");
+	n.clip === null ? n.clip = i.ensureId(a, `${v.clipPrefix}drawn`) : a.setAttribute("id", n.clip);
+	let o = Y(a, "rect", "");
+	o.setAttribute("x", R(r.left)), o.setAttribute("y", R(r.top)), o.setAttribute("width", R(r.width)), o.setAttribute("height", R(r.height)), t.setAttribute("clip-path", `url(#${n.clip})`);
 }
-function Vt(n, r, a, o, s, c, l, u, d, f, p, m, h = {
+function Ht(n, r, a, o, s, c, l, u, d, f, p, m, h = {
 	min: Infinity,
 	max: -Infinity
 }) {
 	let g = Y(n, "g", v.plot), b = r.model;
-	r.view !== null && Bt(n, g, r.root, o, p.names);
+	r.view !== null && Vt(n, g, r, o, p);
 	let S = b.kind === x.area ? Y(g, "g", v.bands) : null, C = b.kind === x.bar ? t(b.horizontal ? o.height : o.width, e(a.map((e) => e.drawn), s)) : 0;
 	for (let e = 0; e < a.length; e++) {
-		let t = a[e], n = t.series.stepped ?? b.stepped, r = t.series.smooth ?? b.smooth, w = t.series.markers ?? b.markers, T = Y(g, "g", v.series), ee = Xt(t, m);
+		let t = a[e], n = t.series.stepped ?? b.stepped, r = t.series.smooth ?? b.smooth, w = t.series.markers ?? b.markers, T = Y(g, "g", v.series), ee = Zt(t, m);
 		if (T.setAttribute(_.series, t.series.key), T.style.setProperty(y.seriesColor, ee), b.kind === x.bar) {
-			Wt(T, t, e, a.length, o, s, c, C, l, u, d, f, p, b);
+			Gt(T, t, e, a.length, o, s, c, C, l, u, d, f, p, b);
 			continue;
 		}
 		if (b.kind === x.scatter) {
-			for (let e = 0; e < t.drawn.length; e++) Ht(T, t, e, o, s, c, i(t.drawn[e].size, h.min, h.max), !0, l, u, d, f, p, b);
+			for (let e = 0; e < t.drawn.length; e++) Ut(T, t, e, o, s, c, i(t.drawn[e].size, h.min, h.max), !0, l, u, d, f, p, b);
 			continue;
 		}
-		if (S !== null && jt(S, t.series.key, ee, ye(t.drawn, s, c, o, n, r)), $t(T, v.line, be(t.drawn, s, c, o, n, r)), Y(T, "path", v.lineHit).setAttribute("d", ve(t.drawn, s, c, o, n, r)), w || b.tooltip) for (let e = 0; e < t.drawn.length; e++) Ht(T, t, e, o, s, c, w ? 3 : 5, w, l, u, d, f, p, b);
+		if (S !== null && Mt(S, t.series.key, ee, ye(t.drawn, s, c, o, n, r)), en(T, v.line, be(t.drawn, s, c, o, n, r)), Y(T, "path", v.lineHit).setAttribute("d", ve(t.drawn, s, c, o, n, r)), w || b.tooltip) for (let e = 0; e < t.drawn.length; e++) Ut(T, t, e, o, s, c, w ? 3 : 5, w, l, u, d, f, p, b);
 	}
 }
-function Ht(e, t, n, r, i, a, o, s, c, l, u, d, f, p) {
+function Ut(e, t, n, r, i, a, o, s, c, l, u, d, f, p) {
 	let m = t.drawn[n];
 	if (m.y === null) return;
-	let h = !p.tooltip || p.sharedTooltip ? null : Kt(p, t, m.x, Gt(t, n), c, l, u, d, f);
-	Ut(e, m.key, N(r, i, m.x), P(r, a, m.y), o, s, h, f.names);
+	let h = !p.tooltip || p.sharedTooltip ? null : qt(p, t, m.x, Kt(t, n), c, l, u, d, f);
+	Wt(e, m.key, N(r, i, m.x), P(r, a, m.y), o, s, h, f.names);
 }
-function Ut(e, t, n, i, a, o, s, c) {
+function Wt(e, t, n, i, a, o, s, c) {
 	let l = {
 		x: R(n),
 		y: R(i)
@@ -1115,19 +1122,19 @@ function Ut(e, t, n, i, a, o, s, c) {
 	let f = Y(u, "circle", v.hit);
 	f.setAttribute("cx", l.x), f.setAttribute("cy", l.y), f.setAttribute("r", R(r(a))), s !== null && f.setAttribute(c.tooltip, s);
 }
-function Wt(e, t, r, i, a, o, s, c, l, u, d, f, p, m) {
+function Gt(e, t, r, i, a, o, s, c, l, u, d, f, p, m) {
 	let h = m.horizontal;
 	for (let g = 0; g < t.drawn.length; g++) {
 		let y = t.drawn[g];
 		if (y.y === null) continue;
 		let b = n(q(m, a, o, y.x), c, r, i, m.stacked), x = J(m, a, s, y.y), S = J(m, a, s, se(s, y.base ?? 0)), C = Math.min(x, S), w = Math.max(1, Math.abs(x - S)), T = Y(e, "rect", v.bar);
-		T.setAttribute("x", R(h ? C : b.start)), T.setAttribute("y", R(h ? b.start : C)), T.setAttribute("width", R(h ? w : b.thickness)), T.setAttribute("height", R(h ? b.thickness : w)), T.setAttribute(_.point, y.key), m.tooltip && !m.sharedTooltip && T.setAttribute(p.names.tooltip, Kt(m, t, y.x, Gt(t, g), l, u, d, f, p));
+		T.setAttribute("x", R(h ? C : b.start)), T.setAttribute("y", R(h ? b.start : C)), T.setAttribute("width", R(h ? w : b.thickness)), T.setAttribute("height", R(h ? b.thickness : w)), T.setAttribute(_.point, y.key), m.tooltip && !m.sharedTooltip && T.setAttribute(p.names.tooltip, qt(m, t, y.x, Kt(t, g), l, u, d, f, p));
 	}
 }
-function Gt(e, t) {
+function Kt(e, t) {
 	return (t < e.points.length ? e.points[t].y : null) ?? 0;
 }
-function Kt(e, t, n, r, i, a, o, s, c) {
+function qt(e, t, n, r, i, a, o, s, c) {
 	let l = K(e.x, a.x, n, i, o, s, c), u = K(e.y, a.y, r, i, o, s, c);
 	return c.strings.format(w.point, {
 		series: t.series.caption,
@@ -1135,11 +1142,11 @@ function Kt(e, t, n, r, i, a, o, s, c) {
 		y: u
 	});
 }
-function qt(e, t, n) {
+function Jt(e, t, n) {
 	let r = n.strings.text(w.empty);
 	r.length !== 0 && Z(e, v.empty, r, t.left + t.width / 2, t.top + t.height / 2, "middle");
 }
-function Jt(e, t, n, r, i, a, o, s, c) {
+function Yt(e, t, n, r, i, a, o, s, c) {
 	let l = /* @__PURE__ */ new Map();
 	for (let e = 0; e < t.length; e++) for (let n of t[e].points) {
 		if (n.y === null || n.x < r.min || n.x > r.max) continue;
@@ -1167,25 +1174,25 @@ function Jt(e, t, n, r, i, a, o, s, c) {
 		};
 	});
 }
-function Yt(e, t, n) {
+function Xt(e, t, n) {
 	let r = Y(e, "rect", b.rule);
 	r.setAttribute("x", n ? R(t.left) : "0"), r.setAttribute("y", n ? "0" : R(t.top)), r.setAttribute("width", n ? R(t.width) : "1"), r.setAttribute("height", n ? "1" : R(t.height));
 }
-function Xt(e, t) {
-	return e.series.color !== null && e.series.color.length > 0 ? e.series.color : Zt(e.index, t);
-}
 function Zt(e, t) {
+	return e.series.color !== null && e.series.color.length > 0 ? e.series.color : Qt(e.index, t);
+}
+function Qt(e, t) {
 	return `var(${T.seriesColorPrefix}${e % t + 1})`;
 }
-function Qt(e) {
+function $t(e) {
 	let t = Number(getComputedStyle(e).getPropertyValue(T.seriesColorCount));
-	return Number.isFinite(t) && t >= 1 ? Math.floor(t) : _t;
+	return Number.isFinite(t) && t >= 1 ? Math.floor(t) : vt;
 }
 function Y(e, t, n) {
 	let r = document.createElementNS(U, t);
 	return r.setAttribute("class", n), e.appendChild(r), r;
 }
-function $t(e, t, n) {
+function en(e, t, n) {
 	let r = Y(e, "g", t);
 	for (let e of n) {
 		let t = document.createElementNS(U, "line");
@@ -1202,22 +1209,22 @@ function Z(e, t, n, r, i, a) {
 }
 //#endregion
 //#region src/chart-gauge.ts
-var en = `.${v.gauge}`, tn = `.${v.gaugeNumber}`, nn = `.${v.gaugeUnit}`;
-function rn(e, t, n) {
+var tn = `.${v.gauge}`, nn = `.${v.gaugeNumber}`, rn = `.${v.gaugeUnit}`;
+function an(e, t, n) {
 	let r = e.getAttribute(_.gaugeFormat) ?? "N0", i = typeof t == "number" ? t : typeof t == "string" && t.length > 0 ? Number(t) : NaN, a = Number.isFinite(i), o = a ? n.numbers.format(i, r, n.numbers.readCulture(e)) : n.strings.text(w.noReading);
 	e.textContent !== o && (e.textContent = o);
-	let s = e.parentElement?.querySelector(nn);
+	let s = e.parentElement?.querySelector(rn);
 	s != null && s.hidden === a && (s.hidden = !a);
 }
-function an(e, t) {
-	for (let n of e.querySelectorAll(en)) {
-		let e = n.querySelector(tn);
-		e !== null && rn(e, n.style.getPropertyValue(y.gaugeValue).trim(), t);
+function on(e, t) {
+	for (let n of e.querySelectorAll(tn)) {
+		let e = n.querySelector(nn);
+		e !== null && an(e, n.style.getPropertyValue(y.gaugeValue).trim(), t);
 	}
 }
 //#endregion
 //#region src/chart-press.ts
-var on = `[${_.point}]`, sn = `.${b.pendingPoint}`, cn = `.${v.series}`, ln = class {
+var sn = `[${_.point}]`, cn = `.${b.pendingPoint}`, ln = `.${v.series}`, un = class {
 	wait;
 	timer = null;
 	pending = null;
@@ -1237,11 +1244,11 @@ var on = `[${_.point}]`, sn = `.${b.pendingPoint}`, cn = `.${v.series}`, ln = cl
 	cancel() {
 		this.timer !== null && clearTimeout(this.timer), this.timer = null, this.pending = null;
 	}
-}, un = class {
+}, dn = class {
 	wait;
 	held = null;
 	constructor(e) {
-		this.wait = new ln(e);
+		this.wait = new un(e);
 	}
 	press(e, t, n) {
 		this.wait.press(e, () => {
@@ -1249,46 +1256,46 @@ var on = `[${_.point}]`, sn = `.${b.pendingPoint}`, cn = `.${v.series}`, ln = cl
 		}), this.mark(e > 1 ? null : t);
 	}
 	mark(e) {
-		this.held !== null && dn(this.held.root, null), this.held = e, e !== null && dn(e.root, e);
+		this.held !== null && fn(this.held.root, null), this.held = e, e !== null && fn(e.root, e);
 	}
 	cancel() {
 		this.wait.cancel(), this.mark(null);
 	}
 	redrawn(e) {
-		this.held?.root === e && dn(e, this.held);
+		this.held?.root === e && fn(e, this.held);
 	}
 };
-function dn(e, t) {
+function fn(e, t) {
 	if (t === null) {
-		for (let t of e.querySelectorAll(sn)) t.classList.remove(b.pendingPoint);
+		for (let t of e.querySelectorAll(cn)) t.classList.remove(b.pendingPoint);
 		return;
 	}
-	for (let n of e.querySelectorAll(on)) n.classList.toggle(b.pendingPoint, n.getAttribute(_.point) === t.point && fn(n) === t.series);
+	for (let n of e.querySelectorAll(sn)) n.classList.toggle(b.pendingPoint, n.getAttribute(_.point) === t.point && pn(n) === t.series);
 }
-function fn(e) {
-	return e.getAttribute(_.series) ?? e.closest(cn)?.getAttribute(_.series) ?? "";
+function pn(e) {
+	return e.getAttribute(_.series) ?? e.closest(ln)?.getAttribute(_.series) ?? "";
 }
 //#endregion
 //#region src/chart-wheel.ts
-function pn(e, t, n) {
+function mn(e, t, n) {
 	return !Number.isFinite(e.y) || Math.abs(e.x) > Math.abs(e.y) ? 0 : Math.min(Math.max(e.y / t, -n), n);
 }
-function mn(e, t, n, r) {
+function hn(e, t, n, r) {
 	let i = e ?? t, a = lt(i, n, r, t.from, t.to);
-	return Math.abs(a.to - a.from - (i.to - i.from)) <= _n(t) ? e : gn(a, t);
-}
-function hn(e, t) {
-	return e === null || t === null ? e === t : e.from === t.from && e.to === t.to;
+	return Math.abs(a.to - a.from - (i.to - i.from)) <= vn(t) ? e : _n(a, t);
 }
 function gn(e, t) {
-	return e.to - e.from >= t.to - t.from - _n(t) ? null : e;
+	return e === null || t === null ? e === t : e.from === t.from && e.to === t.to;
 }
-function _n(e) {
+function _n(e, t) {
+	return e.to - e.from >= t.to - t.from - vn(t) ? null : e;
+}
+function vn(e) {
 	return (e.to - e.from) * 1e-6;
 }
 //#endregion
 //#region src/chart-engine.ts
-var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}`, xn = `:scope > .${v.bands}`, Sn = `.${v.fill}`, Cn = `[${_.point}]`, wn = `.${v.area}`, Tn = `.${b.rule}`, En = `.${v.window}`, Dn = 250, On = 1.2, kn = 800, An = 3, jn = 3, Mn = `.${v.legendEntry}`, Nn = `.${v.bar}`, Pn = `.${v.sector}`, Fn = `.${v.sectorAnchor}`, In = class {
+var Q = `.${v.root}`, yn = `.${v.canvas}`, bn = `.${v.plot}`, xn = `.${v.series}`, Sn = `:scope > .${v.bands}`, Cn = `.${v.fill}`, wn = `[${_.point}]`, Tn = `.${v.area}`, En = `.${b.rule}`, Dn = `.${v.window}`, On = 250, kn = 1.2, An = 800, jn = 3, Mn = 3, Nn = `.${v.legendEntry}`, Pn = `.${v.bar}`, Fn = `.${v.sector}`, In = `.${v.sectorAnchor}`, Ln = class {
 	charts = /* @__PURE__ */ new WeakMap();
 	formatting;
 	tooltips;
@@ -1304,7 +1311,7 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 	drag = null;
 	dragged = !1;
 	settling = /* @__PURE__ */ new Map();
-	pointPress = new un(300);
+	pointPress = new dn(300);
 	constructor(e) {
 		let t = e.root;
 		this.formatting = {
@@ -1312,7 +1319,8 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 			temporal: e.temporal,
 			strings: e.strings,
 			names: e.names,
-			focusReturn: e.popups.focusReturn
+			focusReturn: e.popups.focusReturn,
+			ensureId: e.dom.ensureId.bind(e.dom)
 		}, this.tooltips = e.tooltips, this.states = e.states, this.wheel = e.wheel, this.observeSize = e.observeSize, this.readPath = e.rows.readPath;
 		for (let e of t.querySelectorAll(Q)) this.adopt(e);
 		e.observeComponents(t, Q, {
@@ -1330,7 +1338,7 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 			let e = this.charts.get(t), n = e === void 0 ? null : He(t);
 			e !== void 0 && n !== null && (e.model = Ue(n, (e) => this.formatting.strings.resolveText(e)), this.schedule(t));
 		}
-		an(e, this.formatting);
+		on(e, this.formatting);
 	}
 	adopt(e) {
 		let t = this.resolve(e);
@@ -1348,12 +1356,13 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 			hidden: r?.hidden ?? /* @__PURE__ */ new Set(),
 			modelText: t,
 			rowsText: n,
-			view: r === void 0 ? Rn(Ln(e.querySelector(En) ?? e)) : r.view,
+			view: r === void 0 ? zn(Rn(e.querySelector(Dn) ?? e)) : r.view,
 			anchored: r?.anchored ?? !0,
 			follow: !1,
 			frame: null,
 			width: 0,
 			height: 0,
+			clip: r?.clip ?? null,
 			release: r?.release ?? null,
 			front: r?.front ?? null,
 			bar: r?.bar ?? null
@@ -1373,7 +1382,7 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 		let t = this.charts.get(e);
 		if (t === void 0 || !e.isConnected) return;
 		let n = t.follow && t.view !== null;
-		t.frame = yt(t, this.formatting), qn(t), Jn(e, t.bar), this.pointPress.redrawn(e), n && this.settle(e);
+		t.frame = bt(t, this.formatting), Jn(t), Yn(e, t.bar), this.pointPress.redrawn(e), n && this.settle(e);
 	}
 	onResize(e) {
 		let t = this.charts.get(e);
@@ -1382,7 +1391,7 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 			t.release?.(), t.release = null, this.charts.delete(e);
 			return;
 		}
-		let n = Gn(e);
+		let n = Kn(e);
 		(n.width !== t.width || n.height !== t.height) && this.schedule(e);
 	}
 	onMutated(e) {
@@ -1395,14 +1404,14 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 		t !== null && (qe(t.rows, e.action, e.items, e.moves, t.model, this.readPath), t.model.followLatest && t.view !== null && t.anchored && (t.follow = !0), this.schedule(e.component));
 	}
 	applyWindow(e, t, n) {
-		let r = e.closest(Q), i = r === null ? void 0 : this.charts.get(r), a = Rn(t);
+		let r = e.closest(Q), i = r === null ? void 0 : this.charts.get(r), a = zn(t);
 		a === null ? e.removeAttribute(_.window) : e.setAttribute(_.window, JSON.stringify(a)), !(r === null || i === void 0 || n) && (i.view = a === null ? null : {
 			from: a.from,
 			to: a.to
-		}, i.follow = !1, this.schedule(r), Hn(i));
+		}, i.follow = !1, this.schedule(r), Un(i));
 	}
 	applyGaugeValue(e, t) {
-		rn(e, t, this.formatting);
+		an(e, t, this.formatting);
 	}
 	answering(e) {
 		return e instanceof Element && !this.states.isInert(e) ? e : null;
@@ -1410,28 +1419,28 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 	onSharedTooltip(e) {
 		if (!(e instanceof PointerEvent) || !(e.target instanceof Element)) return;
 		let t = e.target, n = t.closest(Q), r = n === null ? void 0 : this.charts.get(n), i = r?.frame ?? null;
-		if (e.type !== "pointermove" || n === null || r === void 0 || i === null || i.columns.length === 0 || t.closest(wn) === null || this.states.isInert(t)) {
+		if (e.type !== "pointermove" || n === null || r === void 0 || i === null || i.columns.length === 0 || t.closest(Tn) === null || this.states.isInert(t)) {
 			this.closeShared();
 			return;
 		}
-		let a = n.querySelector(vn), o = n.querySelector(Tn);
+		let a = n.querySelector(yn), o = n.querySelector(En);
 		if (a === null || o === null) return;
 		let s = a.getBoundingClientRect();
-		if (!Bn(i, e.clientX - s.left, e.clientY - s.top)) {
+		if (!Vn(i, e.clientX - s.left, e.clientY - s.top)) {
 			this.closeShared();
 			return;
 		}
-		let c = r.model.horizontal, l = Vn(i.columns, c ? e.clientY - s.top : e.clientX - s.left);
+		let c = r.model.horizontal, l = Hn(i.columns, c ? e.clientY - s.top : e.clientX - s.left);
 		(this.shared !== n || this.sharedColumn !== l) && (o.setAttribute(c ? "y" : "x", String(Math.round(l.at * 100) / 100)), o.classList.add(b.ruleOn), this.shared = n, this.sharedColumn = l, this.tooltips.show(o, l.text, { delay: !0 }));
 	}
 	closeShared() {
-		this.shared !== null && (this.shared.querySelector(Tn)?.classList.remove(b.ruleOn), this.shared = null, this.sharedColumn = null, this.tooltips.hide());
+		this.shared !== null && (this.shared.querySelector(En)?.classList.remove(b.ruleOn), this.shared = null, this.sharedColumn = null, this.tooltips.hide());
 	}
 	zoomable(e) {
-		let t = this.answering(e.target), n = t?.closest(Q) ?? null, r = n === null ? void 0 : this.charts.get(n), i = n?.querySelector(vn) ?? null;
+		let t = this.answering(e.target), n = t?.closest(Q) ?? null, r = n === null ? void 0 : this.charts.get(n), i = n?.querySelector(yn) ?? null;
 		if (!(e instanceof MouseEvent) || t === null || n === null || r === void 0 || !r.model.zoomable || r.frame === null || i === null) return null;
 		let a = i.getBoundingClientRect();
-		return t.closest(wn) === null || !Bn(r.frame, e.clientX - a.left, e.clientY - a.top) ? null : {
+		return t.closest(Tn) === null || !Vn(r.frame, e.clientX - a.left, e.clientY - a.top) ? null : {
 			root: n,
 			entry: r,
 			frame: r.frame
@@ -1440,21 +1449,21 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 	onWheel(e) {
 		let t = this.zoomable(e);
 		if (t === null || !(e instanceof WheelEvent)) return;
-		let n = pn(this.wheel.pixels(e, kn), this.wheel.notch, An);
+		let n = mn(this.wheel.pixels(e, An), this.wheel.notch, jn);
 		if (n === 0) return;
 		let { entry: r, frame: i } = t, a = r.view ?? i.whole, o = oe({
 			...i.x,
 			min: a.from,
 			max: a.to
-		}, Un(e, t.root, i, r.model.horizontal)), s = mn(r.view, i.whole, o, On ** n);
-		hn(s, r.view) || (e.preventDefault(), r.view = s, r.follow = !1, this.schedule(t.root), Hn(r), this.settle(t.root));
+		}, Wn(e, t.root, i, r.model.horizontal)), s = hn(r.view, i.whole, o, kn ** n);
+		gn(s, r.view) || (e.preventDefault(), r.view = s, r.follow = !1, this.schedule(t.root), Un(r), this.settle(t.root));
 	}
 	settle(e) {
 		let t = this.settling.get(e);
-		t !== void 0 && window.clearTimeout(t), this.settling.set(e, window.setTimeout(() => this.send(e), Dn));
+		t !== void 0 && window.clearTimeout(t), this.settling.set(e, window.setTimeout(() => this.send(e), On));
 	}
 	send(e) {
-		let t = this.charts.get(e), n = e.querySelector(En);
+		let t = this.charts.get(e), n = e.querySelector(Dn);
 		if (this.settling.delete(e), t === void 0 || n === null || this.states.isInert(e)) return;
 		let r = t.view === null ? "" : JSON.stringify({
 			from: t.view.from,
@@ -1468,7 +1477,7 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 		if (t === null || !(e instanceof PointerEvent) || e.button !== 0) return;
 		this.drag = {
 			root: t.root,
-			start: Wn(e, t.entry.model.horizontal),
+			start: Gn(e, t.entry.model.horizontal),
 			window: t.entry.view ?? t.frame.whole,
 			moved: 0
 		};
@@ -1480,13 +1489,13 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 	onDragMove(e) {
 		let t = this.drag, n = t === null ? void 0 : this.charts.get(t.root);
 		if (t === null || n === void 0 || n.frame === null || !(e instanceof PointerEvent) || this.states.isInert(t.root)) return;
-		let r = n.model.horizontal, i = Wn(e, r);
-		if (t.moved = Math.max(t.moved, Math.abs(i - t.start)), t.moved <= jn) return;
+		let r = n.model.horizontal, i = Gn(e, r);
+		if (t.moved = Math.max(t.moved, Math.abs(i - t.start)), t.moved <= Mn) return;
 		let a = r ? n.frame.plot.height : n.frame.plot.width, o = t.window.to - t.window.from, s = a > 0 ? (t.start - i) / a * o : 0;
-		t.root.classList.add(b.dragging), n.view = ut(t.window, s, n.frame.whole.from, n.frame.whole.to), n.follow = !1, this.schedule(t.root), Hn(n);
+		t.root.classList.add(b.dragging), n.view = ut(t.window, s, n.frame.whole.from, n.frame.whole.to), n.follow = !1, this.schedule(t.root), Un(n);
 	}
 	onDragEnd() {
-		this.dragged = this.drag !== null && this.drag.moved > jn, this.drag !== null && (this.drag.root.classList.remove(b.dragging), this.dragged && this.send(this.drag.root)), this.drag = null;
+		this.dragged = this.drag !== null && this.drag.moved > Mn, this.drag !== null && (this.drag.root.classList.remove(b.dragging), this.dragged && this.send(this.drag.root)), this.drag = null;
 	}
 	onReset(e) {
 		let t = this.zoomable(e);
@@ -1496,18 +1505,18 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 		if (!(e.target instanceof Element)) return;
 		let t = e.target.closest(Q), n = t === null ? void 0 : this.charts.get(t);
 		if (n === void 0) return;
-		let r = e.type === "pointerover" ? this.answering(e.target) : null, i = r === null ? null : Kn(r);
-		i !== n.front && (n.front = i, qn(n));
+		let r = e.type === "pointerover" ? this.answering(e.target) : null, i = r === null ? null : qn(r);
+		i !== n.front && (n.front = i, Jn(n));
 	}
 	onBarHover(e) {
 		if (!(e.target instanceof Element)) return;
 		let t = e.target.closest(Q), n = t === null ? void 0 : this.charts.get(t);
 		if (t === null || n === void 0) return;
-		let r = e.type === "pointerover" ? this.answering(e.target)?.closest(Nn) ?? null : null;
+		let r = e.type === "pointerover" ? this.answering(e.target)?.closest(Pn) ?? null : null;
 		n.bar = r === null ? null : {
 			series: r.parentElement?.getAttribute(_.series) ?? "",
 			point: r.getAttribute(_.point) ?? ""
-		}, Jn(t, n.bar);
+		}, Yn(t, n.bar);
 	}
 	onSectorHover(e) {
 		if (!(e.target instanceof Element)) return;
@@ -1516,7 +1525,7 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 			this.sector !== null && this.sector.contains(e.target) && !(t instanceof Node && this.sector.contains(t)) && (this.sector = null, this.tooltips.hide());
 			return;
 		}
-		let t = this.answering(e.target)?.closest(Pn) ?? null, n = t?.getAttribute(_.sectorTooltip) ?? null, r = t?.parentElement?.querySelector(Fn) ?? null;
+		let t = this.answering(e.target)?.closest(Fn) ?? null, n = t?.getAttribute(_.sectorTooltip) ?? null, r = t?.parentElement?.querySelector(In) ?? null;
 		t !== null && n !== null && r !== null && t !== this.sector && (this.sector = t, this.tooltips.show(r, n, { delay: !0 }));
 	}
 	onPress(e) {
@@ -1525,11 +1534,11 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 			this.dragged = !1;
 			return;
 		}
-		let t = e.target.closest(Cn), n = t?.closest(Q) ?? null, r = n === null ? void 0 : this.charts.get(n);
+		let t = e.target.closest(wn), n = t?.closest(Q) ?? null, r = n === null ? void 0 : this.charts.get(n);
 		if (t === null || n === null) return;
 		let i = {
 			point: t.getAttribute(_.point) ?? "",
-			series: fn(t)
+			series: pn(t)
 		}, a = () => {
 			n.isConnected && !this.states.isInert(n) && n.dispatchEvent(new CustomEvent(S.pointClick, {
 				bubbles: !0,
@@ -1547,7 +1556,7 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 	}
 	onLegendPress(e) {
 		if (!(e.target instanceof Element)) return !1;
-		let t = e.target.closest(Mn), n = t?.closest(Q) ?? null, r = t?.getAttribute(_.series) ?? null;
+		let t = e.target.closest(Nn), n = t?.closest(Q) ?? null, r = t?.getAttribute(_.series) ?? null;
 		if (t === null || n === null || r === null) return !1;
 		let i = this.charts.get(n);
 		if (i === void 0) return !1;
@@ -1556,12 +1565,12 @@ var Q = `.${v.root}`, vn = `.${v.canvas}`, yn = `.${v.plot}`, bn = `.${v.series}
 		return t.setAttribute("aria-pressed", a ? "false" : "true"), t.classList.toggle(b.legendOff, a), this.schedule(n), !0;
 	}
 };
-function Ln(e) {
-	let t = e.getAttribute(_.window);
-	return t === null || t.length === 0 ? null : zn(t);
-}
 function Rn(e) {
-	let t = typeof e == "string" && e.length > 0 ? zn(e) : e;
+	let t = e.getAttribute(_.window);
+	return t === null || t.length === 0 ? null : Bn(t);
+}
+function zn(e) {
+	let t = typeof e == "string" && e.length > 0 ? Bn(e) : e;
 	if (typeof t != "object" || !t) return null;
 	let n = t.from, r = t.to;
 	return typeof n == "number" && typeof r == "number" && r > n ? {
@@ -1569,18 +1578,18 @@ function Rn(e) {
 		to: r
 	} : null;
 }
-function zn(e) {
+function Bn(e) {
 	try {
 		return JSON.parse(e);
 	} catch {
 		return null;
 	}
 }
-function Bn(e, t, n) {
+function Vn(e, t, n) {
 	let r = e.plot;
 	return t >= r.left && t <= r.left + r.width && n >= r.top && n <= r.top + r.height;
 }
-function Vn(e, t) {
+function Hn(e, t) {
 	let n = 0, r = e.length - 1;
 	for (; n < r;) {
 		let i = n + r >> 1;
@@ -1588,21 +1597,21 @@ function Vn(e, t) {
 	}
 	return n > 0 && Math.abs(e[n - 1].at - t) <= Math.abs(e[n].at - t) ? e[n - 1] : e[n];
 }
-function Hn(e) {
+function Un(e) {
 	let t = e.frame?.whole ?? null;
 	e.anchored = e.view === null || t === null || e.view.to >= t.to - (t.to - t.from) * 1e-6;
 }
-function Un(e, t, n, r) {
-	let i = t.querySelector(vn), a = r ? n.plot.height : n.plot.width;
+function Wn(e, t, n, r) {
+	let i = t.querySelector(yn), a = r ? n.plot.height : n.plot.width;
 	if (i === null || a <= 0) return .5;
 	let o = i.getBoundingClientRect(), s = r ? o.top + n.plot.top : o.left + n.plot.left;
-	return Math.min(Math.max((Wn(e, r) - s) / a, 0), 1);
+	return Math.min(Math.max((Gn(e, r) - s) / a, 0), 1);
 }
-function Wn(e, t) {
+function Gn(e, t) {
 	return t ? e.clientY : e.clientX;
 }
-function Gn(e) {
-	let t = e.querySelector(vn);
+function Kn(e) {
+	let t = e.querySelector(yn);
 	if (t === null) return {
 		width: 0,
 		height: 0
@@ -1613,47 +1622,47 @@ function Gn(e) {
 		height: Math.round(n.height)
 	};
 }
-function Kn(e) {
-	let t = e.closest(Mn);
-	if (t !== null) return t.getAttribute(_.series);
-	let n = e.closest(yn);
-	return n === null || n.querySelector(xn) === null ? null : e.closest(Sn)?.getAttribute(_.series) ?? e.closest(bn)?.getAttribute(_.series) ?? null;
-}
 function qn(e) {
-	let t = e.front !== null && !e.hidden.has(e.front) ? e.front : null;
-	for (let n of e.root.querySelectorAll(`${bn}, ${Sn}`)) n.classList.toggle(b.backSeries, t !== null && n.getAttribute(_.series) !== t);
+	let t = e.closest(Nn);
+	if (t !== null) return t.getAttribute(_.series);
+	let n = e.closest(bn);
+	return n === null || n.querySelector(Sn) === null ? null : e.closest(Cn)?.getAttribute(_.series) ?? e.closest(xn)?.getAttribute(_.series) ?? null;
 }
-function Jn(e, t) {
-	for (let n of e.querySelectorAll(Nn)) {
+function Jn(e) {
+	let t = e.front !== null && !e.hidden.has(e.front) ? e.front : null;
+	for (let n of e.root.querySelectorAll(`${xn}, ${Cn}`)) n.classList.toggle(b.backSeries, t !== null && n.getAttribute(_.series) !== t);
+}
+function Yn(e, t) {
+	for (let n of e.querySelectorAll(Pn)) {
 		let e = t !== null && n.getAttribute(_.point) === t.point && n.parentElement?.getAttribute(_.series) === t.series;
 		n.classList.toggle(b.frontBar, e);
 	}
 }
 //#endregion
 //#region src/framework-api.ts
-var Yn = 2;
-function Xn() {
+var Xn = 2;
+function Zn() {
 	let e = window.NEStandardUI;
 	if (e === void 0 || typeof e.registerEngine != "function") throw Error("NE.Standard.UI.Web.Charts needs the framework's client (ui.js) on the page before it.");
-	if (e.contractVersion !== Yn) throw Error(`NE.Standard.UI.Web.Charts was built for plugin contract ${Yn}, but the framework's client on the page implements ${String(e.contractVersion ?? "an older one")}; install the package version that matches the framework.`);
+	if (e.contractVersion !== Xn) throw Error(`NE.Standard.UI.Web.Charts was built for plugin contract ${Xn}, but the framework's client on the page implements ${String(e.contractVersion ?? "an older one")}; install the package version that matches the framework.`);
 	return e;
 }
 //#endregion
 //#region src/charts.ts
-var $ = Xn(), Zn = null;
+var $ = Zn(), Qn = null;
 $.registerEngine((e) => {
-	Zn = new In(e);
+	Qn = new Ln(e);
 }), $.registerCollectionSink({
 	kind: C.sink,
-	handler: (e) => Zn?.applyChange(e)
+	handler: (e) => Qn?.applyChange(e)
 }), $.registerValueReader({
 	kind: C.window,
-	read: Ln
+	read: Rn
 }), $.registerDomOperation({
 	kind: C.window,
-	handler: (e) => Zn?.applyWindow(e.target, e.value, e.local)
+	handler: (e) => Qn?.applyWindow(e.target, e.value, e.local)
 }), $.registerEvent(S.windowChange, { settlesValue: !0 }), $.registerEvent(S.pointClick, { dynamicParameters: (e) => [e.domEvent.detail?.point ?? "", e.domEvent.detail?.series ?? ""] }), $.registerDomOperation({
 	kind: C.gaugeValue,
-	handler: (e) => Zn?.applyGaugeValue(e.target, e.value)
+	handler: (e) => Qn?.applyGaugeValue(e.target, e.value)
 });
 //#endregion

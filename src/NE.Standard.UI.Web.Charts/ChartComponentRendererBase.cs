@@ -92,7 +92,10 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string EmptyClassName = "ui-chart__empty";
     protected const string WindowClassName = "ui-chart__window";
     protected const string SeriesColorVariable = "--ui-chart-series-color";
-    /// <summary>What a chart's clip is named by, finished with the component's id; the browser names the one it draws the same way.</summary>
+    /// <summary>
+    /// What a chart's clip is named by, finished with the component's id; the browser's own clips go on with <c>drawn</c>, so the
+    /// two never meet.
+    /// </summary>
     protected const string ClipIdPrefix = "ui-chart-clip-";
 
     // The first frame's box: text doesn't scale with the viewBox, so the browser re-draws at the real size and this only shapes
@@ -161,9 +164,11 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
 
         ApplyStacking(spec, data);
 
-        // Once, on the root: the engine formats a tick and a tooltip by the nearest packs, as the typed cells of a grid do.
+        // Once, on the root: the engine formats a tick and a tooltip by the nearest packs, as the typed cells of a grid do. They are
+        // the page's, so a language switch writes them again before the chart draws itself anew.
         NumberCultureRenderer.RenderNumberCulture(root, culture);
         TemporalCultureRenderer.RenderTemporalCulture(root, culture);
+        _ = root.Attribute(WebAttributes.PageCulture);
 
         _ = root.Attribute(WebAttributes.CollectionSink, SinkKind);
         _ = root.Class(LegendClassPrefix + spec.Legend.ToString().ToLowerInvariant());
