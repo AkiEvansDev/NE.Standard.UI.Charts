@@ -4,6 +4,17 @@ One section per release of this slice, headed `## X.Y.Z` and named by the tag â€
 workflow cuts the matching section out to become the body of the GitHub release, and a tag with no section
 fails the release before anything is published.
 
+## 1.4.0-rc.3
+
+- **A gauge's caption and unit, and a pie's centre caption, take a phrase**, as every text of the framework's now does.
+  **Breaking:** `GaugeComponent.Caption`, `GaugeComponent.Unit` and `PieChartComponent.CentreCaption` are `UIPhrase?`; a string
+  still assigns, and code reading one as a string reads `.Key` or `.ToString()`. A gauge's `Format` stays a string.
+- **A category or series name read off a phrase is written as its key**; an author's text is the plain text it stands for.
+- **Built on the framework's 1.4.0-rc.3.** Its copy of the plugin
+  stylesheet carries the framework's field actions: `.ui-field-actions()` compacts a split button and a flyout's button as
+  it does a plain one (`.ui-field-action-button()`), and the eight file-kind glyphs' variables (`@ui-glyph-draft`,
+  `@ui-glyph-picture-as-pdf`, â€¦).
+
 ## 1.4.0-rc.2
 
 - **Built on the framework's 1.4.0-rc.2.** Nothing of this package's own changed. Its copy of the plugin contract carries the

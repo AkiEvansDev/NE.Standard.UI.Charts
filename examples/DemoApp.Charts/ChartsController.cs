@@ -137,7 +137,7 @@ internal sealed partial class ChartsController : UIControllerBase
 
     /// <summary>A series by the demo's word for it; one the demo has no word for is named by the key the chart sent.</summary>
     private static object SeriesName(string series)
-        => series is "cpu" or "memory" or "requests" ? new UIPhrase(ChartsDemoWords.KeyPrefix + series) : series;
+        => series is "cpu" or "memory" or "requests" ? new UIPhrase(ChartsDemoWords.KeyPrefix + series) : (object)series;
 
     /// <summary>The same event from a chart of bars, where a press lands on the bar rather than on a mark.</summary>
     [UICommand]

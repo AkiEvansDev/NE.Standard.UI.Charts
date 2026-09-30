@@ -1,6 +1,7 @@
 using System;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Charts;
 
@@ -21,7 +22,7 @@ public abstract partial class PieChartComponent<T>(string? id = null) : ChartCom
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? CentreCaption { get; set; }
+    public UIPhrase? CentreCaption { get; set; }
 
     /// <summary>
     /// Leaves a hole in the middle, as a share of the radius — the shape a total is written in.

@@ -4,6 +4,7 @@ using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Charts;
 
@@ -45,7 +46,7 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? Caption { get; set; }
+    public UIPhrase? Caption { get; set; }
 
     /// <summary>
     /// Gets or sets how the reading is written: a standard number format in the page's culture.
@@ -58,7 +59,7 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public string? Unit { get; set; }
+    public UIPhrase? Unit { get; set; }
 
     /// <summary>
     /// Sets the range the reading is read in.
