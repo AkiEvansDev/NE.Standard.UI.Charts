@@ -10,7 +10,7 @@ import type { StubElement } from "./stub-dom.ts";
 
 installStubDom();
 
-const { syncLegend } = await import("../src/chart-legend.ts");
+const { legendFallsUnder, syncLegend } = await import("../src/chart-legend.ts");
 const { ChartAttributes, ChartClasses, ClientNames } = await import("../src/chart-names.ts");
 
 type Entry = Parameters<typeof syncLegend>[1][number];
@@ -149,4 +149,14 @@ test("a legend that goes with no focus in it takes the focus from nothing", () =
 
     assert.equal(stubDocument.activeElement, elsewhere);
     assert.equal(returned.length, 0);
+});
+
+test("a side legend stands beside a plot it leaves 256 px or more, and under one it would leave less", () => {
+    // A desktop column: 1000 px less a 110 px legend and the 8 px gap leaves the plot plenty.
+    assert.equal(legendFallsUnder(1000, 110, 8), false);
+    // A phone's 342 px leaves 224: the legend goes under.
+    assert.equal(legendFallsUnder(342, 110, 8), true);
+    // The edge: exactly the floor stays beside.
+    assert.equal(legendFallsUnder(374, 110, 8), false);
+    assert.equal(legendFallsUnder(373, 110, 8), true);
 });

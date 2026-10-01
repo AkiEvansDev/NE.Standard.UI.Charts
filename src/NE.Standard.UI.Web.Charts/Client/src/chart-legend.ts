@@ -1,7 +1,11 @@
 // The legend kept in step with the data by key, so what the pointer and the keyboard hold on an entry outlives a redraw.
 
 import type { DomNames, Popups } from "ne-standard-ui";
+import type { ChartModel } from "./chart-model.ts";
 import { ChartAttributes, ChartClasses, ChartVariables, ClientNames, CoreNames } from "./chart-names.ts";
+
+/** The least a plot keeps beside a start or end legend: with less, the legend stands under it as a bottom one does (a phone's width). */
+const SidePlotFloor = 256;
 
 /** One entry of the legend: the key it hides and shows by, what it says, and the colour its mark takes. */
 export type LegendEntry = {
@@ -17,13 +21,7 @@ export type LegendEntry = {
  * page's body.
  */
 export function syncLegend(root: HTMLElement, entries: readonly LegendEntry[], hidden: ReadonlySet<string>, names: DomNames, focusReturn: Popups["focusReturn"]): void {
-    let legend: Element | null = null;
-
-    for (const child of root.children) {
-        if (child.classList.contains(ChartClasses.legend))
-            legend = child;
-    }
-
+    let legend = legendOf(root);
     const buttons = legend === null ? [] : [...legend.children];
     const held = buttons.find(button => button === document.activeElement) ?? null;
 
@@ -74,6 +72,16 @@ export function syncLegend(root: HTMLElement, entries: readonly LegendEntry[], h
 
     if (target instanceof HTMLElement)
         target.focus({ preventScroll: true });
+}
+
+/** The chart's own legend, never one of a chart drawn inside it. */
+function legendOf(root: HTMLElement): Element | null {
+    for (const child of root.children) {
+        if (child.classList.contains(ChartClasses.legend))
+            return child;
+    }
+
+    return null;
 }
 
 /** The buttons that stay, by key — the first of each key the entries still name; every other one leaves the legend. */
@@ -129,4 +137,35 @@ function writeLegendButton(button: Element, entry: LegendEntry, hidden: boolean)
 
     if (button.classList.contains(ClientNames.legendOff) !== hidden)
         button.classList.toggle(ClientNames.legendOff, hidden);
+}
+
+/**
+ * A start or end legend beside the plot while the chart has room for both, under it (`ui-chart--legend-under`) where it has not.
+ * Its width is its widest entry's, which reads the same beside the plot and under it, so the choice never flips on its own redraw.
+ */
+export function placeSideLegend(root: HTMLElement, placement: ChartModel["legend"]): void {
+    const legend = legendOf(root);
+    const width = root.clientWidth;
+
+    // A chart with no box yet (hidden) decides once it has one.
+    if (width === 0)
+        return;
+
+    let under = false;
+
+    if (legend !== null && (placement === "Start" || placement === "End")) {
+        const style = getComputedStyle(legend);
+        const widest = Math.max(0, ...[...legend.children].map(entry => entry instanceof HTMLElement ? entry.offsetWidth : 0));
+        const legendWidth = widest + (Number.parseFloat(style.paddingLeft) || 0) + (Number.parseFloat(style.paddingRight) || 0);
+
+        under = legendFallsUnder(width, legendWidth, Number.parseFloat(getComputedStyle(root).columnGap) || 0);
+    }
+
+    if (root.classList.contains(ClientNames.legendUnder) !== under)
+        root.classList.toggle(ClientNames.legendUnder, under);
+}
+
+/** Whether a side legend falls under the plot: the chart's width less the legend's and the gap between them leaves the plot too narrow. */
+export function legendFallsUnder(chartWidth: number, legendWidth: number, gap: number): boolean {
+    return chartWidth - legendWidth - gap < SidePlotFloor;
 }

@@ -5,7 +5,7 @@ import { bandWidth, barOf, barSlots } from "./chart-bars.ts";
 import { PlainRadius, bubbleRadius, pointReach } from "./chart-bubbles.ts";
 import type { ChartAxis, ChartModel } from "./chart-model.ts";
 import { momentDate } from "./chart-moment.ts";
-import { syncLegend } from "./chart-legend.ts";
+import { placeSideLegend, syncLegend } from "./chart-legend.ts";
 import type { LegendEntry } from "./chart-legend.ts";
 import { ChartAttributes, ChartClasses, ChartKinds, ChartVariables, ChartWords, ClientNames, CoreNames } from "./chart-names.ts";
 import { areaPath, coord, linePath, lineSegments } from "./chart-path.ts";
@@ -136,6 +136,9 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     // The legend first: its entries move the plot's box, and a box measured before them would stretch the old frame into the new.
     if (model.legend !== "None")
         syncLegend(state.root, entries, state.hidden, formatting.names, formatting.focusReturn);
+
+    // Beside the plot or under it, before the plot's box is measured: where the legend stands is what the plot is left.
+    placeSideLegend(state.root, model.legend);
 
     labelCanvas(canvas, entries, formatting);
 

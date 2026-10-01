@@ -304,6 +304,20 @@
         order: -1;
     }
 
+// A start or end legend on a chart too narrow for it beside the plot stands under the plot, as a bottom one does (the engine's
+// `placeSideLegend`, by the plot's floor beside it).
+.ui-chart--legend-under:is(.ui-chart--legend-start, .ui-chart--legend-end) {
+    flex-direction: column;
+
+    > .ui-chart__legend {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        max-width: none;
+        order: 0;
+    }
+}
+
 // An entry is the framework's own small ghost button, at the caption's size, with a place for the mark beside the name.
 .ui-chart__legend-entry {
     gap: 0.375rem;

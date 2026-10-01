@@ -157,7 +157,9 @@ stays keeps its button, written again in place, so a press, a hover or the keybo
 being read stays forward through one. A keyboard standing on an entry whose series or sector went moves to the entry now in its
 place, and to the chart itself where the whole legend went, never to the page's body. The canvas is announced as a picture named
 by what the legend names — or by the `ui.chart.label` string (*Chart*) where there is nothing to name; a gauge's arc is left
-unannounced beside the words laid over it.
+unannounced beside the words laid over it. A `Start` or `End` legend stands under the plot, as a `Bottom` one does, while the
+chart is too narrow for the two side by side — where beside it the plot would keep less than 256 px (a phone's width); the
+browser decides it at every draw, from the legend's widest entry, so the server's first frame always draws it beside.
 
 The words are the page's. An axis's and a series' caption travel in the model as the author gave them — keys, not the words
 they read as — and the browser translates them at every draw and draws every chart again when the page's language changes. A

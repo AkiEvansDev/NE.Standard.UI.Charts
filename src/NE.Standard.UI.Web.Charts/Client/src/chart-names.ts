@@ -70,7 +70,9 @@ export const ClientNames = {
     frontBar: "ui-chart__bar--front",
     /** On a point, a bar or a sector whose press waits out the double press's window, until its command runs or is called off. */
     pendingPoint: "ui-chart__point--pending",
-    legendOff: "ui-chart__legend-entry--off"
+    legendOff: "ui-chart__legend-entry--off",
+    /** On a chart whose start or end legend stands under the plot, the chart too narrow for the two side by side. */
+    legendUnder: "ui-chart--legend-under"
 } as const;
 
 /** The kinds a chart is drawn as, by the model's `kind`. */

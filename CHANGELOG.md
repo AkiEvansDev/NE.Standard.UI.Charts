@@ -4,6 +4,17 @@ One section per release of this slice, headed `## X.Y.Z` and named by the tag �
 workflow cuts the matching section out to become the body of the GitHub release, and a tag with no section
 fails the release before anything is published.
 
+## 1.4.0-rc.4
+
+- **A side legend stands under a narrow chart.** A `Start` or `End` legend moves under the plot, as a `Bottom` one stands, where
+  beside it the plot would keep less than 256 px — a radar at a phone's width had drawn its spokes a few pixels across, its names
+  taking the room the legend left. The browser decides at every draw from the legend's widest entry (`ui-chart--legend-under`), so
+  a wide screen keeps the legend beside.
+- **Built on the framework's 1.4.0-rc.4.** Nothing of this package's own changed. Its copy of the plugin contract carries the
+  framework's action bar — `names.actionBar` and `names.actionBarKey`, and the `actionBar` flag of `ui-context-menu-opening` raised before a bar shows a
+  menu's entries — and its stylesheet's `.ui-popup-scroll()` caps a list at the dynamic viewport's height (`100dvh`), `@ui-popup-radius`
+  and `@ui-list-entry-radius` round a popup and its entries, and `.ui-dialog-look()` is the framework dialog's panel.
+
 ## 1.4.0-rc.3
 
 - **A gauge's caption and unit, and a pie's centre caption, take a phrase**, as every text of the framework's now does.
