@@ -92,11 +92,6 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string EmptyClassName = "ui-chart__empty";
     protected const string WindowClassName = "ui-chart__window";
     protected const string SeriesColorVariable = "--ui-chart-series-color";
-    /// <summary>
-    /// What a chart's clip is named by, finished with the component's id; the browser's own clips go on with <c>drawn</c>, so the
-    /// two never meet.
-    /// </summary>
-    protected const string ClipIdPrefix = "ui-chart-clip-";
 
     // The first frame's box: text doesn't scale with the viewBox, so the browser re-draws at the real size and this only shapes
     // the first paint.

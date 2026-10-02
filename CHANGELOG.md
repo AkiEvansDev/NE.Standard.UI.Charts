@@ -4,6 +4,20 @@ One section per release of this slice, headed `## X.Y.Z` and named by the tag â€
 workflow cuts the matching section out to become the body of the GitHub release, and a tag with no section
 fails the release before anything is published.
 
+## 1.4.0
+
+- **The series' default colours read on both themes, and shift slightly.** The framework's default run is now drawn for each
+  mode's grounds, 3:1 on the page and on a card: the first series' blue is lighter on dark (`#5373B3`, 3.96:1 where it was 2.43:1),
+  the rose, cyan and fern deeper on light. A chart with colours of its own (`UIThemeColor`, or a theme's own `Series`) is unchanged.
+- **A `DateOnly` x is placed on a time axis** at its midnight and told to the browser as `yyyy-MM-dd`; it was dropped. On a value
+  axis it is refused, as every moment is.
+- **The first frame's clip is named by the core's rule for a part's id** (`ui-{id}-chart-clip`). **Breaking:**
+  `ChartComponentRendererBase.ClipIdPrefix` is gone.
+- **A finger's tap leaves no hover look behind.** The series dimmed around the one under the pointer, a point's mark lit (a bare
+  one painted), a sector brightened: each stayed after a tap on a touch screen, which keeps the hover on what was tapped. They are
+  drawn only where the pointer can hover; a press, a pending press and the legend's own dimming show for every pointer.
+- **Built on the framework's 1.4.0:** its copy of the plugin contract carries `focus.first(container)` and the new tokens and mixins (`@ui-tinted-fill`, `@ui-part-radius`, the `@ui-z-*` ladder, `.ui-picture-glass()`, `.ui-user-select()`).
+
 ## 1.4.0-rc.4
 
 - **A side legend stands under a narrow chart.** A `Start` or `End` legend moves under the plot, as a `Bottom` one stands, where

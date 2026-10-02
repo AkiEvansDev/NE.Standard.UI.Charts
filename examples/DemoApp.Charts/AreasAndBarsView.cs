@@ -74,6 +74,7 @@ internal sealed class AreasAndBarsView : ChartsDemoView, IUIViewDefinition
                     )
                     .AddChild(new TextComponent()
                         .BindTitle(nameof(ChartsController.BarStatus))
+                        .SetTitleWrap(true)
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                     )

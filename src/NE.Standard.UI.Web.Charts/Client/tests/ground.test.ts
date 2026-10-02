@@ -25,7 +25,14 @@ test("a hollow marker is filled with the ground the chart stands on", () => {
 
 test("the edge between two sectors and a hovered bare mark's ring are drawn in the ground", () => {
     assert.ok(declarations(".ui-chart__sector-edge {")?.includes(`stroke: ${Ground};`));
-    assert.ok(declarations(".ui-chart__point:hover > .ui-chart__marker--bare,")?.includes(`stroke: ${Ground};`));
+    // Lit by a hovering pointer, or by a press waiting out a double press: the hover's rule stands in the hover query.
+    assert.ok(css.includes(`@media (hover: hover) {
+  .ui-chart__point:hover > .ui-chart__marker--bare {
+    fill: var(--ui-chart-series-color, var(--ui-color-primary));
+    stroke: ${Ground};`));
+    assert.ok(css.includes(`.ui-chart__point--pending > .ui-chart__marker--bare {
+  fill: var(--ui-chart-series-color, var(--ui-color-primary));
+  stroke: ${Ground};`));
 });
 
 test("no part of a chart paints the page's surface as a fixed colour", () => {

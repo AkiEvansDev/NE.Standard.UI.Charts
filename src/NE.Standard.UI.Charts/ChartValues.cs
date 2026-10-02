@@ -58,8 +58,12 @@ public static class ChartValues
                 number = FromDateTime(moment.DateTime);
                 return true;
 
+            case DateOnly date when kind == UIChartAxisKind.Time:
+                number = FromDateTime(date.ToDateTime(TimeOnly.MinValue));
+                return true;
+
             // A moment is placed only on a time axis, as its text is: on a value axis it would turn into a number no one wrote.
-            case DateTime or DateTimeOffset:
+            case DateTime or DateTimeOffset or DateOnly:
                 return false;
 
             case string text:
@@ -115,6 +119,7 @@ public static class ChartValues
             null => string.Empty,
             DateTime moment => moment.ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture),
             DateTimeOffset moment => moment.DateTime.ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture),
+            DateOnly date => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             string text => text,
             bool flag => flag ? "true" : "false",
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),

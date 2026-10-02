@@ -7,7 +7,7 @@ import type { ChartAxis, ChartModel } from "./chart-model.ts";
 import { momentDate } from "./chart-moment.ts";
 import { placeSideLegend, syncLegend } from "./chart-legend.ts";
 import type { LegendEntry } from "./chart-legend.ts";
-import { ChartAttributes, ChartClasses, ChartKinds, ChartVariables, ChartWords, ClientNames, CoreNames } from "./chart-names.ts";
+import { ChartAttributes, ChartClasses, ChartKinds, ChartVariables, ChartWords, ClientNames, CoreNames, DrawnClipPrefix } from "./chart-names.ts";
 import { areaPath, coord, linePath, lineSegments } from "./chart-path.ts";
 import { sectorsOf, spotAt } from "./chart-pie.ts";
 import type { Sector, Spot } from "./chart-pie.ts";
@@ -728,9 +728,8 @@ function drawAxes(
 export function clipPlot(canvas: SVGSVGElement, group: SVGElement, state: ChartState, plot: Plot, formatting: ChartFormatting): void {
     const clip = append(canvas, "clipPath", "");
 
-    // "drawn" after the prefix keeps it apart from the server's first frame, whose ids go on with the component id's digits.
     if (state.clip === null)
-        state.clip = formatting.ensureId(clip, `${ChartClasses.clipPrefix}drawn`);
+        state.clip = formatting.ensureId(clip, DrawnClipPrefix);
     else
         clip.setAttribute("id", state.clip);
 

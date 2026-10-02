@@ -45,12 +45,16 @@ export const ChartClasses = {
     legendEntry: "ui-chart__legend-entry",
     legendMark: "ui-chart__legend-mark",
     legendCaption: "ui-chart__legend-caption",
-    /** The prefix of a chart's own clip: the server's first frame finishes it with the component id, the browser's draws with `drawn`. */
-    clipPrefix: "ui-chart-clip-",
     gauge: "ui-gauge",
     gaugeNumber: "ui-gauge__number",
     gaugeUnit: "ui-gauge__unit"
 } as const;
+
+/**
+ * The ids the browser gives the clips it draws, the page's id run finishing them: the server's first frame names its clip by the
+ * core's part id (`ui-{id}-chart-clip`), so the two never meet.
+ */
+export const DrawnClipPrefix = "ui-chart-clip-drawn";
 
 /** The custom properties the renderers write and the client writes again. */
 export const ChartVariables = {

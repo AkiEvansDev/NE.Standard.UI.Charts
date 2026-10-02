@@ -220,7 +220,8 @@ A chart fills the box it is given and has a floor of its own, so one dropped int
 `viewBox` change the box it had just measured.
 
 A series takes the colour the author gave it (`UIThemeColor`) or the next of the theme's categorical run, which
-lives with the theme, so charts on one page read as one system in light and in dark; both sides cycle by the run's
+lives with the theme, so charts on one page read as one system in light and in dark — the default run drawn for each mode's grounds,
+3:1 on the page and on a card in both; both sides cycle by the run's
 length, the server reading it off the theme and the browser off the page. Under forced colours a series' colour is data
 rather than chrome: the series, their bands, the legend's key and a gauge's bands keep their own, and the frame and its
 words take the system's.

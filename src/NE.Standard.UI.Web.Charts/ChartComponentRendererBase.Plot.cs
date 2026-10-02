@@ -83,13 +83,14 @@ public abstract partial class ChartComponentRendererBase
     /// The frame the plot is cut at, under the chart's component id; none in a row, a template or a copy, which stand on the page
     /// more than once, and which the browser cuts under ids of its own when it draws them.
     /// </summary>
-    /// <remarks>The core's rule for an id (<see cref="WebComponentRendererBase.ValidationMessageId"/>), rather than one of its own.</remarks>
+    /// <remarks>
+    /// The core's rule for a part's id (<see cref="WebComponentRendererBase.ComponentPartId"/>), rather than one of its own; the
+    /// browser's own clips are named <c>ui-chart-clip-drawn…</c>, so the two never meet.
+    /// </remarks>
     private static string? RenderClip(WebRenderContext context, IHtmlElementBuilder svg, ChartPlot plot)
     {
-        if (context.Node.ContextParameterCount != 0 || context.IsTemplate || context.IsPresentationCopy)
+        if (ComponentPartId(context, "chart-clip") is not { } id)
             return null;
-
-        var id = string.Create(CultureInfo.InvariantCulture, $"{ClipIdPrefix}{context.Node.ComponentId.Value}");
 
         _ = svg.Element("clipPath", clip =>
         {

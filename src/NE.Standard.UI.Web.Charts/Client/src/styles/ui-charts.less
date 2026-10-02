@@ -103,15 +103,25 @@
     transition: opacity @ui-motion-fast @ui-motion-ease;
 }
 
-.ui-chart__plot:has(> .ui-chart__series:hover) > .ui-chart__series:not(:hover),
 .ui-chart__series--back {
     opacity: 0.25;
 }
 
+@media @ui-can-hover {
+    .ui-chart__plot:has(> .ui-chart__series:hover) > .ui-chart__series:not(:hover) {
+        opacity: 0.25;
+    }
+}
+
 // A bar is read on its own and every other bar goes back; a series of bars is never dimmed whole, or the bar read would go too.
-.ui-chart__plot:has(> .ui-chart__series:hover) > .ui-chart__series:not(:hover):has(> .ui-chart__bar),
 .ui-chart__series--back:has(> .ui-chart__bar) {
     opacity: 1;
+}
+
+@media @ui-can-hover {
+    .ui-chart__plot:has(> .ui-chart__series:hover) > .ui-chart__series:not(:hover):has(> .ui-chart__bar) {
+        opacity: 1;
+    }
 }
 
     .ui-chart__plot:has(.ui-chart__bar--front) > .ui-chart__series > .ui-chart__bar:not(.ui-chart__bar--front),
@@ -152,11 +162,20 @@
     transition: transform @ui-motion-fast @ui-motion-ease, fill @ui-motion-fast @ui-motion-ease, stroke @ui-motion-fast @ui-motion-ease;
 }
 
-    .ui-chart__point:hover > .ui-chart__marker,
     @{chart-press-live} .ui-chart__point--pending > .ui-chart__marker {
-        fill: var(--ui-chart-series-color, var(--ui-color-primary));
-        transform: scale(1.3);
+        .ui-chart-marker-lit();
     }
+
+    @media @ui-can-hover {
+        .ui-chart__point:hover > .ui-chart__marker {
+            .ui-chart-marker-lit();
+        }
+    }
+
+.ui-chart-marker-lit() {
+    fill: var(--ui-chart-series-color, var(--ui-color-primary));
+    transform: scale(1.3);
+}
 
 // A pressed point gives under it. On a zoomable chart the command waits out the double press, so the point keeps that look
 // (--pending) until it runs, painted as hovered since the pointer may have left. A pie never zooms, so a sector answers at once
@@ -171,11 +190,21 @@
     stroke: transparent;
 }
 
-    .ui-chart__point:hover > .ui-chart__marker--bare,
     @{chart-press-live} .ui-chart__point--pending > .ui-chart__marker--bare {
-        fill: var(--ui-chart-series-color, var(--ui-color-primary));
-        stroke: @ui-ground;
+        .ui-chart-bare-marker-lit();
     }
+
+    // Under a finger the tooltip says which point is read: a bare mark lit by a tap would stay lit after it.
+    @media @ui-can-hover {
+        .ui-chart__point:hover > .ui-chart__marker--bare {
+            .ui-chart-bare-marker-lit();
+        }
+    }
+
+.ui-chart-bare-marker-lit() {
+    fill: var(--ui-chart-series-color, var(--ui-color-primary));
+    stroke: @ui-ground;
+}
 
 // The line one tooltip is read against: the x the pointer names, marked while its words are up. It stands exactly where that x's
 // points are, so it never takes the pointer from them.
@@ -228,8 +257,10 @@
     .ui-arc-cut();
 }
 
-    .ui-chart__sector:hover {
-        stroke-opacity: 1;
+    @media @ui-can-hover {
+        .ui-chart__sector:hover {
+            stroke-opacity: 1;
+        }
     }
 
     @{chart-press-live} .ui-chart__sector:active {
@@ -482,10 +513,15 @@
         fill: Canvas;
     }
 
-    .ui-chart__point:hover > .ui-chart__marker--bare,
     @{chart-press-live} .ui-chart__point--pending > .ui-chart__marker--bare,
     .ui-chart__sector-edge {
         stroke: Canvas;
+    }
+
+    @media @ui-can-hover {
+        .ui-chart__point:hover > .ui-chart__marker--bare {
+            stroke: Canvas;
+        }
     }
 
     .ui-chart__legend-entry--off > .ui-chart__legend-mark {

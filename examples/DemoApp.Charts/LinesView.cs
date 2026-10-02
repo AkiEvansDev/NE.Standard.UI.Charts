@@ -69,6 +69,7 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
                     )
                     .AddChild(new TextComponent()
                         .BindTitle(nameof(ChartsController.Status))
+                        .SetTitleWrap(true)
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                     )

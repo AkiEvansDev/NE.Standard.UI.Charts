@@ -147,7 +147,7 @@ public abstract class ChartsDemoView : UIViewBase
     protected static StackPanelComponent Example(string title, string? description, IVisualComponent content, [CallerArgumentExpression(nameof(content))] string code = "")
     {
         // The heading and its note sit closer to each other than to the content, as the preset's do.
-        StackPanelComponent heading = UILayout.Stack(4).AddChild(UIText.Title(title));
+        StackPanelComponent heading = UILayout.Stack(4).AddChild(UIText.Title(title).SetTitleWrap(true));
 
         if (description is not null)
             _ = heading.AddChild(UIText.Note(description));

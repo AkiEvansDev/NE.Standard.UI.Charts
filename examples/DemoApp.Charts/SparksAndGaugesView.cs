@@ -25,6 +25,7 @@ internal sealed class SparksAndGaugesView : ChartsDemoView, IUIViewDefinition
                     .SetSpacing(12)
                     .AddChild(new ButtonComponent()
                         .SetTitle("charts.button.take-reading")
+                        .SetHorizontalAlignment(UIAlignment.Start)
                         .OnClick(nameof(ChartsController.TakeReading))
                     )
                     .AddChild(new StackPanelComponent()
