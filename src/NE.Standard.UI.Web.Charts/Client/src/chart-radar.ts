@@ -2,6 +2,7 @@
 
 import { addSegment, coord } from "./chart-path.ts";
 import type { ChartPoint, Segment } from "./chart-path.ts";
+import { spotAt } from "./chart-pie.ts";
 import type { Spot } from "./chart-pie.ts";
 import { fraction, within } from "./chart-ticks.ts";
 import type { Scale } from "./chart-ticks.ts";
@@ -35,6 +36,20 @@ export function spokeAngle(index: number, count: number): number {
  */
 export function radarReach(scale: Scale, value: number | null, radius: number): number {
     return value === null ? 0 : radius * Math.min(Math.max(fraction(scale, within(scale, value)), 0), 1);
+}
+
+/**
+ * Where a ring's value is written: the middle of the ring's first side, off every spoke a series has a corner on; on the first
+ * spoke where fewer than three spokes make no side to stand on.
+ */
+export function ringLabel(centre: Spot, reach: number, count: number): Spot {
+    if (count < 3)
+        return spotAt(centre, reach, Top);
+
+    const from = spotAt(centre, reach, spokeAngle(0, count));
+    const to = spotAt(centre, reach, spokeAngle(1, count));
+
+    return { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
 }
 
 /** The biggest radius the box holds with room left beside the rim for the spokes' names: across each side, and down. */

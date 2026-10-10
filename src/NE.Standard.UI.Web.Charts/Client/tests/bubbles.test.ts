@@ -5,6 +5,7 @@ import { PlainRadius, bubbleRadius, pointReach } from "../src/chart-bubbles.ts";
 import type { ChartModel, ChartSeries } from "../src/chart-model.ts";
 import { buildData, rowFromItem } from "../src/chart-rows.ts";
 import type { ChartRow } from "../src/chart-rows.ts";
+import { readNumber } from "./framework-numbers.ts";
 
 function series(key: string, valuePath: string | null, sizePath: string | null): ChartSeries {
     return { key, caption: key, valuePath, sizePath, color: null, stepped: null, smooth: null, markers: null };
@@ -52,7 +53,7 @@ test("a sized point takes its share of the run by area, so twice the value is tw
 
 test("a row carries a third value per series where the series names one, and the run of them is the data's", () => {
     const sized = model({ series: [series("cities", "Life", "People")] });
-    const row = rowFromItem({ income: 42_000, life: 81.2, people: 8_900_000 }, "r1", sized, (item, path) => (item as Record<string, unknown>)[path.toLowerCase()]);
+    const row = rowFromItem({ income: 42_000, life: 81.2, people: 8_900_000 }, "r1", sized, (item, path) => (item as Record<string, unknown>)[path.toLowerCase()], readNumber);
 
     assert.deepEqual(row, { key: "r1", x: "42000", values: [81.2], series: null, sizes: [8_900_000] });
 
@@ -60,7 +61,7 @@ test("a row carries a third value per series where the series names one, and the
         { key: "a", x: "1", values: [10], series: null, sizes: [100] },
         { key: "b", x: "2", values: [20], series: null, sizes: [400] }
     ];
-    const data = buildData(rows, sized, () => null);
+    const data = buildData(rows, sized, () => null, readNumber);
 
     assert.deepEqual(data.series[0].points, [{ key: "a", x: 1, y: 10, size: 100 }, { key: "b", x: 2, y: 20, size: 400 }]);
     assert.deepEqual([data.sizeMin, data.sizeMax], [100, 400]);

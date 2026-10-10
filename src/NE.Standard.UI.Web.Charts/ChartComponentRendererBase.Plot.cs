@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -14,7 +14,7 @@ public abstract partial class ChartComponentRendererBase
     /// <summary>Where a radar's series meets each spoke: the point it holds there, if any, and the place its outline passes.</summary>
     private readonly record struct RadarShape(ChartPoint?[] Points, ChartSpot[] Spots);
 
-    private static void RenderCanvas(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartPlot plot, ChartScale x, ChartScale y, bool windowed, IReadOnlyList<ChartLabel> xTicks, IReadOnlyList<ChartLabel> yTicks, ChartFormats formats, CultureInfo culture)
+    private static void RenderCanvas(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartPlot plot, ChartScale x, ChartScale y, bool windowed, IReadOnlyList<ChartLabel> xTicks, IReadOnlyList<ChartLabel> yTicks, ChartFormats formats)
     {
         // The canvas lies over an area of its own, so the aspect ratio of its viewBox never reaches the layout.
         _ = root.Element("div", area =>
@@ -34,7 +34,7 @@ public abstract partial class ChartComponentRendererBase
                 // A line running out of a narrowed window is cut at the plot's edge rather than drawn over the axes and beyond.
                 var clip = windowed ? RenderClip(context, svg, plot) : null;
 
-                RenderPlot(context, svg, spec, data, plot, x, y, clip, formats, culture);
+                RenderPlot(context, svg, spec, data, plot, x, y, clip, formats);
 
                 if (data.Rows.Count == 0)
                     RenderEmpty(context, svg, plot);
@@ -108,7 +108,7 @@ public abstract partial class ChartComponentRendererBase
     }
 
     /// <summary>Every series as its own group: one path, and a mark per point where the series draws them; an area's bands under them all.</summary>
-    private static void RenderPlot(WebRenderContext context, IHtmlElementBuilder svg, ChartSpec spec, ChartRenderData data, ChartPlot plot, ChartScale x, ChartScale y, string? clip, ChartFormats formats, CultureInfo culture)
+    private static void RenderPlot(WebRenderContext context, IHtmlElementBuilder svg, ChartSpec spec, ChartRenderData data, ChartPlot plot, ChartScale x, ChartScale y, string? clip, ChartFormats formats)
     {
         // Bars share the band one x owns; a line and an area own the whole width and need none of this.
         var band = spec.Kind == BarKind
@@ -128,7 +128,7 @@ public abstract partial class ChartComponentRendererBase
                 RenderAreaBands(context, group, spec, data, plot, x, y);
 
             for (var i = 0; i < data.Series.Count; i++)
-                RenderSeries(context, group, spec, data, i, plot, x, y, band, formats, culture);
+                RenderSeries(context, group, spec, data, i, plot, x, y, band, formats);
         });
     }
 
@@ -157,7 +157,7 @@ public abstract partial class ChartComponentRendererBase
             _ = fill.Attribute("d", outline);
         });
 
-    private static void RenderSeries(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, int index, ChartPlot plot, ChartScale x, ChartScale y, double band, ChartFormats formats, CultureInfo culture)
+    private static void RenderSeries(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, int index, ChartPlot plot, ChartScale x, ChartScale y, double band, ChartFormats formats)
     {
         ChartRenderSeries series = data.Series[index];
         var caption = ReadCaption(context, series.Series);
@@ -173,7 +173,7 @@ public abstract partial class ChartComponentRendererBase
 
             if (spec.Kind == BarKind)
             {
-                RenderBars(context, group, spec, data, series, caption, index, plot, x, y, band, formats, culture);
+                RenderBars(context, group, spec, data, series, caption, index, plot, x, y, band, formats);
                 return;
             }
 
@@ -181,7 +181,7 @@ public abstract partial class ChartComponentRendererBase
             if (spec.Kind == ScatterKind)
             {
                 for (var i = 0; i < series.Drawn.Count; i++)
-                    RenderMarker(context, group, spec, data, series, caption, i, plot, x, y, ChartBubbles.Radius(series.Drawn[i].Size, data.SizeMin, data.SizeMax), true, formats, culture);
+                    RenderMarker(context, group, spec, data, series, caption, i, plot, x, y, ChartBubbles.Radius(series.Drawn[i].Size, data.SizeMin, data.SizeMax), true, formats);
 
                 return;
             }
@@ -200,7 +200,7 @@ public abstract partial class ChartComponentRendererBase
                 return;
 
             for (var i = 0; i < series.Drawn.Count; i++)
-                RenderMarker(context, group, spec, data, series, caption, i, plot, x, y, markers ? ChartBubbles.PlainRadius - 1 : ChartBubbles.PlainRadius + 1, markers, formats, culture);
+                RenderMarker(context, group, spec, data, series, caption, i, plot, x, y, markers ? ChartBubbles.PlainRadius - 1 : ChartBubbles.PlainRadius + 1, markers, formats);
         });
     }
 
@@ -229,14 +229,14 @@ public abstract partial class ChartComponentRendererBase
     /// <summary>
     /// One point: its mark, unpainted where the chart draws none, and over it the circle the pointer answers.
     /// </summary>
-    private static void RenderMarker(WebRenderContext context, IHtmlElementBuilder group, ChartSpec spec, ChartRenderData data, ChartRenderSeries series, string caption, int index, ChartPlot plot, ChartScale x, ChartScale y, double radius, bool painted, ChartFormats formats, CultureInfo culture)
+    private static void RenderMarker(WebRenderContext context, IHtmlElementBuilder group, ChartSpec spec, ChartRenderData data, ChartRenderSeries series, string caption, int index, ChartPlot plot, ChartScale x, ChartScale y, double radius, bool painted, ChartFormats formats)
     {
         ChartPoint point = series.Drawn[index];
 
         if (point.Y is not double value)
             return;
 
-        var tooltip = TooltipText(context, spec, data, caption, point.X, RawValue(series, index), formats, culture);
+        var tooltip = TooltipText(context, spec, data, caption, point.X, RawValue(series, index), formats);
 
         RenderPointMark(group, point.Key, plot.X(x, point.X), plot.Y(y, value), radius, painted, tooltip);
     }
@@ -276,7 +276,7 @@ public abstract partial class ChartComponentRendererBase
     }
 
     /// <summary>A bar per point, from what it stands on — its place in a stack, or zero — to the value, in its own place across the band.</summary>
-    private static void RenderBars(WebRenderContext context, IHtmlElementBuilder group, ChartSpec spec, ChartRenderData data, ChartRenderSeries series, string caption, int index, ChartPlot plot, ChartScale x, ChartScale y, double band, ChartFormats formats, CultureInfo culture)
+    private static void RenderBars(WebRenderContext context, IHtmlElementBuilder group, ChartSpec spec, ChartRenderData data, ChartRenderSeries series, string caption, int index, ChartPlot plot, ChartScale x, ChartScale y, double band, ChartFormats formats)
     {
         var sideways = spec.Horizontal;
 
@@ -293,7 +293,7 @@ public abstract partial class ChartComponentRendererBase
             var near = Math.Min(reading, stands);
             // A value of zero still draws a hair, so the bar is there to point at.
             var length = Math.Max(1, Math.Abs(reading - stands));
-            var tooltip = TooltipText(context, spec, data, caption, point.X, RawValue(series, i), formats, culture);
+            var tooltip = TooltipText(context, spec, data, caption, point.X, RawValue(series, i), formats);
             var key = point.Key;
 
             _ = group.Element("rect", rectangle =>
@@ -318,23 +318,30 @@ public abstract partial class ChartComponentRendererBase
     /// <summary>
     /// What a point says on hover; null without a tooltip, or where a shared one is the browser's to compose.
     /// </summary>
-    private static string? TooltipText(WebRenderContext context, ChartSpec spec, ChartRenderData data, string caption, double x, double value, ChartFormats formats, CultureInfo culture)
+    private static string? TooltipText(WebRenderContext context, ChartSpec spec, ChartRenderData data, string caption, double x, double value, ChartFormats formats)
     {
         if (!spec.Tooltip || spec.SharedTooltip)
             return null;
 
-        return context.Translate(ChartsStrings.Point, new Dictionary<string, object?>(StringComparer.Ordinal)
-        {
-            ["series"] = caption,
-            ["x"] = FormatValue(spec.XAxis.Kind, formats.X, x, data.Categories, culture),
-            ["y"] = FormatValue(spec.YAxis.Kind, formats.Y, value, [], culture)
-        });
+        return PointWords(context, spec, data, caption, x, value, formats);
     }
+
+    /// <summary>
+    /// A point's series, x and value in the page's words; a sector's too. A tooltip reads its words as inline markup, so the caption
+    /// and the values are escaped: a series called `p*q` reads as written. The template's own markup stays.
+    /// </summary>
+    private static string PointWords(WebRenderContext context, ChartSpec spec, ChartRenderData data, string caption, double x, double value, ChartFormats formats)
+        => context.Translate(ChartsStrings.Point, new Dictionary<string, object?>(StringComparer.Ordinal)
+        {
+            ["series"] = UIInlineMarkup.Escape(caption),
+            ["x"] = UIInlineMarkup.Escape(FormatValue(spec.XAxis.Kind, formats.X, x, data.Categories, formats)),
+            ["y"] = UIInlineMarkup.Escape(FormatValue(spec.YAxis.Kind, formats.Y, value, [], formats))
+        });
 
     /// <summary>
     /// The turn shared out between the first series' points, with a donut's words over its hole.
     /// </summary>
-    private void RenderPie(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartFormats formats, CultureInfo culture)
+    private void RenderPie(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartFormats formats)
     {
         List<ChartPoint> points = data.Series.Count > 0 ? data.Series[0].Points : [];
         var values = new double?[points.Count];
@@ -351,7 +358,7 @@ public abstract partial class ChartComponentRendererBase
         {
             _ = area.Class(AreaClassName);
 
-            ChartSvg.Render(area, CanvasClassName, NominalWidth, NominalHeight, SectorsLabel(context, spec, data, formats, culture), svg =>
+            ChartSvg.Render(area, CanvasClassName, NominalWidth, NominalHeight, SectorsLabel(context, spec, data, formats), svg =>
             {
                 RenderCanvasBoundary(svg, spec);
 
@@ -360,7 +367,7 @@ public abstract partial class ChartComponentRendererBase
                     _ = group.Class(PlotClassName);
 
                     for (var i = 0; i < points.Count; i++)
-                        RenderSector(context, group, spec, data, points[i], sectors[i], i, centre, radius, inner, formats, culture);
+                        RenderSector(context, group, spec, data, points[i], sectors[i], i, centre, radius, inner, formats);
 
                     RenderSectorEdges(group, sectors, centre, radius, inner);
                 });
@@ -369,24 +376,33 @@ public abstract partial class ChartComponentRendererBase
                     RenderEmpty(context, svg, new ChartPlot(0, 0, NominalWidth, NominalHeight));
             });
 
-            // The page's own type over the hole, as a gauge's words are over its arc: text scaled with the viewBox would stretch.
+            // The page's own type over the hole, as a gauge's words are over its arc: text scaled with the viewBox would stretch. Hidden
+            // while the empty word stands in the same middle; the browser's draw keeps the mark.
             if (inner > 0)
-                _ = area.Element("span", words => RenderCentre(context, words.Class(CentreClassName)));
+            {
+                _ = area.Element("span", words =>
+                {
+                    _ = words.Class(CentreClassName);
+
+                    if (points.Count == 0)
+                        _ = words.Class(CentreHiddenClassName);
+
+                    RenderCentre(context, words);
+                });
+            }
         });
     }
 
     /// <summary>
     /// One sector: a ring the stylesheet cuts to its angles, and a dot mid-arc for its tooltip, since the ring's box is the whole turn's.
     /// </summary>
-    private static void RenderSector(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, ChartPoint point, ChartSector sector, int index, ChartSpot centre, double radius, double inner, ChartFormats formats, CultureInfo culture)
+    private static void RenderSector(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, ChartPoint point, ChartSector sector, int index, ChartSpot centre, double radius, double inner, ChartFormats formats)
     {
         if (sector.Sweep <= 0 || radius <= 0)
             return;
 
-        var label = SectorLabel(spec, data, point, formats, culture);
-        var tooltip = spec.Tooltip
-            ? context.Translate(ChartsStrings.Sector, new Dictionary<string, object?>(StringComparer.Ordinal) { ["label"] = label, ["value"] = FormatValue(spec.YAxis.Kind, formats.Y, point.Y ?? 0, [], culture) })
-            : null;
+        // A point's words, the series naming what the value counts; a pie shares no tooltip, so SharedTooltip silences none.
+        var tooltip = spec.Tooltip ? PointWords(context, spec, data, ReadCaption(context, data.Series[0].Series), point.X, point.Y ?? 0, formats) : null;
 
         _ = plotGroup.Element("g", group =>
         {
@@ -461,7 +477,7 @@ public abstract partial class ChartComponentRendererBase
     }
 
     /// <summary>What a turn shared out is announced as: the rows its sectors stand for, or the chart's own word where there are none.</summary>
-    private static string SectorsLabel(WebRenderContext context, ChartSpec spec, ChartRenderData data, ChartFormats formats, CultureInfo culture)
+    private static string SectorsLabel(WebRenderContext context, ChartSpec spec, ChartRenderData data, ChartFormats formats)
     {
         List<ChartPoint> points = data.Series.Count > 0 ? data.Series[0].Points : [];
 
@@ -471,19 +487,19 @@ public abstract partial class ChartComponentRendererBase
         var labels = new string[points.Count];
 
         for (var i = 0; i < labels.Length; i++)
-            labels[i] = SectorLabel(spec, data, points[i], formats, culture);
+            labels[i] = SectorLabel(spec, data, points[i], formats);
 
         return WordList(context, labels);
     }
 
     /// <summary>What a sector is called: its row's x, written as the x axis would write it.</summary>
-    private static string SectorLabel(ChartSpec spec, ChartRenderData data, ChartPoint point, ChartFormats formats, CultureInfo culture)
-        => FormatValue(spec.XAxis.Kind, formats.X, point.X, data.Categories, culture);
+    private static string SectorLabel(ChartSpec spec, ChartRenderData data, ChartPoint point, ChartFormats formats)
+        => FormatValue(spec.XAxis.Kind, formats.X, point.X, data.Categories, formats);
 
     /// <summary>
     /// The radar: spokes, rings and each series' filled outline, every band under every outline and mark.
     /// </summary>
-    private static void RenderRadar(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartScale y, ChartFormats formats, CultureInfo culture)
+    private static void RenderRadar(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartScale y, ChartFormats formats)
     {
         var spokes = ChartRadar.Spokes(DrawnSeries(data));
         var names = new string[spokes.Length];
@@ -491,13 +507,13 @@ public abstract partial class ChartComponentRendererBase
 
         for (var i = 0; i < spokes.Length; i++)
         {
-            names[i] = FormatValue(spec.XAxis.Kind, formats.X, spokes[i], data.Categories, culture);
+            names[i] = FormatValue(spec.XAxis.Kind, formats.X, spokes[i], data.Categories, formats);
             widest = Math.Max(widest, names[i].Length);
         }
 
         ChartSpot centre = new(NominalWidth / 2, NominalHeight / 2);
         var radius = ChartRadar.Radius(NominalWidth, NominalHeight, (widest * LabelCharacterWidth) + LabelGap + PlotInset, LabelHeight + LabelGap + PlotInset);
-        IReadOnlyList<ChartLabel> rings = BuildTicks(spec.YAxis, formats.Y, y, [], culture, data.Rows.Count > 0);
+        IReadOnlyList<ChartLabel> rings = BuildTicks(spec.YAxis, formats.Y, y, [], formats, data.Rows.Count > 0);
 
         _ = root.Element("div", area =>
         {
@@ -530,8 +546,12 @@ public abstract partial class ChartComponentRendererBase
                     });
 
                     for (var i = 0; i < shapes.Length; i++)
-                        RenderRadarSeries(context, group, spec, data, i, shapes[i], formats, culture);
+                        RenderRadarSeries(context, group, spec, data, i, shapes[i], formats);
                 });
+
+                // Over the series, which a ring's value is read against, haloed in the ground so a line under it does not cross it.
+                if (spokes.Length > 0 && radius > 0)
+                    RenderRingLabels(svg, rings, y, centre, radius, spokes.Length);
 
                 if (data.Rows.Count == 0)
                     RenderEmpty(context, svg, new ChartPlot(0, 0, NominalWidth, NominalHeight));
@@ -579,21 +599,6 @@ public abstract partial class ChartComponentRendererBase
 
                 RenderText(axes, LabelClassName, names[i], name.X, SpokeNameBaseline(angle, name.Y), ChartRadar.Anchor(angle));
             }
-
-            // A ring's value beside the top spoke, clear of a mark on it and just inside the ring; one that would sit on the one written
-            // before it is left out.
-            var last = double.NaN;
-
-            for (var i = 0; i < rings.Count; i++)
-            {
-                var reach = ChartRadar.Reach(y, rings[i].Value, radius);
-
-                if (reach <= 0 || (double.IsFinite(last) && Math.Abs(reach - last) < LabelHeight))
-                    continue;
-
-                last = reach;
-                RenderText(axes, LabelClassName, rings[i].Text, centre.X + LabelGap, centre.Y - reach + 12, "start");
-            }
         });
     }
 
@@ -639,7 +644,7 @@ public abstract partial class ChartComponentRendererBase
     }
 
     /// <summary>One series closed into a shape over the spokes: its outline, and a mark where it meets each spoke it has a value on.</summary>
-    private static void RenderRadarSeries(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, int index, RadarShape shape, ChartFormats formats, CultureInfo culture)
+    private static void RenderRadarSeries(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, int index, RadarShape shape, ChartFormats formats)
     {
         ChartRenderSeries series = data.Series[index];
         var caption = ReadCaption(context, series.Series);
@@ -662,9 +667,35 @@ public abstract partial class ChartComponentRendererBase
                 if (shape.Points[i] is not ChartPoint point || point.Y is not double value)
                     continue;
 
-                var tooltip = TooltipText(context, spec, data, caption, point.X, value, formats, culture);
+                var tooltip = TooltipText(context, spec, data, caption, point.X, value, formats);
 
                 RenderPointMark(group, point.Key, shape.Spots[i].X, shape.Spots[i].Y, markers ? ChartBubbles.PlainRadius - 1 : ChartBubbles.PlainRadius + 1, markers, tooltip);
+            }
+        });
+    }
+
+    /// <summary>
+    /// Each ring's value on the middle of its first side, half a spoke off the corners the series have there; one that would sit
+    /// on the one written before it is left out.
+    /// </summary>
+    private static void RenderRingLabels(IHtmlElementBuilder svg, IReadOnlyList<ChartLabel> rings, ChartScale y, ChartSpot centre, double radius, int count)
+    {
+        _ = svg.Element("g", labels =>
+        {
+            _ = labels.Class(AxesClassName);
+
+            var last = double.NaN;
+
+            for (var i = 0; i < rings.Count; i++)
+            {
+                var reach = ChartRadar.Reach(y, rings[i].Value, radius);
+                ChartSpot spot = ChartRadar.RingLabel(centre, reach, count);
+
+                if (reach <= 0 || (double.IsFinite(last) && Math.Abs(spot.Y - last) < LabelHeight))
+                    continue;
+
+                last = spot.Y;
+                RenderText(labels, $"{LabelClassName} {RingLabelClassName}", rings[i].Text, spot.X, spot.Y + 4, "middle");
             }
         });
     }

@@ -169,3 +169,20 @@ export function placeSideLegend(root: HTMLElement, placement: ChartModel["legend
 export function legendFallsUnder(chartWidth: number, legendWidth: number, gap: number): boolean {
     return chartWidth - legendWidth - gap < SidePlotFloor;
 }
+
+/**
+ * A turn — a pie's or a radar's — beside its start or end legend stands on an area as wide as the area is high, and `gutter` more
+ * for the names beside a radar's rim, the pair centred: at the full width the turn stood in the middle and the legend at the far
+ * edge. Anywhere else (`gutter` null, a legend elsewhere or fallen under) the area takes the width it is given. The area's width
+ * moves nothing the chart's own size is read from, so the draw that sets it does not draw again.
+ */
+export function fitTurn(root: HTMLElement, area: HTMLElement, placement: ChartModel["legend"], gutter: number | null): void {
+    const beside = gutter !== null && (placement === "Start" || placement === "End") && !root.classList.contains(ClientNames.legendUnder);
+    const width = beside ? `${Math.max(0, Math.round(area.clientHeight + gutter))}px` : "";
+
+    if (root.classList.contains(ClientNames.turnBeside) !== beside)
+        root.classList.toggle(ClientNames.turnBeside, beside);
+
+    if (area.style.width !== width)
+        area.style.width = width;
+}

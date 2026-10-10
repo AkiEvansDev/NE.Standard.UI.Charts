@@ -4,6 +4,7 @@ using System.Globalization;
 using NE.Standard.UI.Charts;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 using NE.Standard.UI.Web.Renderers.Foundation;
 
 namespace NE.Standard.UI.Web.Charts;
@@ -210,6 +211,11 @@ public class GaugeComponentRenderer : WebComponentRendererBase
     private static void RenderWords(WebRenderContext context, IHtmlElementBuilder frame, CultureInfo culture)
     {
         var format = ReadRenderValue<string?>(context, GaugeComponent.FormatProperty, null) ?? DefaultFormat;
+
+        // Refused with no reading as well: the client writes the first value pushed under it.
+        if (!WebNumberFormat.IsSupported(format))
+            throw new InvalidOperationException($"GaugeComponent.Format '{format}' cannot be written: a reading takes a format of the shared subset ({WebNumberFormat.Kinds}, with an optional precision).");
+
         var value = ReadRenderValue<double?>(context, GaugeComponent.ValueProperty, null);
 
         _ = frame.Element("div", words =>
@@ -259,6 +265,6 @@ public class GaugeComponentRenderer : WebComponentRendererBase
     /// <summary>The reading's number as the page's culture writes it; the page's own word for none where there is no reading.</summary>
     private static string Reading(WebRenderContext context, double? value, string format, CultureInfo culture)
         => value is double number
-            ? number.ToString(format, culture)
+            ? WebNumberFormat.Format(number, format, WebNumberCulturePack.FromCulture(culture))
             : context.Translate(ChartsStrings.NoReading);
 }

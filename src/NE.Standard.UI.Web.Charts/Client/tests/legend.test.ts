@@ -10,7 +10,7 @@ import type { StubElement } from "./stub-dom.ts";
 
 installStubDom();
 
-const { legendFallsUnder, syncLegend } = await import("../src/chart-legend.ts");
+const { fitTurn, legendFallsUnder, syncLegend } = await import("../src/chart-legend.ts");
 const { ChartAttributes, ChartClasses, ClientNames } = await import("../src/chart-names.ts");
 
 type Entry = Parameters<typeof syncLegend>[1][number];
@@ -159,4 +159,37 @@ test("a side legend stands beside a plot it leaves 256 px or more, and under one
     // The edge: exactly the floor stays beside.
     assert.equal(legendFallsUnder(374, 110, 8), false);
     assert.equal(legendFallsUnder(373, 110, 8), true);
+});
+
+/** A chart area as the fitting reads it: its height, and the width written on it. */
+function area(height: number): { clientHeight: number; style: { width: string } } {
+    return { clientHeight: height, style: { width: "" } };
+}
+
+test("a turn beside its legend stands on an area as wide as it needs, and takes the width it is given anywhere else", () => {
+    const root = chart();
+    const pie = area(300);
+    const radar = area(360);
+
+    // A pie's turn is as wide as the area is high; a radar's adds the room its spoke names want beside the rim.
+    fitTurn(real<HTMLElement>(root), pie as unknown as HTMLElement, "End", 0);
+    assert.equal(pie.style.width, "300px");
+    assert.equal(root.classList.contains(ClientNames.turnBeside), true);
+
+    fitTurn(real<HTMLElement>(root), radar as unknown as HTMLElement, "Start", 88);
+    assert.equal(radar.style.width, "448px");
+
+    // Under the plot, or anywhere but beside it, nothing is fitted.
+    root.classList.add(ClientNames.legendUnder);
+    fitTurn(real<HTMLElement>(root), pie as unknown as HTMLElement, "End", 0);
+    assert.equal(pie.style.width, "");
+    assert.equal(root.classList.contains(ClientNames.turnBeside), false);
+
+    root.classList.remove(ClientNames.legendUnder);
+    fitTurn(real<HTMLElement>(root), pie as unknown as HTMLElement, "Bottom", 0);
+    assert.equal(pie.style.width, "");
+
+    // A chart that is no turn is never fitted.
+    fitTurn(real<HTMLElement>(root), pie as unknown as HTMLElement, "End", null);
+    assert.equal(pie.style.width, "");
 });

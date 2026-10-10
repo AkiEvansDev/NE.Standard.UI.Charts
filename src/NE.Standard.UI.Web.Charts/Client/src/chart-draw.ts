@@ -5,13 +5,13 @@ import { bandWidth, barOf, barSlots } from "./chart-bars.ts";
 import { PlainRadius, bubbleRadius, pointReach } from "./chart-bubbles.ts";
 import type { ChartAxis, ChartModel } from "./chart-model.ts";
 import { momentDate } from "./chart-moment.ts";
-import { placeSideLegend, syncLegend } from "./chart-legend.ts";
+import { fitTurn, placeSideLegend, syncLegend } from "./chart-legend.ts";
 import type { LegendEntry } from "./chart-legend.ts";
-import { ChartAttributes, ChartClasses, ChartKinds, ChartVariables, ChartWords, ClientNames, CoreNames, DrawnClipPrefix } from "./chart-names.ts";
+import { ChartAttributes, ChartClasses, ChartKinds, ChartVariables, ChartWords, ClientNames, DrawnClipPrefix } from "./chart-names.ts";
 import { areaPath, coord, linePath, lineSegments } from "./chart-path.ts";
 import { sectorsOf, spotAt } from "./chart-pie.ts";
 import type { Sector, Spot } from "./chart-pie.ts";
-import { radarEdges, radarOutline, radarRadius, radarReach, radarSpokes, spokeAnchor, spokeAngle } from "./chart-radar.ts";
+import { radarEdges, radarOutline, radarRadius, radarReach, radarSpokes, ringLabel, spokeAnchor, spokeAngle } from "./chart-radar.ts";
 import type { ChartPoint, Segment } from "./chart-path.ts";
 import { buildData } from "./chart-rows.ts";
 import type { ChartData, ChartRow, ChartSeriesData } from "./chart-rows.ts";
@@ -20,7 +20,7 @@ import { clampWindow, followWindow, windowExtent } from "./chart-window.ts";
 import type { Span } from "./chart-window.ts";
 import { defaultFormat, plotBottom, plotDown, plotRight, plotX, plotY, resolveRange, step, ticks, within } from "./chart-ticks.ts";
 import type { Plot, Scale } from "./chart-ticks.ts";
-import type { ClientStrings, DomNames, DomRegistry, NumberCulturePack, NumberFormatting, Popups, TemporalCulturePack, TemporalFormatting } from "ne-standard-ui";
+import type { ClientStrings, DomNames, DomRegistry, NumberCulturePack, NumberFormatting, Popups, SeriesColors, TemporalCulturePack, TemporalFormatting, Tooltips } from "ne-standard-ui";
 
 const SvgNamespace = "http://www.w3.org/2000/svg";
 
@@ -32,7 +32,6 @@ const LabelGap = 8;
 /** A label's own line, which is what tells whether the one beside the plot has room for the next. */
 const LabelHeight = 16;
 /** How many colours the theme's categorical run holds, where the page does not say. */
-const DefaultSeriesColors = 8;
 const CentreSelector = `:scope > .${ChartClasses.area} > .${ChartClasses.centre}`;
 
 /** What a draw takes from the framework: how a value and a word are written, and the attribute names it writes as the framework does. */
@@ -43,6 +42,9 @@ export type ChartFormatting = {
     readonly names: DomNames;
     readonly focusReturn: Popups["focusReturn"];
     readonly ensureId: DomRegistry["ensureId"];
+    readonly colors: SeriesColors;
+    /** A caption or a value made safe among words a tooltip reads as inline markup, so `p*q` reads as written (`tooltips.escape`). */
+    readonly escape: Tooltips["escape"];
 };
 
 /** What one chart holds between draws: what the server said, the rows as they now stand, and the series the viewer put away. */
@@ -99,7 +101,7 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
         return null;
 
     const model = state.model;
-    const data = buildData(state.rows, model, formatting.temporal.parse);
+    const data = buildData(state.rows, model, formatting.temporal.parse, formatting.numbers.parseInvariant);
     const visible = data.series.filter(series => !state.hidden.has(series.series.key));
 
     // The stack is of the series actually drawn: one the legend put aside leaves it rather than holding a gap in it.
@@ -127,11 +129,11 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
         y: model.y.format ?? defaultFormat(model.y.kind, step(model.y.kind, y.min, y.max, model.y.ticks))
     };
 
-    const colors = readSeriesColorCount(state.root);
+    const colors = formatting.colors.count(state.root);
     // A pie's legend names its sectors rather than its series.
     const entries = model.kind === ChartKinds.pie
         ? sectorEntries(model, data, formats, numbers, dates, formatting, colors)
-        : data.series.map(entry => ({ key: entry.series.key, caption: entry.series.caption, color: colorOf(entry, colors) }));
+        : data.series.map(entry => ({ key: entry.series.key, caption: entry.series.caption, color: colorOf(entry, colors, formatting.colors) }));
 
     // The legend first: its entries move the plot's box, and a box measured before them would stretch the old frame into the new.
     if (model.legend !== "None")
@@ -139,6 +141,14 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
 
     // Beside the plot or under it, before the plot's box is measured: where the legend stands is what the plot is left.
     placeSideLegend(state.root, model.legend);
+
+    // A radar's spoke names are measured before the box: they are what its turn leaves room for beside the rim, and the box a turn
+    // beside its legend stands on is as wide as the turn needs.
+    const radar = model.kind === ChartKinds.radar ? readRadarFrame(canvas, model, data, formats, numbers, dates, formatting) : null;
+    const area = canvas.parentElement;
+
+    if (area !== null)
+        fitTurn(state.root, area, model.legend, model.kind === ChartKinds.pie ? 0 : radar === null ? null : 2 * (radar.across - radar.down));
 
     labelCanvas(canvas, entries, formatting);
 
@@ -166,8 +176,8 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     }
 
     // Spokes round a centre rather than two axes along a box: the rings stand for the y axis, and nothing zooms or shares a tooltip.
-    if (model.kind === ChartKinds.radar) {
-        drawRadar(drawing, canvas, state, data, visible, y, width, height, formats, numbers, dates, formatting, colors);
+    if (radar !== null) {
+        drawRadar(drawing, radar, state, data, visible, y, width, height, formats, numbers, dates, formatting, colors);
         canvas.replaceChildren(...drawing.childNodes);
 
         return null;
@@ -231,7 +241,7 @@ function sectorEntries(
     return points.map((point, index) => ({
         key: point.key,
         caption: formatValue(model.x, formats.x, point.x, data.categories, numbers, dates, formatting),
-        color: seriesColorVar(index, colors)
+        color: formatting.colors.color(index, colors)
     }));
 }
 
@@ -289,7 +299,7 @@ function drawPie(
         const shape = append(group, "g", ChartClasses.series);
 
         shape.setAttribute(ChartAttributes.series, point.key);
-        shape.style.setProperty(ChartVariables.seriesColor, seriesColorVar(shown[i].index, colors));
+        shape.style.setProperty(ChartVariables.seriesColor, formatting.colors.color(shown[i].index, colors));
 
         // A ring from the hole to the rim, which the stylesheet cuts to the sector's own angles (the contract's mixins/arc.less).
         const sector = append(shape, "circle", ChartClasses.sector);
@@ -307,13 +317,12 @@ function drawPie(
         if (!model.tooltip)
             continue;
 
-        const label = formatValue(model.x, formats.x, point.x, data.categories, numbers, dates, formatting);
-        const value = formatValue(model.y, formats.y, point.y ?? 0, data.categories, numbers, dates, formatting);
         // The tooltip stands against the middle of the sector's own arc: the ring's box is the whole turn's, whatever the cut.
         const middle = spotAt(centre, (radius + inner) / 2, sectors[i].start + sectors[i].sweep / 2);
         const mark = append(shape, "circle", ChartClasses.sectorAnchor);
 
-        sector.setAttribute(ChartAttributes.sectorTooltip, formatting.strings.format(ChartWords.sector, { label, value }));
+        // A point's words, the series naming what the value counts.
+        sector.setAttribute(ChartAttributes.sectorTooltip, tooltipText(model, data.series[0], point.x, point.y ?? 0, data.categories, formats, numbers, dates, formatting));
         mark.setAttribute("cx", coord(middle.x));
         mark.setAttribute("cy", coord(middle.y));
         mark.setAttribute("r", "1");
@@ -321,12 +330,15 @@ function drawPie(
 
     drawSectorEdges(group, sectors, centre, radius, inner);
 
-    // The words over the hole are the framework's to write; the drawing gives them the square the hole holds to wrap in.
+    // The words over the hole are the framework's to write; the drawing gives them the square the hole holds to wrap in, and hides
+    // them while the empty word stands there.
     const words = state.root.querySelector<HTMLElement>(CentreSelector);
     const room = `${coord(Math.max(inner, 0) * Math.SQRT2)}px`;
 
     if (words !== null && words.style.maxWidth !== room)
         words.style.maxWidth = room;
+
+    words?.classList.toggle(ChartClasses.centreHidden, points.length === 0);
 
     if (points.length === 0)
         drawEmpty(canvas, { left: 0, top: 0, width, height }, formatting);
@@ -356,10 +368,38 @@ function drawSectorEdges(group: SVGElement, sectors: readonly Sector[], centre: 
     }
 }
 
+/** A radar's spokes, their names, and the room the names leave beside the rim: across each side, and down. */
+type RadarFrame = {
+    readonly spokes: readonly number[];
+    readonly names: readonly string[];
+    readonly across: number;
+    readonly down: number;
+};
+
+/** The radar's spokes and their names, measured on the live canvas before it is cleared: a detached text has no length. */
+function readRadarFrame(
+    canvas: SVGSVGElement,
+    model: ChartModel,
+    data: ChartData,
+    formats: ChartFormats,
+    numbers: NumberCulturePack,
+    dates: TemporalCulturePack,
+    formatting: ChartFormatting
+): RadarFrame {
+    const spokes = radarSpokes(data.series.map(entry => entry.drawn));
+    const names = spokes.map(spoke => formatValue(model.x, formats.x, spoke, data.categories, numbers, dates, formatting));
+    const measure = measurer(canvas);
+    const widest = names.reduce((longest, name) => Math.max(longest, measure.width(name)), 0);
+
+    measure.release();
+
+    return { spokes, names, across: widest + LabelGap + PlotInset, down: LabelHeight + LabelGap + PlotInset };
+}
+
 /** The radar: spokes, rings and each kept series' filled outline; a hidden series keeps its spokes, so the shape the rest make doesn't turn. */
 function drawRadar(
     drawing: SVGSVGElement,
-    canvas: SVGSVGElement,
+    frame: RadarFrame,
     state: ChartState,
     data: ChartData,
     visible: readonly ChartSeriesData[],
@@ -373,20 +413,14 @@ function drawRadar(
     colors: number
 ): void {
     const model = state.model;
-    const spokes = radarSpokes(data.series.map(entry => entry.drawn));
-    const names = spokes.map(spoke => formatValue(model.x, formats.x, spoke, data.categories, numbers, dates, formatting));
-    // Measured on the live canvas before it is cleared: a detached text has no length.
-    const measure = measurer(canvas);
-    const widest = names.reduce((longest, name) => Math.max(longest, measure.width(name)), 0);
-
-    measure.release();
-
+    const spokes = frame.spokes;
     const centre = { x: width / 2, y: height / 2 };
-    const radius = radarRadius(width, height, widest + LabelGap + PlotInset, LabelHeight + LabelGap + PlotInset);
-    const rings = state.rows.length > 0 || model.y.min !== null || model.y.max !== null ? ticks(model.y.kind, y, model.y.ticks) : [];
+    const radius = radarRadius(width, height, frame.across, frame.down);
+    const values = state.rows.length > 0 || model.y.min !== null || model.y.max !== null ? ticks(model.y.kind, y, model.y.ticks) : [];
+    const rings = values.map(value => ({ value, text: formatValue(model.y, formats.y, value, [], numbers, dates, formatting) }));
 
     if (spokes.length > 0 && radius > 0)
-        drawRadarFrame(drawing, model, names, rings.map(value => ({ value, text: formatValue(model.y, formats.y, value, [], numbers, dates, formatting) })), y, centre, radius);
+        drawRadarFrame(drawing, model, frame.names, rings, y, centre, radius);
 
     const group = append(drawing, "g", ChartClasses.plot);
     // Every band under every series' outline and marks: a later series' band laid over an earlier one would take its corners from
@@ -395,6 +429,10 @@ function drawRadar(
 
     for (const entry of visible)
         drawRadarSeries(group, bands, model, entry, spokes, y, centre, radius, data.categories, formats, numbers, dates, formatting, colors);
+
+    // Over the series, which a ring's value is read against, haloed in the ground so a line under it does not cross it.
+    if (spokes.length > 0 && radius > 0)
+        drawRingLabels(drawing, rings, y, centre, radius, spokes.length);
 
     if (state.rows.length === 0)
         drawEmpty(drawing, { left: 0, top: 0, width, height }, formatting);
@@ -436,19 +474,6 @@ function drawRadarFrame(
             line(axes, ChartClasses.axisLine, centre.x, centre.y, tip.x, tip.y);
 
         text(axes, ChartClasses.label, names[i], name.x, spokeNameBaseline(angle, name.y), spokeAnchor(angle));
-    }
-
-    // A ring's value beside the top spoke, just inside the ring; one that would sit on the one written before it is left out.
-    let last = Number.NaN;
-
-    for (const ring of rings) {
-        const reach = radarReach(y, ring.value, radius);
-
-        if (reach <= 0 || (Number.isFinite(last) && Math.abs(reach - last) < LabelHeight))
-            continue;
-
-        last = reach;
-        text(axes, ChartClasses.label, ring.text, centre.x + LabelGap, centre.y - reach + 12, "start");
     }
 }
 
@@ -497,7 +522,7 @@ function drawRadarSeries(
     const points = spokes.map(spoke => byPlace.get(spoke) ?? null);
     const spots = points.map((point, i) => spotAt(centre, radarReach(y, point?.y ?? null, radius), spokeAngle(i, spokes.length)));
     const shape = append(group, "g", ChartClasses.series);
-    const color = colorOf(entry, colors);
+    const color = colorOf(entry, colors, formatting.colors);
 
     shape.setAttribute(ChartAttributes.series, entry.series.key);
     shape.style.setProperty(ChartVariables.seriesColor, color);
@@ -528,6 +553,26 @@ function drawBand(bands: SVGElement, key: string, color: string, outline: string
     fill.setAttribute(ChartAttributes.series, key);
     fill.style.setProperty(ChartVariables.seriesColor, color);
     fill.setAttribute("d", outline);
+}
+
+/**
+ * Each ring's value on the middle of its first side, half a spoke off the corners the series have there; one that would sit on the
+ * one written before it is left out.
+ */
+function drawRingLabels(canvas: SVGSVGElement, rings: readonly { readonly value: number; readonly text: string }[], y: Scale, centre: Spot, radius: number, count: number): void {
+    const labels = append(canvas, "g", ChartClasses.axes);
+    let last = Number.NaN;
+
+    for (const ring of rings) {
+        const reach = radarReach(y, ring.value, radius);
+        const spot = ringLabel(centre, reach, count);
+
+        if (reach <= 0 || (Number.isFinite(last) && Math.abs(spot.y - last) < LabelHeight))
+            continue;
+
+        last = spot.y;
+        text(labels, `${ChartClasses.label} ${ChartClasses.ringLabel}`, ring.text, spot.x, spot.y + 4, "middle");
+    }
 }
 
 /** The marks of one axis, each already written in the page's culture and measured in its type. */
@@ -783,7 +828,7 @@ function drawSeries(
         const smooth = entry.series.smooth ?? model.smooth;
         const markers = entry.series.markers ?? model.markers;
         const shape = append(group, "g", ChartClasses.series);
-        const color = colorOf(entry, colors);
+        const color = colorOf(entry, colors, formatting.colors);
 
         shape.setAttribute(ChartAttributes.series, entry.series.key);
         shape.style.setProperty(ChartVariables.seriesColor, color);
@@ -946,7 +991,12 @@ function tooltipText(
     const left = formatValue(model.x, formats.x, x, categories, numbers, dates, formatting);
     const right = formatValue(model.y, formats.y, value, categories, numbers, dates, formatting);
 
-    return formatting.strings.format(ChartWords.point, { series: series.series.caption, x: left, y: right });
+    return pointWords(series.series.caption, left, right, formatting);
+}
+
+/** A point's words from its caption and its written values, each as written: a tooltip reads its words as inline markup, the template's own kept. */
+export function pointWords(caption: string, x: string, y: string, formatting: Pick<ChartFormatting, "strings" | "escape">): string {
+    return formatting.strings.format(ChartWords.point, { series: formatting.escape(caption), x: formatting.escape(x), y: formatting.escape(y) });
 }
 
 /** A chart with no rows keeps its frame and says there is nothing in it. */
@@ -1002,7 +1052,7 @@ function buildColumns(
                 if (text !== null)
                     return text;
 
-                const lines = [formatValue(model.x, formats.x, place, categories, numbers, dates, formatting)];
+                const lines = [formatting.escape(formatValue(model.x, formats.x, place, categories, numbers, dates, formatting))];
 
                 for (let index = 0; index < series.length; index++) {
                     const value = values[index];
@@ -1012,7 +1062,7 @@ function buildColumns(
 
                     const reading = formatValue(model.y, formats.y, value, categories, numbers, dates, formatting);
 
-                    lines.push(formatting.strings.format(ChartWords.reading, { series: series[index].series.caption, value: reading }));
+                    lines.push(readingWords(series[index].series.caption, reading, formatting));
                 }
 
                 text = lines.join("\n");
@@ -1021,6 +1071,11 @@ function buildColumns(
             }
         };
     });
+}
+
+/** One series' line of a shared tooltip, its caption and its value as written. */
+export function readingWords(caption: string, value: string, formatting: Pick<ChartFormatting, "strings" | "escape">): string {
+    return formatting.strings.format(ChartWords.reading, { series: formatting.escape(caption), value: formatting.escape(value) });
 }
 
 /** The line a shared tooltip is read against, which the engine moves and shows. */
@@ -1034,22 +1089,11 @@ function drawRule(canvas: SVGSVGElement, plot: Plot, horizontal: boolean): void 
 }
 
 /** The colour of a series: the one the author gave, or its place in the theme's categorical run, cycled by the run's length. */
-function colorOf(series: ChartSeriesData, colors: number): string {
+function colorOf(series: ChartSeriesData, colors: number, palette: SeriesColors): string {
     if (series.series.color !== null && series.series.color.length > 0)
         return series.series.color;
 
-    return seriesColorVar(series.index, colors);
-}
-
-/** The theme's categorical colour at a place in the run, cycled by the run's length — the same rule `ThemeColorRenderer.SeriesColorCss` writes. */
-function seriesColorVar(index: number, colors: number): string {
-    return `var(${CoreNames.seriesColorPrefix}${(index % colors) + 1})`;
-}
-
-function readSeriesColorCount(root: Element): number {
-    const value = Number(getComputedStyle(root).getPropertyValue(CoreNames.seriesColorCount));
-
-    return Number.isFinite(value) && value >= 1 ? Math.floor(value) : DefaultSeriesColors;
+    return palette.color(series.index, colors);
 }
 
 function append(parent: Element, tag: string, className: string): SVGElement {

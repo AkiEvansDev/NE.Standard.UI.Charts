@@ -7,10 +7,13 @@ import type { ChartModel, ChartSeries } from "./chart-model.ts";
 import { ChartAttributes } from "./chart-names.ts";
 import type { ChartPoint } from "./chart-path.ts";
 
-/** One row: its key, its x as text, and a value per series; with no x path the x is the row's place and nothing reads the text. */
+/**
+ * One row: its key, its x as text, and a value per series; with no x path the x is the row's place and nothing reads the text. An
+ * item whose x is null holds none, and is no point, as the server's reader skips it.
+ */
 export type ChartRow = {
     readonly key: string;
-    readonly x: string;
+    readonly x: string | null;
     readonly values: readonly (number | null)[];
     readonly series: string | null;
     /** A third value per series, where any series names where to read one; empty otherwise. */
@@ -45,8 +48,11 @@ export type ChartChangeItem = {
     readonly item: unknown;
 };
 
+/** A text read as a number as the server's invariant culture reads one — the framework's `numbers.parseInvariant`. */
+export type NumberReader = (text: string) => number | null;
+
 /** The rows the server drew from; an empty list where the attribute is missing or does not parse. */
-export function readRows(root: Element): ChartRow[] {
+export function readRows(root: Element, readNumber: NumberReader): ChartRow[] {
     const text = root.getAttribute(ChartAttributes.rows);
 
     if (text === null || text.length === 0)
@@ -60,8 +66,8 @@ export function readRows(root: Element): ChartRow[] {
             if (!Array.isArray(entry))
                 continue;
 
-            const values = Array.isArray(entry[2]) ? (entry[2] as unknown[]).map(value => numberOf(value)) : [];
-            const sizes = Array.isArray(entry[4]) ? (entry[4] as unknown[]).map(value => numberOf(value)) : [];
+            const values = Array.isArray(entry[2]) ? (entry[2] as unknown[]).map(value => numberOf(value, readNumber)) : [];
+            const sizes = Array.isArray(entry[4]) ? (entry[4] as unknown[]).map(value => numberOf(value, readNumber)) : [];
             // The series slot is there but empty on a wide row, which is what makes room for the sizes after it.
             const series = entry.length > 3 && entry[3] !== null && entry[3] !== undefined ? String(entry[3]) : null;
 
@@ -79,8 +85,9 @@ export function readRows(root: Element): ChartRow[] {
 export type PathReader = (item: unknown, path: string) => unknown;
 
 /** The row an item amounts to: its x, and its value for every series that reads one off it. */
-export function rowFromItem(item: unknown, key: string, model: ChartModel, read: PathReader): ChartRow {
-    const x = textOf(model.xPath === null ? null : read(item, model.xPath));
+export function rowFromItem(item: unknown, key: string, model: ChartModel, read: PathReader, readNumber: NumberReader): ChartRow {
+    const raw = model.xPath === null ? null : read(item, model.xPath);
+    const x = raw === null || raw === undefined ? null : textOf(raw);
 
     if (isLongForm(model)) {
         const series = textOf(read(item, model.seriesPath as string));
@@ -91,9 +98,9 @@ export function rowFromItem(item: unknown, key: string, model: ChartModel, read:
         return {
             key,
             x,
-            values: [path === null ? null : numberOf(read(item, path))],
+            values: [path === null ? null : numberOf(read(item, path), readNumber)],
             series,
-            sizes: sizePath === null ? [] : [numberOf(read(item, sizePath))]
+            sizes: sizePath === null ? [] : [numberOf(read(item, sizePath), readNumber)]
         };
     }
 
@@ -104,8 +111,8 @@ export function rowFromItem(item: unknown, key: string, model: ChartModel, read:
     for (const series of model.series) {
         const path = series.valuePath ?? model.valuePath;
 
-        values.push(path === null ? null : numberOf(read(item, path)));
-        sizes.push(series.sizePath === null ? null : numberOf(read(item, series.sizePath)));
+        values.push(path === null ? null : numberOf(read(item, path), readNumber));
+        sizes.push(series.sizePath === null ? null : numberOf(read(item, series.sizePath), readNumber));
         sized ||= series.sizePath !== null;
     }
 
@@ -119,7 +126,8 @@ export function applyChange(
     items: readonly ChartChangeItem[],
     moves: readonly { key: string | null; oldIndex: number | null; newIndex: number | null }[],
     model: ChartModel,
-    read: PathReader
+    read: PathReader,
+    readNumber: NumberReader
 ): void {
     if (action === "Reset") {
         rows.length = 0;
@@ -156,7 +164,7 @@ export function applyChange(
             continue;
         }
 
-        const row = rowFromItem(change.item, change.key ?? key, model, read);
+        const row = rowFromItem(change.item, change.key ?? key, model, read, readNumber);
         const heldKey = action === "Replace" ? change.oldKey ?? key : key;
 
         // A key the list already holds is that row, whichever action names it: an Insert of one must not draw the point twice.
@@ -181,7 +189,7 @@ export function applyChange(
 }
 
 /** The rows as points: a series per key, the names a category axis met, and how far the data reaches on either axis. */
-export function buildData(rows: readonly ChartRow[], model: ChartModel, parse: MomentParser): ChartData {
+export function buildData(rows: readonly ChartRow[], model: ChartModel, parse: MomentParser, readNumber: NumberReader): ChartData {
     const categories: string[] = [];
     const series: ChartSeriesData[] = model.series.map((entry, index) => ({ series: entry, index, points: [], drawn: [] }));
     const long = isLongForm(model);
@@ -193,7 +201,7 @@ export function buildData(rows: readonly ChartRow[], model: ChartModel, parse: M
         const row = rows[place];
         // With no x path the server numbered the rows by their place, and a patch keeps that: a row inserted or removed moves the
         // ones after it, as a render would.
-        const at = model.xPath === null ? placeNumber(place, model.x.kind, categories) : xNumber(row.x, model.x.kind, categories, parse);
+        const at = model.xPath === null ? placeNumber(place, model.x.kind, categories) : row.x === null ? null : xNumber(row.x, model.x.kind, categories, parse, readNumber);
 
         // A row whose x cannot be read is no point at all, rather than a point at zero.
         if (at === null)
@@ -244,11 +252,11 @@ function extend(extent: Extent, value: number): void {
 
 /** A row's place as its axis's number: itself, or on a category axis the place's own name, as the server writes it. */
 function placeNumber(place: number, kind: string, categories: string[]): number {
-    return kind === "Category" ? xNumber(String(place), kind, categories, () => null) ?? place : place;
+    return kind === "Category" ? xNumber(String(place), kind, categories, () => null, () => null) ?? place : place;
 }
 
 /** The x as its axis's number, read as the server reads it (`ChartValues.TryToNumber`). */
-export function xNumber(text: string, kind: string, categories: string[], parse: MomentParser): number | null {
+export function xNumber(text: string, kind: string, categories: string[], parse: MomentParser, readNumber: NumberReader): number | null {
     if (kind === "Category") {
         const index = categories.indexOf(text);
 
@@ -260,7 +268,7 @@ export function xNumber(text: string, kind: string, categories: string[], parse:
         return categories.length - 1;
     }
 
-    const value = numberText(text);
+    const value = readNumber(text);
 
     if (value !== null || kind !== "Time")
         return value;
@@ -270,27 +278,14 @@ export function xNumber(text: string, kind: string, categories: string[], parse:
     return moment === null ? null : momentNumber(moment);
 }
 
-/** A number as .NET's invariant float reads one: a sign, digits with one point, an exponent, and blanks either side. */
-const NumberText = /^[\t\n\v\f\r ]*[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?[\t\n\v\f\r ]*$/;
-
-/** The number a text writes — never a hex, a blank or `Infinity`, which `Number` would read and the server would not. */
-function numberText(text: string): number | null {
-    if (!NumberText.test(text))
-        return null;
-
-    const value = Number(text);
-
-    return Number.isFinite(value) ? value : null;
-}
-
-function numberOf(value: unknown): number | null {
+function numberOf(value: unknown, readNumber: NumberReader): number | null {
     if (typeof value === "number")
         return Number.isFinite(value) ? value : null;
 
     if (typeof value === "boolean")
         return value ? 1 : 0;
 
-    return typeof value === "string" ? numberText(value) : null;
+    return typeof value === "string" ? readNumber(value) : null;
 }
 
 function textOf(value: unknown): string {

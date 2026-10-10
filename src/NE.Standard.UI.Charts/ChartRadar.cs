@@ -48,6 +48,21 @@ public static class ChartRadar
     public static double Reach(ChartScale scale, double? value, double radius)
         => value is double reading ? radius * Math.Clamp(scale.Fraction(scale.Within(reading)), 0, 1) : 0;
 
+    /// <summary>
+    /// Where a ring's value is written: the middle of the ring's first side, off every spoke a series has a corner on; on the first
+    /// spoke where fewer than three spokes make no side to stand on.
+    /// </summary>
+    public static ChartSpot RingLabel(ChartSpot centre, double reach, int count)
+    {
+        if (count < 3)
+            return ChartPie.At(centre, reach, Top);
+
+        ChartSpot from = ChartPie.At(centre, reach, Angle(0, count));
+        ChartSpot to = ChartPie.At(centre, reach, Angle(1, count));
+
+        return new((from.X + to.X) / 2, (from.Y + to.Y) / 2);
+    }
+
     /// <summary>The biggest radius the box holds with room left beside the rim for the spokes' names: across each side, and down.</summary>
     public static double Radius(double width, double height, double across, double down)
         => Math.Max(0, Math.Min((width / 2) - across, (height / 2) - down));

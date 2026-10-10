@@ -15,12 +15,12 @@ import { valueOf } from "./chart-ticks.ts";
 import { sameWindow, wheelWindow, zoomNotches } from "./chart-wheel.ts";
 import { panWindow } from "./chart-window.ts";
 import type { Span } from "./chart-window.ts";
+import { sectorWords, spokenBy } from "./chart-words.ts";
 
 const RootSelector = `.${ChartClasses.root}`;
 const CanvasSelector = `.${ChartClasses.canvas}`;
 const PlotSelector = `.${ChartClasses.plot}`;
 const SeriesSelector = `.${ChartClasses.series}`;
-const BandsSelector = `:scope > .${ChartClasses.bands}`;
 const FillSelector = `.${ChartClasses.fill}`;
 const PointSelector = `[${ChartAttributes.point}]`;
 const AreaSelector = `.${ChartClasses.area}`;
@@ -38,8 +38,6 @@ const MostNotches = 3;
 const DragSlack = 3;
 const LegendEntrySelector = `.${ChartClasses.legendEntry}`;
 const BarSelector = `.${ChartClasses.bar}`;
-const SectorSelector = `.${ChartClasses.sector}`;
-const SectorAnchorSelector = `.${ChartClasses.sectorAnchor}`;
 
 /** One bar as the pointer reads it: its series and its point, which name it again after a redraw replaced the element. */
 type BarKey = {
@@ -95,6 +93,11 @@ export class ChartEngine {
     private readonly wheel: WheelReading;
     private readonly observeSize: ObserveSize;
     private readonly readPath: (item: unknown, path: string) => unknown;
+    private readonly tooltipAttribute: string;
+    /** The chart a finger's tap is reading, which lets go at the next tap elsewhere. */
+    private tapped: HTMLElement | null = null;
+    /** Whether the press now ending is a finger's tap, read at its release, since a click does not say what pressed on every browser. */
+    private fingerTap = false;
     /** The chart whose shared tooltip is up, so it is taken down when the pointer goes elsewhere. */
     private shared: HTMLElement | null = null;
     /** The column that tooltip names, so a pointer moving within one column does not show the same words again. */
@@ -124,13 +127,16 @@ export class ChartEngine {
             strings: context.strings,
             names: context.names,
             focusReturn: context.popups.focusReturn,
-            ensureId: context.dom.ensureId.bind(context.dom)
+            ensureId: context.dom.ensureId.bind(context.dom),
+            colors: context.colors,
+            escape: context.tooltips.escape
         };
         this.tooltips = context.tooltips;
         this.states = context.states;
         this.wheel = context.wheel;
         this.observeSize = context.observeSize;
         this.readPath = context.rows.readPath;
+        this.tooltipAttribute = context.names.tooltip;
 
         for (const chart of root.querySelectorAll<HTMLElement>(RootSelector))
             this.adopt(chart);
@@ -146,10 +152,8 @@ export class ChartEngine {
         context.strings.onChange(() => this.wordsChanged(root));
 
         root.addEventListener("click", domEvent => this.onPress(domEvent), true);
-        root.addEventListener("pointerover", domEvent => this.onSeriesHover(domEvent), true);
-        root.addEventListener("pointerout", domEvent => this.onSeriesHover(domEvent), true);
-        root.addEventListener("pointerover", domEvent => this.onBarHover(domEvent), true);
-        root.addEventListener("pointerout", domEvent => this.onBarHover(domEvent), true);
+        root.addEventListener("pointerover", domEvent => this.onReadingHover(domEvent), true);
+        root.addEventListener("pointerout", domEvent => this.onReadingHover(domEvent), true);
         root.addEventListener("pointerover", domEvent => this.onSectorHover(domEvent), true);
         root.addEventListener("pointerout", domEvent => this.onSectorHover(domEvent), true);
 
@@ -162,6 +166,13 @@ export class ChartEngine {
         // with no columns is left alone.
         root.addEventListener("pointermove", domEvent => this.onSharedTooltip(domEvent), true);
         root.addEventListener("pointerout", domEvent => this.onSharedTooltip(domEvent), true);
+
+        // A finger has no hover, and its pointerout comes with the release: a tap reads what it lands on as a hover does — the rest go
+        // back, its words show — until the next tap elsewhere. The words wait for the click, after the framework's tooltip has
+        // answered the press and the release.
+        root.addEventListener("pointerup", domEvent => this.onTap(domEvent), true);
+        root.addEventListener("pointercancel", domEvent => this.onTapCancel(domEvent), true);
+        root.addEventListener("click", domEvent => this.onTapWords(domEvent), true);
     }
 
     private wordsChanged(root: ParentNode): void {
@@ -200,7 +211,7 @@ export class ChartEngine {
         if (existing !== undefined && existing.modelText === modelText) {
             if (existing.rowsText !== rowsText) {
                 existing.rows.length = 0;
-                existing.rows.push(...readRows(root));
+                existing.rows.push(...readRows(root, this.formatting.numbers.parseInvariant));
                 existing.rowsText = rowsText;
             }
 
@@ -217,7 +228,7 @@ export class ChartEngine {
         const entry: ChartEntry = {
             root,
             model,
-            rows: readRows(root),
+            rows: readRows(root, this.formatting.numbers.parseInvariant),
             hidden: existing?.hidden ?? new Set<string>(),
             modelText,
             rowsText,
@@ -257,8 +268,15 @@ export class ChartEngine {
 
         this.dirty.clear();
 
-        for (const root of roots)
-            this.redraw(root);
+        // One chart that fails to draw leaves its last frame and is reported; the rest of the frame's charts still draw.
+        for (const root of roots) {
+            try {
+                this.redraw(root);
+            }
+            catch (error) {
+                console.error("NE.Standard.UI.Web.Charts: a chart could not be drawn; its last frame stands.", root, error);
+            }
+        }
     }
 
     private redraw(root: HTMLElement): void {
@@ -274,7 +292,6 @@ export class ChartEngine {
         entry.frame = drawChart(entry, this.formatting);
         // The canvas is new, and the pointer that stood on a series or a bar of the old one has not moved to say so again.
         markFront(entry);
-        markBar(root, entry.bar);
 
         this.pointPress.redrawn(root);
 
@@ -334,7 +351,7 @@ export class ChartEngine {
 
         // The attribute stays as first-frame data; re-reading it would undo the patch. Only a fresh render from the server
         // writes a new one.
-        applyChange(entry.rows, change.action, change.items, change.moves, entry.model, this.readPath);
+        applyChange(entry.rows, change.action, change.items, change.moves, entry.model, this.readPath, this.formatting.numbers.parseInvariant);
 
         // A point arrived: a window at the far end follows it, which the draw works out from the data it draws.
         if (entry.model.followLatest && entry.view !== null && entry.anchored)
@@ -378,44 +395,49 @@ export class ChartEngine {
      * pointer crossing on its way elsewhere shows none.
      */
     private onSharedTooltip(domEvent: Event): void {
-        if (!(domEvent instanceof PointerEvent) || !(domEvent.target instanceof Element))
+        if (!(domEvent instanceof PointerEvent) || !(domEvent.target instanceof Element) || isFinger(domEvent))
             return;
 
         const target = domEvent.target;
         const root = target.closest<HTMLElement>(RootSelector);
         const entry = root === null ? undefined : this.charts.get(root);
-        const frame = entry?.frame ?? null;
 
-        if (domEvent.type !== "pointermove" || root === null || entry === undefined || frame === null || frame.columns.length === 0 || target.closest(AreaSelector) === null || this.states.isInert(target)) {
-            this.closeShared();
+        // The pointer passing from one part of the plot to another — the area, a line's hit, a bar, a point — has not left it.
+        if (domEvent.type === "pointerout" && root !== null && domEvent.relatedTarget instanceof Element && domEvent.relatedTarget.closest(AreaSelector) !== null && root.contains(domEvent.relatedTarget))
             return;
-        }
 
+        if (domEvent.type !== "pointermove" || root === null || entry === undefined || target.closest(AreaSelector) === null || this.states.isInert(target) || !this.showColumn(root, entry, domEvent, true))
+            this.closeShared();
+    }
+
+    /** Marks the x nearest the pointer and names every series there; false where the chart shares no tooltip or the pointer is off its plot. */
+    private showColumn(root: HTMLElement, entry: ChartEntry, pointer: MouseEvent, delay: boolean): boolean {
+        const frame = entry.frame;
         const canvas = root.querySelector<SVGSVGElement>(CanvasSelector);
         const rule = root.querySelector<SVGElement>(RuleSelector);
 
-        if (canvas === null || rule === null)
-            return;
+        if (frame === null || frame.columns.length === 0 || canvas === null || rule === null)
+            return false;
 
         const box = canvas.getBoundingClientRect();
 
-        if (!withinPlot(frame, domEvent.clientX - box.left, domEvent.clientY - box.top)) {
-            this.closeShared();
-            return;
-        }
+        if (!withinPlot(frame, pointer.clientX - box.left, pointer.clientY - box.top))
+            return false;
 
         const horizontal = entry.model.horizontal;
-        const column = nearestColumn(frame.columns, horizontal ? domEvent.clientY - box.top : domEvent.clientX - box.left);
+        const column = nearestColumn(frame.columns, horizontal ? pointer.clientY - box.top : pointer.clientX - box.left);
 
         // The same column as the last move: the words and the line are already where they belong.
         if (this.shared === root && this.sharedColumn === column)
-            return;
+            return true;
 
         rule.setAttribute(horizontal ? "y" : "x", String(Math.round(column.at * 100) / 100));
         rule.classList.add(ClientNames.ruleOn);
         this.shared = root;
         this.sharedColumn = column;
-        this.tooltips.show(rule, column.text, { delay: true });
+        this.tooltips.show(rule, column.text, { delay });
+
+        return true;
     }
 
     private closeShared(): void {
@@ -606,32 +628,13 @@ export class ChartEngine {
     }
 
     /**
-     * The series being read stays forward and the rest go back. Lines, marks and sectors are the stylesheet's (`:has()`); a band
-     * lies in its own layer, outside its series' group, so only the engine can match it, and a legend entry, by key.
+     * The series and the bar being read stay forward and the rest go back, on every plot: a series' group, a band in its own layer
+     * outside the group, or a legend entry names a series by key; a bar comes forward over every other, ones stacked in its column
+     * among them. Marked here rather than by a `:hover` the stylesheet reads through a `:has()`, which re-checked the page on every
+     * move, and only when either changed, so a move inside one line or one bar walks nothing.
      */
-    private onSeriesHover(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
-            return;
-
-        const root = domEvent.target.closest<HTMLElement>(RootSelector);
-        const entry = root === null ? undefined : this.charts.get(root);
-
-        if (entry === undefined)
-            return;
-
-        const target = domEvent.type === "pointerover" ? this.answering(domEvent.target) : null;
-        const key = target === null ? null : readingKey(target);
-
-        if (key === entry.front)
-            return;
-
-        entry.front = key;
-        markFront(entry);
-    }
-
-    /** The bar under the pointer comes forward; every other bar, including ones stacked in its column, goes back. */
-    private onBarHover(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
+    private onReadingHover(domEvent: Event): void {
+        if (!(domEvent.target instanceof Element) || isFinger(domEvent))
             return;
 
         const root = domEvent.target.closest<HTMLElement>(RootSelector);
@@ -640,15 +643,22 @@ export class ChartEngine {
         if (root === null || entry === undefined)
             return;
 
-        const bar = domEvent.type === "pointerover" ? this.answering(domEvent.target)?.closest(BarSelector) ?? null : null;
-
-        entry.bar = bar === null ? null : { series: bar.parentElement?.getAttribute(ChartAttributes.series) ?? "", point: bar.getAttribute(ChartAttributes.point) ?? "" };
-        markBar(root, entry.bar);
+        readAt(entry, this.pointedAt(root, domEvent));
     }
 
-    /** A sector's tooltip, shown mid-arc, since the framework places a tooltip by its target's box and a sector's is the whole ring's. */
+    /**
+     * What the pointer stands on in the chart after a move: the target it came over, or the one it went out to — read on the way out
+     * too, so a move from one part of a series or bar to another writes no mark off and on again.
+     */
+    private pointedAt(root: HTMLElement, domEvent: Event): Element | null {
+        const over = domEvent.type === "pointerover" ? domEvent.target : domEvent instanceof PointerEvent ? domEvent.relatedTarget : null;
+
+        return over instanceof Element && root.contains(over) ? this.answering(over) : null;
+    }
+
+    /** A sector's tooltip, shown mid-arc; a finger's sector is read by its tap. */
     private onSectorHover(domEvent: Event): void {
-        if (!(domEvent.target instanceof Element))
+        if (!(domEvent.target instanceof Element) || isFinger(domEvent))
             return;
 
         if (domEvent.type === "pointerout") {
@@ -662,15 +672,89 @@ export class ChartEngine {
             return;
         }
 
-        const sector = this.answering(domEvent.target)?.closest(SectorSelector) ?? null;
-        const words = sector?.getAttribute(ChartAttributes.sectorTooltip) ?? null;
-        const mark = sector?.parentElement?.querySelector(SectorAnchorSelector) ?? null;
+        const target = this.answering(domEvent.target);
+        const spoken = target === null ? null : sectorWords(target);
 
-        if (sector === null || words === null || mark === null || sector === this.sector)
+        if (spoken === null || spoken.sector === this.sector)
             return;
 
-        this.sector = sector;
-        this.tooltips.show(mark, words, { delay: true });
+        this.sector = spoken.sector;
+        this.tooltips.show(spoken.anchor, spoken.words, { delay: true });
+    }
+
+    /**
+     * A finger's release: what it lands on is read as a hover reads it, and stays read through the pointerout that follows; the
+     * chart read before lets go. A release that ends a drag of the window reads nothing.
+     */
+    private onTap(domEvent: Event): void {
+        this.fingerTap = isFinger(domEvent);
+
+        if (!this.fingerTap)
+            return;
+
+        const target = this.dragged ? null : this.answering(domEvent.target);
+        const root = target?.closest<HTMLElement>(RootSelector) ?? null;
+        const entry = root === null ? undefined : this.charts.get(root);
+
+        this.closeShared();
+
+        if (this.tapped !== null && this.tapped !== root)
+            this.letGo(this.tapped);
+
+        this.tapped = entry === undefined ? null : root;
+
+        if (entry !== undefined)
+            readAt(entry, target);
+    }
+
+    private letGo(root: HTMLElement): void {
+        const entry = this.charts.get(root);
+
+        if (entry !== undefined)
+            readAt(entry, null);
+    }
+
+    /** A finger that turned into the page's scroll was no tap: what the last tap read lets go, as its words did at the press. */
+    private onTapCancel(domEvent: Event): void {
+        if (!isFinger(domEvent))
+            return;
+
+        this.fingerTap = false;
+
+        if (this.tapped !== null)
+            this.letGo(this.tapped);
+
+        this.tapped = null;
+        this.closeShared();
+    }
+
+    /**
+     * The words of what the tap read: the x's on a chart sharing its tooltip, else the sector's, the point's or the bar's. Shown at
+     * once, as a press's are, and closed by the framework at the next press.
+     */
+    private onTapWords(domEvent: Event): void {
+        const finger = this.fingerTap;
+
+        this.fingerTap = false;
+
+        // A click no pointer made (count none) is a key's, which reads nothing.
+        if (!finger || !(domEvent instanceof MouseEvent) || domEvent.detail === 0)
+            return;
+
+        const target = this.answering(domEvent.target);
+        const root = target?.closest<HTMLElement>(RootSelector) ?? null;
+        const entry = root === null ? undefined : this.charts.get(root);
+
+        if (target === null || root === null || entry === undefined || root !== this.tapped)
+            return;
+
+        if (target.closest(AreaSelector) !== null && this.showColumn(root, entry, domEvent, false))
+            return;
+
+        const spoken = spokenBy(target, root, this.tooltipAttribute);
+
+        if (spoken !== null)
+            this.tooltips.show(spoken.anchor, spoken.words);
     }
 
     /**
@@ -846,40 +930,73 @@ function measure(root: HTMLElement): { width: number; height: number } {
     return { width: Math.round(box.width), height: Math.round(box.height) };
 }
 
-/**
- * The series an element under the pointer stands for, where the engine is the one to say so: a legend entry, or — in a plot
- * whose bands lie in a layer of their own — a band or a series' group. None elsewhere, bars being read one at a time.
- */
+/** Whether a pointer event is a finger's, which has no hover to read by. */
+function isFinger(domEvent: Event): boolean {
+    return domEvent instanceof PointerEvent && domEvent.pointerType === "touch";
+}
+
+/** Reads what the pointer or the finger stands on — none for nothing — marking only when the series or the bar read changed. */
+function readAt(entry: ChartEntry, target: Element | null): void {
+    const key = target === null ? null : readingKey(target);
+    const pointed = target?.closest(BarSelector) ?? null;
+    const bar = pointed === null ? null : { series: pointed.parentElement?.getAttribute(ChartAttributes.series) ?? "", point: pointed.getAttribute(ChartAttributes.point) ?? "" };
+
+    if (key === entry.front && bar?.series === entry.bar?.series && bar?.point === entry.bar?.point)
+        return;
+
+    const seriesChanged = key !== entry.front;
+
+    entry.front = key;
+    entry.bar = bar;
+
+    // The series' marks carry the bars' with them.
+    if (seriesChanged)
+        markFront(entry);
+    else
+        markBars(entry);
+}
+
+/** The series an element under the pointer stands for: a legend entry's, a band's or a series group's. None for a bar, read on its own. */
 function readingKey(target: Element): string | null {
     const button = target.closest(LegendEntrySelector);
 
     if (button !== null)
         return button.getAttribute(ChartAttributes.series);
 
-    const plot = target.closest(PlotSelector);
-
-    if (plot === null || plot.querySelector(BandsSelector) === null)
+    if (target.closest(PlotSelector) === null || target.closest(BarSelector) !== null)
         return null;
 
     return target.closest(FillSelector)?.getAttribute(ChartAttributes.series) ?? target.closest(SeriesSelector)?.getAttribute(ChartAttributes.series) ?? null;
 }
 
 /**
- * Sends back every series and band but the one being read; none when nothing is. An entry the viewer put aside names nothing
- * drawn, so hovering it dims nothing.
+ * Sends back every series and band but the one being read; none when nothing is. A series of bars goes back bar by bar (markBars),
+ * never whole, or a bar read in it would go too.
  */
 function markFront(entry: ChartEntry): void {
-    const key = entry.front !== null && !entry.hidden.has(entry.front) ? entry.front : null;
+    const key = frontKey(entry);
 
     for (const each of entry.root.querySelectorAll<SVGElement>(`${SeriesSelector}, ${FillSelector}`))
-        each.classList.toggle(ClientNames.backSeries, key !== null && each.getAttribute(ChartAttributes.series) !== key);
+        each.classList.toggle(ClientNames.backSeries, key !== null && each.getAttribute(ChartAttributes.series) !== key && each.querySelector(BarSelector) === null);
+
+    markBars(entry);
 }
 
-/** Marks the bar `bar` names as the one being read and takes the mark off every other bar; no bar takes it off them all. */
-function markBar(root: HTMLElement, bar: BarKey | null): void {
-    for (const each of root.querySelectorAll<SVGElement>(BarSelector)) {
-        const front = bar !== null && each.getAttribute(ChartAttributes.point) === bar.point && each.parentElement?.getAttribute(ChartAttributes.series) === bar.series;
+/** The series being read, where it is drawn: an entry the viewer put aside names nothing drawn, so hovering it dims nothing. */
+function frontKey(entry: ChartEntry): string | null {
+    return entry.front !== null && !entry.hidden.has(entry.front) ? entry.front : null;
+}
+
+/** Marks the bar being read; every other bar goes back while one is, and every bar of a series that is not being read. */
+function markBars(entry: ChartEntry): void {
+    const key = frontKey(entry);
+    const bar = entry.bar;
+
+    for (const each of entry.root.querySelectorAll<SVGElement>(BarSelector)) {
+        const series = each.parentElement?.getAttribute(ChartAttributes.series);
+        const front = bar !== null && each.getAttribute(ChartAttributes.point) === bar.point && series === bar.series;
 
         each.classList.toggle(ClientNames.frontBar, front);
+        each.classList.toggle(ClientNames.backBar, !front && (bar !== null || (key !== null && series !== key)));
     }
 }

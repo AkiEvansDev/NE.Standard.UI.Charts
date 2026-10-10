@@ -12,7 +12,7 @@
     display: flex;
     flex-direction: column;
     gap: @ui-space-2;
-    min-width: 0;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
     .ui-responsive-property(min-height, --ui-min-height, 12rem);
     .ui-responsive-property(max-height, --ui-max-height, none);
     // The ground's ink, not the page's: a chart in a filled card reads in that card's on-colour, its frame and words alike.
@@ -47,7 +47,7 @@
 // the band axis (down it where bars lie on their side), and the cursor says so — grabbing once a drag is past its slack.
 .ui-chart--zoomable > .ui-chart__area {
     cursor: grab;
-    user-select: none;
+    .ui-user-select(none);
     touch-action: pan-y;
 }
 
@@ -85,6 +85,16 @@
     line-height: 1;
 }
 
+// A radar ring's value stands over the series, in a halo of the ground the chart stands on, so an outline crossing it is cut away
+// around the words rather than through them; the pointer reads what lies under it.
+.ui-chart__ring-label {
+    stroke: @ui-ground;
+    stroke-width: 3px;
+    stroke-linejoin: round;
+    paint-order: stroke;
+    pointer-events: none;
+}
+
 .ui-chart__caption,
 .ui-chart__empty {
     fill: @ui-text-muted;
@@ -96,8 +106,8 @@
     font-style: italic;
 }
 
-// The series under the pointer, in the plot or the legend, is read and the rest go back. A band lies in its own layer
-// (.ui-chart__bands), outside its series' group, so the engine marks the rest back by key, as it does for a legend entry.
+// The series under the pointer, in the plot or the legend, is read and the rest go back: the engine marks them, a band (in its own
+// layer, .ui-chart__bands, outside its series' group) by its key as a series.
 .ui-chart__series,
 .ui-chart__fill {
     transition: opacity @ui-motion-fast @ui-motion-ease;
@@ -107,27 +117,11 @@
     opacity: 0.25;
 }
 
-@media @ui-can-hover {
-    .ui-chart__plot:has(> .ui-chart__series:hover) > .ui-chart__series:not(:hover) {
-        opacity: 0.25;
-    }
+// A bar is read on its own and every other bar goes back; a series of bars goes back bar by bar, never whole, or the bar read in it
+// would go too. The engine marks each bar.
+.ui-chart__bar--back {
+    opacity: 0.25;
 }
-
-// A bar is read on its own and every other bar goes back; a series of bars is never dimmed whole, or the bar read would go too.
-.ui-chart__series--back:has(> .ui-chart__bar) {
-    opacity: 1;
-}
-
-@media @ui-can-hover {
-    .ui-chart__plot:has(> .ui-chart__series:hover) > .ui-chart__series:not(:hover):has(> .ui-chart__bar) {
-        opacity: 1;
-    }
-}
-
-    .ui-chart__plot:has(.ui-chart__bar--front) > .ui-chart__series > .ui-chart__bar:not(.ui-chart__bar--front),
-    .ui-chart__series--back > .ui-chart__bar:not(.ui-chart__bar--front) {
-        opacity: 0.25;
-    }
 
 // A series' line is a group of straight pieces (ChartPath.Segments). Square ends overlap so a bend has no gap; the group's
 // opacity dims it as one, so the overlaps never show darker.
@@ -166,7 +160,7 @@
         .ui-chart-marker-lit();
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-chart__point:hover > .ui-chart__marker {
             .ui-chart-marker-lit();
         }
@@ -195,7 +189,7 @@
     }
 
     // Under a finger the tooltip says which point is read: a bare mark lit by a tap would stay lit after it.
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-chart__point:hover > .ui-chart__marker--bare {
             .ui-chart-bare-marker-lit();
         }
@@ -257,7 +251,7 @@
     .ui-arc-cut();
 }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-chart__sector:hover {
             stroke-opacity: 1;
         }
@@ -282,7 +276,7 @@
 }
 
 // The words in a donut's hole, in the page's type, wrapped in the square the hole holds (the drawing writes its max-width);
-// hidden where the chart's empty word stands in the same middle.
+// hidden where the chart's empty word stands in the same middle (the drawing's mark).
 .ui-chart__centre {
     position: absolute;
     top: 50%;
@@ -298,7 +292,7 @@
 }
 
     .ui-chart__centre:empty,
-    .ui-chart__area:has(.ui-chart__empty) > .ui-chart__centre {
+    .ui-chart__centre--hidden {
         display: none;
     }
 
@@ -334,6 +328,16 @@
     .ui-chart--legend-start > .ui-chart__legend {
         order: -1;
     }
+
+// A pie or a radar beside its legend: the area as wide as the turn needs (the engine's `fitTurn` writes it), and the two centred
+// together rather than the turn in the middle of the width and the legend at its far edge.
+.ui-chart--turn-beside {
+    justify-content: center;
+
+    > .ui-chart__area {
+        flex: 0 1 auto;
+    }
+}
 
 // A start or end legend on a chart too narrow for it beside the plot stands under the plot, as a bottom one does (the engine's
 // `placeSideLegend`, by the plot's floor beside it).
@@ -384,7 +388,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 0;
+    .ui-responsive-property(min-width, --ui-min-width, 0);
     .ui-responsive-property(min-height, --ui-min-height, 8rem);
     color: @ui-text-ink;
     --ui-gauge-min: 0;
@@ -514,11 +518,12 @@
     }
 
     @{chart-press-live} .ui-chart__point--pending > .ui-chart__marker--bare,
-    .ui-chart__sector-edge {
+    .ui-chart__sector-edge,
+    .ui-chart__ring-label {
         stroke: Canvas;
     }
 
-    @media @ui-can-hover {
+    @media @{ui-can-hover} {
         .ui-chart__point:hover > .ui-chart__marker--bare {
             stroke: Canvas;
         }

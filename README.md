@@ -91,7 +91,7 @@ after it, as a render would.
 | `AreaChartComponent` | the same lines with a band under each | `Stacked`, and the line chart's own; no marks are painted, though a point still answers the pointer |
 | `BarChartComponent` | a bar per series at every x | `Stacked` — otherwise the bars share the x's band side by side; `Horizontal` lays them on their side, the values across the box and a band per x down it |
 | `PieChartComponent` | one series' points as sectors of a turn | `SetDonut(share)` for a hole, `CentreCaption` (or `BindCentreCaption`) for the words in it; no axes, and the legend names the sectors |
-| `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x — a character's attributes, a product's scores, read against each other at a glance | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre. No zoom, no window and no shared tooltip: there is no x to move along |
+| `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x — a character's attributes, a product's scores, read against each other at a glance | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre, each ring's value written on the middle of its first side, over the series. No zoom, no window and no shared tooltip: there is no x to move along |
 | `SparklineComponent` | one series with nothing around it, a line of text high | `Bars` for a run of bars instead of a line; no axes, no grid, no legend, and no marks until the pointer finds one |
 | `ScatterChartComponent` | a mark per point and no line between them | a third value sizes each mark where the series names one: `AddSeries(key, caption, valuePath, sizePath)`, by area rather than by radius |
 | `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Caption`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule |
@@ -109,10 +109,13 @@ the legend puts aside leaves the stack rather than holding a gap in it.
 
 | Axis | x reads | A tick is written |
 |---|---|---|
-| `UIChartAxis.Linear` | a number | a standard .NET format — `N0`, `N2`, `P`, `F1` — or as many decimals as the step needs |
-| `UIChartAxis.Time` | a `DateTime` | a pattern of the framework's shared token subset (`HH:mm`, `dd MMM`), or the part of a clock the step moves |
+| `UIChartAxis.Linear` | a number | a format of the framework's shared number subset — `N`, `F`, `C`, `P` or `D` with an optional precision: `N0`, `N2`, `P`, `F1` — or as many decimals as the step needs |
+| `UIChartAxis.Time` | a `DateTime` | a pattern of the framework's shared token subset (`HH:mm`, `dd MMM`; no quotes, no letter outside a token), or the part of a clock the step moves |
 | `UIChartAxis.Category` | a name, one place per name in the order the rows arrive | the name itself |
-| `UIChartAxis.Logarithmic` | a number above zero, on a base-ten scale | a standard .NET format, or as many decimals as its smallest mark needs; marked at the powers of ten |
+| `UIChartAxis.Logarithmic` | a number above zero, on a base-ten scale | a format of the shared number subset, or as many decimals as its smallest mark needs; marked at the powers of ten |
+
+The server and the page write a tick by the same formatters, so the first frame and every redraw agree; a format outside
+the subsets — `0.0`, `E2`, `#,##0`, a quoted literal — is refused when the chart renders, and so is a gauge's `Format`.
 
 A range the author leaves open follows the data, rounded outward to the axis's own round step; `Min`/`Max` fix
 either end, and an end fixed past all of the data leaves the open one built from it rather than a range running backward. `ShowGridLines` and `TickCount` are the axis's, and a caption stands beside it. A category axis with more names
@@ -166,8 +169,7 @@ they read as — and the browser translates them at every draw and draws every c
 donut's centre caption and a gauge's unit and caption are the properties' own words, each on an element of its own laid over
 the drawing in the page's own type — the centre over the hole, wrapped inside it; the unit written after the reading's
 number — written again at a switch, and a bound one follows its pushes. What a tooltip or the canvas's name
-puts between its parts is the package's own word with slots — `ui.chart.point` (`{series} — {x}: {y}`), `ui.chart.sector`,
-`ui.chart.reading`, `ui.chart.list` (`{list}, {next}`) — so a language punctuates its own. Numbers and dates are the page's
+puts between its parts is the package's own word with slots — `ui.chart.point` (`{series} — {x}: {y}`, a sector's too), `ui.chart.reading`, `ui.chart.list` (`{list}, {next}`) — so a language punctuates its own. Numbers and dates are the page's
 culture's, and follow a language switch at once: the framework writes the chart's culture packs again, and it draws anew. The
 package ships its words in Russian and Simplified Chinese as well (`ChartsStrings.Translations`), turned on with `application.AddFrameworkWords("ru", "zh-Hans")` and outranked by any word of the
 application's own.
@@ -177,7 +179,7 @@ application's own.
 - **Hover a point** for its series, its x and its value, through the framework's own tooltip (`ShowTooltip`). A
   point answers through an unpainted circle of its own, wide enough to be easy to hit; a chart that paints no
   marks still answers, the mark being there unpainted until the pointer finds it. A sector's tooltip stands by the
-  middle of its own arc.
+  middle of its own arc and says what a point's does, the series naming what its value counts.
 - **Hover anywhere in the plot** where the author set `SharedTooltip`: one tooltip names every series at the x
   under the pointer, and a line marks which x that is. The words wait as a hover's do, so a pointer only crossing the
   chart shows none, and the axes' labels around the plot are not the plot.
@@ -187,6 +189,9 @@ application's own.
   earlier one's points. An entry the viewer put aside names nothing drawn, and hovering it dims nothing.
 - **Hover a bar** and that bar alone is read: every other bar goes back, the ones stacked with it in its own
   column among them, since a stacked column is several values and not one.
+- **Tap** on a touch screen, which has no hover: what the finger lands on — a point, a bar, a sector, a series, or an x where
+  the chart shares its tooltip — is read as a hover reads it, the rest going back and its words showing at once, and stays read
+  until the next tap elsewhere. A swipe that scrolls the page reads nothing.
 - **Zoom and pan** where the author set `Zoomable`: the wheel narrows the stretch of the x axis on show about the
   pointer — by how far it turned, so a trackpad's many small deltas zoom as far as a mouse's one notch — a drag moves it
   along, and a double press gives the whole of the data back — down the chart rather than across it where bars lie on their
@@ -207,7 +212,8 @@ application's own.
   it answers at once. The point gives under the press — a mark sinks back, a bar or a sector thins — and on a zoomable chart
   keeps that look from the release until its command runs or a second press calls it off, so the wait reads as taken. A press on the legend, or on a canvas that answers presses of its own, stays the chart's: a clickable
   component around the chart does not take it.
-- The legend stands under the plot, over it, or at either edge (`SetLegend`).
+- The legend stands under the plot, over it, or at either edge (`SetLegend`). Beside a pie or a radar, the turn takes the width it
+  needs at the chart's height and the two stand centred together; on a box too narrow for both, the legend goes under.
 - A disabled or loading chart answers none of this, and lets go of what it held when it turned so: a press still waiting
   for a second answers nothing and its point drops the pressed look, a drag stops moving the window, and a window not yet sent
   is not sent.

@@ -15,7 +15,6 @@ public sealed partial class ChartsStrings
             [Chart] = "Диаграмма",
             [NoReading] = "—",
             [Point] = "{series} — {x}: {y}",
-            [Sector] = "{label} — {value}",
             [Reading] = "{series}: {value}",
             [List] = "{list}, {next}"
         }.ToFrozenDictionary(StringComparer.Ordinal),
@@ -25,7 +24,6 @@ public sealed partial class ChartsStrings
             [Chart] = "图表",
             [NoReading] = "无读数",
             [Point] = "{series} — {x}：{y}",
-            [Sector] = "{label} — {value}",
             [Reading] = "{series}：{value}",
             [List] = "{list}、{next}"
         }.ToFrozenDictionary(StringComparer.Ordinal)

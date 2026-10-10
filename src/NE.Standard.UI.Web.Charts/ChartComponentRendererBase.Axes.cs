@@ -2,23 +2,42 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
+using NE.Standard.UI.Web.Abstractions.Theming;
 
 namespace NE.Standard.UI.Web.Charts;
 
 /// <summary>The frame: the ticks and their words, the plot's box, the grid, the two axes and their captions.</summary>
 public abstract partial class ChartComponentRendererBase
 {
-    /// <summary>How a value is written on each axis, settled once per render so a tick and a tooltip read the same.</summary>
-    private readonly record struct ChartFormats(string? X, string? Y);
+    /// <summary>
+    /// How a value is written on each axis, and the page's packs it is written by, settled once per render so a tick and a tooltip
+    /// read the same — and as the client's redraw writes them, through the formatters it shares with the server.
+    /// </summary>
+    private readonly record struct ChartFormats(string? X, string? Y, WebNumberCulturePack Numbers, WebTemporalCulturePack Dates);
+
+    /// <summary>Each axis's format and the page's packs; a format the client could not write is refused here, with no rows as well.</summary>
+    private static ChartFormats ResolveFormats(ChartSpec spec, ChartScale x, ChartScale y, CultureInfo culture)
+        => new(FormatOf(spec.XAxis, x, "XAxis"), FormatOf(spec.YAxis, y, "YAxis"), WebNumberCulturePack.FromCulture(culture), WebTemporalCulturePack.FromCulture(culture));
 
     /// <summary>The format the axis writes under: the author's, or the one its resolved step asks for.</summary>
-    private static string? FormatOf(UIChartAxis axis, ChartScale scale)
-        => axis.Format ?? ChartTicks.DefaultFormat(axis.Kind, ChartTicks.Step(axis.Kind, scale.Min, scale.Max, axis.TickCount));
+    private static string? FormatOf(UIChartAxis axis, ChartScale scale, string name)
+    {
+        if (axis.Format is not string format)
+            return ChartTicks.DefaultFormat(axis.Kind, ChartTicks.Step(axis.Kind, scale.Min, scale.Max, axis.TickCount));
+
+        if (axis.Kind == UIChartAxisKind.Time)
+            UITemporalPattern.ValidateTokens(format, $"{name}.Format");
+        else if (axis.Kind != UIChartAxisKind.Category && !WebNumberFormat.IsSupported(format))
+            throw new InvalidOperationException($"{name}.Format '{format}' cannot be written: a number axis takes a format of the shared subset ({WebNumberFormat.Kinds}, with an optional precision).");
+
+        return format;
+    }
 
     /// <summary>The marks of one axis, each already written in the page's culture.</summary>
-    private static List<ChartLabel> BuildTicks(UIChartAxis axis, string? format, ChartScale scale, IReadOnlyList<string> categories, CultureInfo culture, bool hasRows)
+    private static List<ChartLabel> BuildTicks(UIChartAxis axis, string? format, ChartScale scale, IReadOnlyList<string> categories, ChartFormats formats, bool hasRows)
     {
         // With no rows, an axis the author left open has no range worth marking — a clock would print a moment nobody asked about.
         if (!hasRows && axis.Min is null && axis.Max is null)
@@ -28,13 +47,13 @@ public abstract partial class ChartComponentRendererBase
         List<ChartLabel> labels = new(values.Length);
 
         for (var i = 0; i < values.Length; i++)
-            labels.Add(new ChartLabel(values[i], FormatValue(axis.Kind, format, values[i], categories, culture)));
+            labels.Add(new ChartLabel(values[i], FormatValue(axis.Kind, format, values[i], categories, formats)));
 
         return labels;
     }
 
     /// <summary>A value as the axis writes it: a name, a moment under its pattern, or a number under its format.</summary>
-    private static string FormatValue(UIChartAxisKind kind, string? format, double value, IReadOnlyList<string> categories, CultureInfo culture)
+    private static string FormatValue(UIChartAxisKind kind, string? format, double value, IReadOnlyList<string> categories, ChartFormats formats)
     {
         if (kind == UIChartAxisKind.Category)
         {
@@ -44,8 +63,8 @@ public abstract partial class ChartComponentRendererBase
         }
 
         return kind == UIChartAxisKind.Time
-            ? ChartValues.ToDateTime(value).ToString(format, culture)
-            : value.ToString(format, culture);
+            ? WebTemporalFormat.Format(ChartValues.ToDateTime(value), format, formats.Dates)
+            : WebNumberFormat.Format(value, format, formats.Numbers);
     }
 
     /// <summary>

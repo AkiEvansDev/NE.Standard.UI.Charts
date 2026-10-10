@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Globalization;
 using NE.Standard.UI.Charts;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -99,7 +98,7 @@ public abstract partial class ChartComponentRendererBase
         => string.IsNullOrWhiteSpace(series.Caption) ? series.Key : context.Translate(series.Caption);
 
     /// <summary>An entry per sector rather than per series: a pie's series is one, and what a viewer puts aside is a sector.</summary>
-    private static void RenderSectorLegend(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartFormats formats, CultureInfo culture)
+    private static void RenderSectorLegend(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartFormats formats)
     {
         if (spec.Legend == UIChartLegendPlacement.None)
             return;
@@ -108,7 +107,7 @@ public abstract partial class ChartComponentRendererBase
         LegendEntry[] entries = new LegendEntry[points.Count];
 
         for (var i = 0; i < points.Count; i++)
-            entries[i] = new LegendEntry(points[i].Key, SectorLabel(spec, data, points[i], formats, culture), ThemeColorRenderer.SeriesColorCss(context, i));
+            entries[i] = new LegendEntry(points[i].Key, SectorLabel(spec, data, points[i], formats), ThemeColorRenderer.SeriesColorCss(context, i));
 
         RenderLegendEntries(root, entries);
     }

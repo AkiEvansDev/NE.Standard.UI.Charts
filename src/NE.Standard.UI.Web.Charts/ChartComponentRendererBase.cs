@@ -63,6 +63,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string AxesClassName = "ui-chart__axes";
     protected const string AxisLineClassName = "ui-chart__axis-line";
     protected const string LabelClassName = "ui-chart__label";
+    protected const string RingLabelClassName = "ui-chart__ring-label";
     protected const string CaptionClassName = "ui-chart__caption";
     protected const string PlotClassName = "ui-chart__plot";
     protected const string SeriesClassName = "ui-chart__series";
@@ -81,6 +82,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string SectorAnchorClassName = "ui-chart__sector-anchor";
     protected const string BandsClassName = "ui-chart__bands";
     protected const string CentreClassName = "ui-chart__centre";
+    protected const string CentreHiddenClassName = "ui-chart__centre--hidden";
     protected const string PointClassName = "ui-chart__point";
     protected const string MarkerClassName = "ui-chart__marker";
     protected const string BareMarkerClassName = "ui-chart__marker--bare";
@@ -191,14 +193,14 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         ChartScale x = window is UIChartWindow view ? whole with { Min = view.From, Max = view.To } : whole;
         (var low, var high) = window is null ? (data.YMin, data.YMax) : ChartWindow.Extent(DrawnSeries(data), window);
         ChartScale y = ChartRange.Resolve(spec.YAxis, low, high, 0, StandsOnZero(spec.Kind));
-        ChartFormats formats = new(FormatOf(spec.XAxis, x), FormatOf(spec.YAxis, y));
+        ChartFormats formats = ResolveFormats(spec, x, y, culture);
 
         // A turn shared out has no axes to lay out: the sectors are the whole drawing, and the legend names them.
         if (spec.Kind == PieKind)
         {
-            RenderPie(context, root, spec, data, formats, culture);
+            RenderPie(context, root, spec, data, formats);
             RenderWindowValue(context, root);
-            RenderSectorLegend(context, root, spec, data, formats, culture);
+            RenderSectorLegend(context, root, spec, data, formats);
 
             return;
         }
@@ -206,7 +208,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         // Spokes round a centre rather than two axes along a box: the rings stand for the y axis, and the legend names the series.
         if (spec.Kind == RadarKind)
         {
-            RenderRadar(context, root, spec, data, y, formats, culture);
+            RenderRadar(context, root, spec, data, y, formats);
             RenderWindowValue(context, root);
             RenderLegend(context, root, spec, data);
 
@@ -214,11 +216,11 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         }
 
         // A chart with nothing around it has no ticks to write and no gutters to leave: the plot is the box, less a hair of air.
-        IReadOnlyList<ChartLabel> xTicks = spec.Bare ? [] : BuildTicks(spec.XAxis, formats.X, x, data.Categories, culture, data.Rows.Count > 0);
-        IReadOnlyList<ChartLabel> yTicks = spec.Bare ? [] : BuildTicks(spec.YAxis, formats.Y, y, data.Categories, culture, data.Rows.Count > 0);
+        IReadOnlyList<ChartLabel> xTicks = spec.Bare ? [] : BuildTicks(spec.XAxis, formats.X, x, data.Categories, formats, data.Rows.Count > 0);
+        IReadOnlyList<ChartLabel> yTicks = spec.Bare ? [] : BuildTicks(spec.YAxis, formats.Y, y, data.Categories, formats, data.Rows.Count > 0);
         ChartPlot plot = spec.Bare ? new ChartPlot(2, 2, NominalWidth - 4, NominalHeight - 4) : ResolvePlot(spec, spec.Horizontal ? xTicks : yTicks);
 
-        RenderCanvas(context, root, spec, data, plot, x, y, window is not null, xTicks, yTicks, formats, culture);
+        RenderCanvas(context, root, spec, data, plot, x, y, window is not null, xTicks, yTicks, formats);
         RenderWindowValue(context, root);
         RenderLegend(context, root, spec, data);
     }

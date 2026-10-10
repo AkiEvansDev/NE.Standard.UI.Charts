@@ -16,8 +16,9 @@ import { areaPath, coord, linePath, lineSegments } from "../src/chart-path.ts";
 import type { ChartPoint, Segment } from "../src/chart-path.ts";
 import { sectorsOf } from "../src/chart-pie.ts";
 import type { Spot } from "../src/chart-pie.ts";
-import { radarEdges, radarOutline, radarRadius, radarReach, radarSpokes, spokeAnchor, spokeAngle } from "../src/chart-radar.ts";
+import { radarEdges, radarOutline, radarRadius, radarReach, radarSpokes, ringLabel, spokeAnchor, spokeAngle } from "../src/chart-radar.ts";
 import { xNumber } from "../src/chart-rows.ts";
+import { readNumber } from "./framework-numbers.ts";
 import type { ChartSeriesData } from "../src/chart-rows.ts";
 import { stackSeries } from "../src/chart-stack.ts";
 import { defaultFormat, plotDown, plotX, plotY, resolveRange, step, ticks, valueOf, within } from "../src/chart-ticks.ts";
@@ -89,6 +90,7 @@ type Corpus = {
     readonly spokeAngles: readonly { readonly case: string; readonly index: number; readonly count: number; readonly expected: number; readonly anchor: string }[];
     readonly radarReaches: readonly { readonly case: string; readonly scale: Scale; readonly value: number | null; readonly radius: number; readonly expected: number }[];
     readonly radarRadii: readonly { readonly case: string; readonly width: number; readonly height: number; readonly across: number; readonly down: number; readonly expected: number }[];
+    readonly ringLabels: readonly { readonly case: string; readonly centre: Spot; readonly reach: number; readonly count: number; readonly expected: Spot }[];
     readonly outlines: readonly { readonly case: string; readonly spots: readonly Spot[]; readonly expected: string }[];
     readonly radii: readonly { readonly case: string; readonly size: number | null; readonly min: number; readonly max: number; readonly expected: number }[];
     readonly reaches: readonly { readonly radius: number; readonly expected: number }[];
@@ -145,7 +147,7 @@ test("corpus: the number a moment is read as", () => {
 
 test("corpus: the number an x's text is read as", () => {
     for (const entry of corpus.texts)
-        assert.equal(xNumber(entry.text, entry.kind, [], parse), entry.expected, entry.case);
+        assert.equal(xNumber(entry.text, entry.kind, [], parse, readNumber), entry.expected, entry.case);
 });
 
 test("corpus: the range an axis covers over the data it was given", () => {
@@ -285,6 +287,13 @@ test("corpus: a radar's spokes, how far a value reaches along one, and the shape
 
     for (const entry of corpus.radarRadii)
         close(radarRadius(entry.width, entry.height, entry.across, entry.down), entry.expected, entry.case);
+
+    for (const entry of corpus.ringLabels) {
+        const spot = ringLabel(entry.centre, entry.reach, entry.count);
+
+        close(spot.x, entry.expected.x, `${entry.case} (x)`);
+        close(spot.y, entry.expected.y, `${entry.case} (y)`);
+    }
 
     for (const entry of corpus.outlines)
         assert.equal(radarOutline(entry.spots), entry.expected, entry.case);

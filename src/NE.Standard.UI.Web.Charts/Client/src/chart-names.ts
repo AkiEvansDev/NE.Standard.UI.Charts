@@ -24,6 +24,7 @@ export const ChartClasses = {
     axes: "ui-chart__axes",
     axisLine: "ui-chart__axis-line",
     label: "ui-chart__label",
+    ringLabel: "ui-chart__ring-label",
     caption: "ui-chart__caption",
     empty: "ui-chart__empty",
     plot: "ui-chart__plot",
@@ -41,6 +42,8 @@ export const ChartClasses = {
     sectorEdge: "ui-chart__sector-edge",
     sectorAnchor: "ui-chart__sector-anchor",
     centre: "ui-chart__centre",
+    /** On a donut's words while the chart draws nothing: the empty word stands in the same middle. */
+    centreHidden: "ui-chart__centre--hidden",
     legend: "ui-chart__legend",
     legendEntry: "ui-chart__legend-entry",
     legendMark: "ui-chart__legend-mark",
@@ -72,11 +75,15 @@ export const ClientNames = {
     dragging: "ui-chart--dragging",
     backSeries: "ui-chart__series--back",
     frontBar: "ui-chart__bar--front",
+    /** On every bar but the one being read, while one is. */
+    backBar: "ui-chart__bar--back",
     /** On a point, a bar or a sector whose press waits out the double press's window, until its command runs or is called off. */
     pendingPoint: "ui-chart__point--pending",
     legendOff: "ui-chart__legend-entry--off",
     /** On a chart whose start or end legend stands under the plot, the chart too narrow for the two side by side. */
-    legendUnder: "ui-chart--legend-under"
+    legendUnder: "ui-chart--legend-under",
+    /** On a pie or a radar whose start or end legend stands beside it: its area as wide as the turn needs, the two centred together. */
+    turnBeside: "ui-chart--turn-beside"
 } as const;
 
 /** The kinds a chart is drawn as, by the model's `kind`. */
@@ -108,7 +115,6 @@ export const ChartWords = {
     label: "ui.chart.label",
     noReading: "ui.chart.no-reading",
     point: "ui.chart.point",
-    sector: "ui.chart.sector",
     reading: "ui.chart.reading",
     list: "ui.chart.list"
 } as const;
@@ -116,7 +122,5 @@ export const ChartWords = {
 /** The framework's names the client writes that `names` does not carry, held by the test to the framework's own spelling. */
 export const CoreNames = {
     ghostButtonClass: "ui-button--ghost",
-    smallButtonClass: "ui-button--small",
-    seriesColorCount: "--ui-color-series-count",
-    seriesColorPrefix: "--ui-color-series-"
+    smallButtonClass: "ui-button--small"
 } as const;

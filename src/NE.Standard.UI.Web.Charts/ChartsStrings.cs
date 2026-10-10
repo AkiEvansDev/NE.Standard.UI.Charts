@@ -19,11 +19,8 @@ public sealed partial class ChartsStrings : IUIStringsSource
     /// <summary>What a gauge says where it has no reading at all.</summary>
     public const string NoReading = "ui.chart.no-reading";
 
-    /// <summary>A point's tooltip: <c>{series}</c>, <c>{x}</c> and <c>{y}</c>, each already written.</summary>
+    /// <summary>A point's tooltip, a sector's too: <c>{series}</c>, <c>{x}</c> and <c>{y}</c>, each already written.</summary>
     public const string Point = "ui.chart.point";
-
-    /// <summary>A sector's tooltip: its <c>{label}</c> and its <c>{value}</c>.</summary>
-    public const string Sector = "ui.chart.sector";
 
     /// <summary>One series' line in a shared tooltip: <c>{series}</c> and its <c>{value}</c> at the x under the pointer.</summary>
     public const string Reading = "ui.chart.reading";
@@ -38,7 +35,6 @@ public sealed partial class ChartsStrings : IUIStringsSource
         [Chart] = "Chart",
         [NoReading] = "—",
         [Point] = "{series} — {x}: {y}",
-        [Sector] = "{label} — {value}",
         [Reading] = "{series}: {value}",
         [List] = "{list}, {next}"
     }.ToFrozenDictionary(StringComparer.Ordinal);
