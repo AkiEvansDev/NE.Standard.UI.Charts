@@ -22,9 +22,12 @@ would be a second rendering path with a data protocol of its own; it comes back 
 ## Install
 
 ```
-dotnet add package NE.Standard.UI.Charts
-dotnet add package NE.Standard.UI.Web.Charts
+dotnet add App package NE.Standard.UI.Charts
+dotnet add App.Web package NE.Standard.UI.Web.Charts
 ```
+
+The first is the component, for the application's library; the second its rendering, for the web project that hosts the
+library ([getting started](https://akievansdev.github.io/NE.Standard/getting-started.html)).
 
 Both packages bring their namespaces as global usings, so the code below needs no `using` line for them; a project that
 sets `NEStandardUIImplicitUsings` to `false` writes its own.
