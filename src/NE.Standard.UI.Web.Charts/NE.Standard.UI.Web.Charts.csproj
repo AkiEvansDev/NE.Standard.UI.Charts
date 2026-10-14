@@ -14,6 +14,12 @@
     <ProjectReference Include="..\NE.Standard.UI.Charts\NE.Standard.UI.Charts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+      <_Parameter1>NE.Test.Standard.UI.Charts</_Parameter1>
+    </AssemblyAttribute>
+  </ItemGroup>
+
   <!-- The framework is a sibling in the monorepo and a package in this slice's mirror. Either way the produced nupkg depends on
        the framework's rendering foundation at $(CoreVersion): a chart draws its own content and derives from no built-in renderer,
        so the foundation is enough. -->

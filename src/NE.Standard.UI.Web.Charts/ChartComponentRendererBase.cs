@@ -184,7 +184,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             _ = root.Class(PressableClassName);
 
         _ = root.Attribute(ModelAttribute, JsonSerializer.Serialize(BuildModel(spec, data, context), ModelJsonOptions));
-        _ = root.Attribute(RowsAttribute, JsonSerializer.Serialize(data.Rows, ModelJsonOptions));
+        _ = root.Attribute(RowsAttribute, JsonSerializer.Serialize(data.Slots, ModelJsonOptions));
 
         // The window is the x axis this frame draws; the y axis covers what the series reach inside it. Formats follow the
         // resolved scales, as the browser's do, so a tick and tooltip read the same on both sides.

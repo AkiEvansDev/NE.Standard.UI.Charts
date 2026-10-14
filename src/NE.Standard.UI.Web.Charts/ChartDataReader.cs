@@ -30,29 +30,44 @@ internal static class ChartDataReader
 
     private static void ReadRow(ChartSpec spec, ChartRenderData data, object? item, int index)
     {
+        // An item that is no row still holds its slot, so the page's changes, which name a place in the collection, find their rows.
         if (item is null)
+        {
+            data.Slots.Add(null);
             return;
+        }
 
         var key = ReadKey(item, index);
-        var raw = spec.XPath is null ? index : ReadPath(item, spec.XPath);
+
+        // With no x path a row is numbered by its place among the rows, not the items: chart-rows.ts numbers the rows it holds, and
+        // holds none for a null item.
+        object? raw = data.Rows.Count;
+
+        if (spec.XPath is not null)
+            _ = ItemContext.TryReadPath(item, spec.XPath, out raw);
+
         var text = ChartValues.ToText(raw);
 
         // A row whose x cannot be read is no point, not one at zero. Read off the text the browser is told, so every redraw
         // places it where the first frame did.
         if (raw is null || !ChartValues.TryToNumber(text, spec.XAxis.Kind, data.Categories, out var x))
+        {
+            data.Slots.Add(null);
             return;
+        }
 
         data.TrackX(x);
 
         if (spec.IsLongForm)
         {
-            var seriesKey = ChartValues.ToText(ReadPath(item, spec.SeriesPath!));
+            _ = ItemContext.TryReadPath(item, spec.SeriesPath!, out var seriesValue);
+            var seriesKey = ChartValues.ToText(seriesValue);
             ChartRenderSeries series = ResolveSeries(data, seriesKey);
             var value = ReadValue(item, series.Series.ValuePath ?? spec.ValuePath, data);
             var size = ReadSize(item, series.Series.SizePath, data);
 
             series.Points.Add(new ChartPoint(key, x, value, size));
-            data.Rows.Add(size is null ? [key, text, new[] { value }, seriesKey] : [key, text, new[] { value }, seriesKey, new[] { size }]);
+            data.AddRow(size is null ? [key, text, new[] { value }, seriesKey] : [key, text, new[] { value }, seriesKey, new[] { size }]);
 
             return;
         }
@@ -72,7 +87,7 @@ internal static class ChartDataReader
         }
 
         // The series slot stays where it is — a wide row names none — so the sizes come after it, and only where there are any.
-        data.Rows.Add(sized ? [key, text, values, null, sizes] : [key, text, values]);
+        data.AddRow(sized ? [key, text, values, null, sizes] : [key, text, values]);
     }
 
     /// <summary>The row's key, which the sink's own changes name a row by; its place in the collection where it has none.</summary>
@@ -107,7 +122,9 @@ internal static class ChartDataReader
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
-        if (!ChartValues.TryToNumber(ReadPath(item, path), UIChartAxisKind.Linear, null, out var value))
+        _ = ItemContext.TryReadPath(item, path, out var read);
+
+        if (!ChartValues.TryToNumber(read, UIChartAxisKind.Linear, null, out var value))
             return null;
 
         data.TrackY(value);
@@ -121,34 +138,13 @@ internal static class ChartDataReader
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
-        if (!ChartValues.TryToNumber(ReadPath(item, path), UIChartAxisKind.Linear, null, out var value))
+        _ = ItemContext.TryReadPath(item, path, out var read);
+
+        if (!ChartValues.TryToNumber(read, UIChartAxisKind.Linear, null, out var value))
             return null;
 
         data.TrackSize(value);
 
         return value;
-    }
-
-    /// <summary>The value at a property path, stepping through the dots; nothing where a step of it is missing.</summary>
-    private static object? ReadPath(object? item, string path)
-    {
-        var current = item;
-        var start = 0;
-
-        while (start <= path.Length)
-        {
-            var dot = path.IndexOf('.', start);
-            var end = dot < 0 ? path.Length : dot;
-
-            if (end > start && !ItemContext.TryReadProperty(current, path[start..end], out current))
-                return null;
-
-            if (dot < 0)
-                return current;
-
-            start = dot + 1;
-        }
-
-        return current;
     }
 }

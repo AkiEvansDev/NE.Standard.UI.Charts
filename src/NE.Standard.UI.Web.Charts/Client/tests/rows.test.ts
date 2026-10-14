@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ChartModel, ChartSeries } from "../src/chart-model.ts";
-import { applyChange, buildData, rowFromItem, xNumber } from "../src/chart-rows.ts";
+import { applyChange, buildData, readSlots, rowFromItem, rowsOf, xNumber } from "../src/chart-rows.ts";
 import type { MomentParser } from "../src/chart-moment.ts";
-import type { ChartRow, PathReader } from "../src/chart-rows.ts";
+import type { ChartRow, ChartSlot, PathReader } from "../src/chart-rows.ts";
 import { readNumber } from "./framework-numbers.ts";
 
 // The framework's reader is the runtime's; here a row's property is its camel-cased name, which is what the wire carries.
@@ -154,6 +154,45 @@ test("with no x path a row stands at its place, and a row taken off the front mo
     assert.deepEqual(data.series[0].points.map(point => [point.key, point.x, point.y]), [["b", 0, 6], ["c", 1, 7]]);
 });
 
+test("the server's rows hold an empty slot for an item that is none, so a change's index finds the item's place", () => {
+    // [A, null, B] with no x path, as the server writes it: the null item holds its slot and is no point.
+    const root = { getAttribute: () => JSON.stringify([["a", "0", [5]], null, ["b", "1", [6]]]) } as unknown as Element;
+    const slots = readSlots(root, readNumber);
+    const numbered = model({ xPath: null, series: [series("value", "Value")] });
+
+    assert.deepEqual(slots.map(slot => slot?.key ?? null), ["a", null, "b"]);
+
+    // C inserted before B, at B's place in the collection; then the null item replaced by D, at its own.
+    applyChange(slots, "Insert", [{ key: "c", oldKey: null, index: 2, item: { value: 7 } }], [], numbered, read, readNumber);
+    applyChange(slots, "Replace", [{ key: "d", oldKey: "1", index: 1, item: { value: 8 } }], [], numbered, read, readNumber);
+
+    assert.deepEqual(slots.map(slot => slot?.key ?? null), ["a", "d", "c", "b"]);
+
+    const data = buildData(rowsOf(slots), numbered, parse, readNumber);
+
+    assert.deepEqual(data.series[0].points.map(point => [point.key, point.x, point.y]), [["a", 0, 5], ["d", 1, 8], ["c", 2, 7], ["b", 3, 6]]);
+});
+
+test("a null item inserted, replaced into or removed by its index holds or gives up its slot without moving a row", () => {
+    const single = model({ series: [series("value", "Value")] });
+    const slots: ChartSlot[] = [{ key: "a", x: "1", values: [1], series: null, sizes: [] }, { key: "b", x: "2", values: [2], series: null, sizes: [] }];
+
+    applyChange(slots, "Insert", [{ key: "n", oldKey: null, index: 1, item: null }], [], single, read, readNumber);
+    assert.deepEqual(slots.map(slot => slot?.key ?? null), ["a", null, "b"]);
+
+    // An item whose x path reads nothing is no row either, as the server holds none for it.
+    applyChange(slots, "Replace", [{ key: "a", oldKey: "a", index: 0, item: { value: 3 } }], [], single, read, readNumber);
+    assert.deepEqual(slots.map(slot => slot?.key ?? null), [null, null, "b"]);
+
+    applyChange(slots, "Remove", [{ key: "n", oldKey: "n", index: 1, item: null }], [], single, read, readNumber);
+    applyChange(slots, "Insert", [{ key: "c", oldKey: null, index: 1, item: { time: 3, value: 3 } }], [], single, read, readNumber);
+    assert.deepEqual(slots.map(slot => slot?.key ?? null), [null, "c", "b"]);
+
+    applyChange(slots, "Move", [], [{ key: null, oldIndex: 0, newIndex: 2 }], single, read, readNumber);
+    assert.deepEqual(slots.map(slot => slot?.key ?? null), ["c", "b", null]);
+    assert.deepEqual(rowsOf(slots).map(row => row.key), ["c", "b"]);
+});
+
 test("an insert of many rows keeps their order and holds each key once", () => {
     const rows: ChartRow[] = [];
     const single = model({ series: [series("value", "Value")] });
@@ -168,11 +207,11 @@ test("an insert of many rows keeps their order and holds each key once", () => {
 
 test("a patched row with no x is no point, and names no blank band, as the server's reader skips it", () => {
     const bands = model({ x: { kind: "Category", min: null, max: null, format: null, grid: true, ticks: 5, caption: null }, series: [series("value", "Value")] });
-    const rows: ChartRow[] = [];
+    const slots: ChartSlot[] = [];
 
-    applyChange(rows, "Insert", [{ key: "a", oldKey: null, index: 0, item: { time: "Berlin", value: 1 } }, { key: "b", oldKey: null, index: 1, item: { time: null, value: 2 } }], [], bands, read, readNumber);
+    applyChange(slots, "Insert", [{ key: "a", oldKey: null, index: 0, item: { time: "Berlin", value: 1 } }, { key: "b", oldKey: null, index: 1, item: { time: null, value: 2 } }], [], bands, read, readNumber);
 
-    const data = buildData(rows, bands, parse, readNumber);
+    const data = buildData(rowsOf(slots), bands, parse, readNumber);
 
     assert.deepEqual(data.categories, ["Berlin"]);
     assert.deepEqual(data.series[0].points.map(point => point.key), ["a"]);

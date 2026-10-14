@@ -51,8 +51,11 @@ export type ChartChangeItem = {
 /** A text read as a number as the server's invariant culture reads one — the framework's `numbers.parseInvariant`. */
 export type NumberReader = (text: string) => number | null;
 
-/** The rows the server drew from; an empty list where the attribute is missing or does not parse. */
-export function readRows(root: Element, readNumber: NumberReader): ChartRow[] {
+/** What an item holds in the list: its row, or null for an item that is none — a null, or one whose x the server could not read. */
+export type ChartSlot = ChartRow | null;
+
+/** A slot per item as the server drew them; an empty list where the attribute is missing or does not parse. */
+export function readSlots(root: Element, readNumber: NumberReader): ChartSlot[] {
     const text = root.getAttribute(ChartAttributes.rows);
 
     if (text === null || text.length === 0)
@@ -60,25 +63,39 @@ export function readRows(root: Element, readNumber: NumberReader): ChartRow[] {
 
     try {
         const raw = JSON.parse(text) as unknown[];
-        const rows: ChartRow[] = [];
+        const slots: ChartSlot[] = [];
 
         for (const entry of raw) {
-            if (!Array.isArray(entry))
+            if (!Array.isArray(entry)) {
+                slots.push(null);
                 continue;
+            }
 
             const values = Array.isArray(entry[2]) ? (entry[2] as unknown[]).map(value => numberOf(value, readNumber)) : [];
             const sizes = Array.isArray(entry[4]) ? (entry[4] as unknown[]).map(value => numberOf(value, readNumber)) : [];
             // The series slot is there but empty on a wide row, which is what makes room for the sizes after it.
             const series = entry.length > 3 && entry[3] !== null && entry[3] !== undefined ? String(entry[3]) : null;
 
-            rows.push({ key: String(entry[0] ?? ""), x: String(entry[1] ?? ""), values, series, sizes });
+            slots.push({ key: String(entry[0] ?? ""), x: String(entry[1] ?? ""), values, series, sizes });
         }
 
-        return rows;
+        return slots;
     }
     catch {
         return [];
     }
+}
+
+/** The rows the slots hold, in their order: what is drawn. */
+export function rowsOf(slots: readonly ChartSlot[]): ChartRow[] {
+    const rows: ChartRow[] = [];
+
+    for (const slot of slots) {
+        if (slot !== null)
+            rows.push(slot);
+    }
+
+    return rows;
 }
 
 /** A property read off an item — the framework's own rule, `rows.readPath` on the engine context; a test hands in a plain one. */
@@ -119,9 +136,12 @@ export function rowFromItem(item: unknown, key: string, model: ChartModel, read:
     return { key, x, values, series: null, sizes: sized ? sizes : [] };
 }
 
-/** The rows after a collection change; the same array, patched, so the caller keeps one list per chart. */
+/**
+ * The slots after a collection change; the same array, patched, so the caller keeps one list per chart. A slot per item, an empty one
+ * included, keeps a change's index the item's place in the collection, which the rows alone lose past an item that is none.
+ */
 export function applyChange(
-    rows: ChartRow[],
+    slots: ChartSlot[],
     action: string,
     items: readonly ChartChangeItem[],
     moves: readonly { key: string | null; oldIndex: number | null; newIndex: number | null }[],
@@ -130,62 +150,94 @@ export function applyChange(
     readNumber: NumberReader
 ): void {
     if (action === "Reset") {
-        rows.length = 0;
-        return;
-    }
-
-    if (action === "Move") {
-        for (const move of moves)
-            moveRow(rows, move.key, move.oldIndex, move.newIndex);
-
+        slots.length = 0;
         return;
     }
 
     // The keys held, so an insert of many rows — the first load is one — asks a set rather than scanning the list once per row.
     const keys = new Set<string>();
 
-    for (const row of rows)
-        keys.add(row.key);
+    for (const slot of slots) {
+        if (slot !== null)
+            keys.add(slot.key);
+    }
+
+    if (action === "Move") {
+        for (const move of moves)
+            moveSlot(slots, keys, move.key, move.oldIndex, move.newIndex);
+
+        return;
+    }
 
     for (const change of items) {
         const key = change.key ?? change.oldKey;
 
-        if (key === null)
-            continue;
-
         if (action === "Remove") {
-            const at = keys.has(key) ? indexOfKey(rows, key) : -1;
+            const at = slotOf(slots, keys, key, change.index);
 
-            if (at >= 0) {
-                rows.splice(at, 1);
-                keys.delete(key);
-            }
+            if (at >= 0)
+                forget(keys, slots.splice(at, 1)[0]);
 
             continue;
         }
 
-        const row = rowFromItem(change.item, change.key ?? key, model, read, readNumber);
-        const heldKey = action === "Replace" ? change.oldKey ?? key : key;
-
-        // A key the list already holds is that row, whichever action names it: an Insert of one must not draw the point twice.
-        const held = keys.has(heldKey) ? indexOfKey(rows, heldKey) : -1;
+        const slot = slotFromItem(change.item, change.key ?? key ?? "", model, read, readNumber);
+        // A key the list already holds is that row, whichever action names it: an Insert of one must not draw the point twice. A
+        // Replace of an item that was none takes its empty slot, which no key finds.
+        const held = action === "Replace" ? slotOf(slots, keys, change.oldKey ?? key, change.index) : slotOf(slots, keys, key, null);
 
         if (held >= 0) {
-            rows[held] = row;
-            keys.delete(heldKey);
-            keys.add(row.key);
-            continue;
+            forget(keys, slots[held]);
+            slots[held] = slot;
         }
-
-        const index = change.index;
-
-        if (index === null || index < 0 || index >= rows.length)
-            rows.push(row);
+        else if (change.index === null || change.index < 0 || change.index >= slots.length)
+            slots.push(slot);
         else
-            rows.splice(index, 0, row);
+            slots.splice(change.index, 0, slot);
 
-        keys.add(row.key);
+        if (slot !== null)
+            keys.add(slot.key);
     }
+}
+
+/** What an item holds: its row, or none for a null item or one whose x path reads nothing, as the server's reader holds none. */
+function slotFromItem(item: unknown, key: string, model: ChartModel, read: PathReader, readNumber: NumberReader): ChartSlot {
+    if (item === null || item === undefined)
+        return null;
+
+    const row = rowFromItem(item, key, model, read, readNumber);
+
+    return model.xPath !== null && row.x === null ? null : row;
+}
+
+/** The slot of the row of that key, else the empty slot at that index — an item that was none has no key to find it by; -1 for neither. */
+function slotOf(slots: readonly ChartSlot[], keys: ReadonlySet<string>, key: string | null, index: number | null): number {
+    if (key !== null && keys.has(key)) {
+        for (let i = 0; i < slots.length; i++) {
+            if (slots[i]?.key === key)
+                return i;
+        }
+    }
+
+    return index !== null && index >= 0 && index < slots.length && slots[index] === null ? index : -1;
+}
+
+function forget(keys: Set<string>, slot: ChartSlot | undefined): void {
+    if (slot !== null && slot !== undefined)
+        keys.delete(slot.key);
+}
+
+/** A slot taken by its row's key, or an empty one by its index, to where the source moved its item. */
+function moveSlot(slots: ChartSlot[], keys: ReadonlySet<string>, key: string | null, oldIndex: number | null, newIndex: number | null): void {
+    const from = slotOf(slots, keys, key, oldIndex);
+
+    if (from < 0)
+        return;
+
+    const [slot] = slots.splice(from, 1);
+    const to = newIndex === null || newIndex < 0 || newIndex > slots.length ? slots.length : newIndex;
+
+    slots.splice(to, 0, slot);
 }
 
 /** The rows as points: a series per key, the names a category axis met, and how far the data reaches on either axis. */
@@ -327,25 +379,4 @@ function resolveSeries(series: ChartSeriesData[], key: string): ChartSeriesData 
     series.push(added);
 
     return added;
-}
-
-function indexOfKey(rows: readonly ChartRow[], key: string): number {
-    for (let i = 0; i < rows.length; i++) {
-        if (rows[i].key === key)
-            return i;
-    }
-
-    return -1;
-}
-
-function moveRow(rows: ChartRow[], key: string | null, oldIndex: number | null, newIndex: number | null): void {
-    const from = key !== null ? indexOfKey(rows, key) : oldIndex ?? -1;
-
-    if (from < 0 || from >= rows.length)
-        return;
-
-    const [row] = rows.splice(from, 1);
-    const to = newIndex === null || newIndex < 0 || newIndex > rows.length ? rows.length : newIndex;
-
-    rows.splice(to, 0, row);
 }

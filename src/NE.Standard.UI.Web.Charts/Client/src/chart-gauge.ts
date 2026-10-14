@@ -19,7 +19,7 @@ export type GaugeFormatting = {
  */
 export function applyGaugeValue(target: Element, value: unknown, formatting: GaugeFormatting): void {
     const format = target.getAttribute(ChartAttributes.gaugeFormat) ?? "N0";
-    const number = typeof value === "number" ? value : typeof value === "string" && value.length > 0 ? Number(value) : Number.NaN;
+    const number = typeof value === "number" ? value : typeof value === "string" ? formatting.numbers.parseInvariant(value) ?? Number.NaN : Number.NaN;
     const reads = Number.isFinite(number);
     const text = reads
         ? formatting.numbers.format(number, format, formatting.numbers.readCulture(target))

@@ -32,8 +32,14 @@ internal sealed class ChartRenderData
 
     public List<ChartRenderSeries> Series { get; } = [];
 
-    /// <summary>The rows as <c>data-ui-chart-rows</c> carries them: the key, the x as text, the value per series, and the series a long-form row names.</summary>
+    /// <summary>The rows that are points: the key, the x as text, the value per series, and the series a long-form row names.</summary>
     public List<object?[]> Rows { get; } = [];
+
+    /// <summary>
+    /// What <c>data-ui-chart-rows</c> carries: an entry per item, its row or null where the item is none (null, or its x unread), so
+    /// a collection change's index lands on its row in <c>chart-rows.ts</c>.
+    /// </summary>
+    public List<object?[]?> Slots { get; } = [];
 
     public double XMin { get; set; } = double.PositiveInfinity;
 
@@ -46,6 +52,13 @@ internal sealed class ChartRenderData
     public double SizeMin { get; set; } = double.PositiveInfinity;
 
     public double SizeMax { get; set; } = double.NegativeInfinity;
+
+    /// <summary>Holds a row that is a point, in its item's slot.</summary>
+    public void AddRow(object?[] row)
+    {
+        Rows.Add(row);
+        Slots.Add(row);
+    }
 
     /// <summary>Widens the reach of the x axis to take the value in.</summary>
     public void TrackX(double value)

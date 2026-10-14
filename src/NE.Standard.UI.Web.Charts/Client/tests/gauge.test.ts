@@ -7,6 +7,7 @@ import test from "node:test";
 import { applyGaugeValue } from "../src/chart-gauge.ts";
 import type { GaugeFormatting } from "../src/chart-gauge.ts";
 import { ChartWords } from "../src/chart-names.ts";
+import { readNumber } from "./framework-numbers.ts";
 
 type Unit = { hidden: boolean };
 
@@ -19,7 +20,7 @@ function reading(format: string | null, unitHidden: boolean): { readonly number:
 }
 
 const formatting = {
-    numbers: { format: (value: number, format: string) => `${format} ${value}`, readCulture: () => null },
+    numbers: { format: (value: number, format: string) => `${format} ${value}`, readCulture: () => null, parseInvariant: readNumber },
     strings: { text: (key: string) => (key === ChartWords.noReading ? "none" : key) }
 } as unknown as GaugeFormatting;
 
@@ -47,8 +48,8 @@ test("no reading writes the word for none and hides the unit, which a later read
     assert.equal(unit.hidden, false);
 });
 
-test("an empty or unreadable value is no reading", () => {
-    for (const value of ["", "abc", undefined]) {
+test("an empty or unreadable value is no reading, a hex or an infinity among them as the server reads them", () => {
+    for (const value of ["", "abc", "0x10", "Infinity", undefined]) {
         const { number, unit } = reading(null, false);
 
         applyGaugeValue(number, value, formatting);

@@ -9,8 +9,8 @@ import { readModel, translateModel } from "./chart-model.ts";
 import type { ChartModel } from "./chart-model.ts";
 import { ChartAttributes, ChartClasses, ChartEvents, ClientNames } from "./chart-names.ts";
 import { DoublePressWait, PointPress, seriesOf } from "./chart-press.ts";
-import { applyChange, readRows } from "./chart-rows.ts";
-import type { ChartRow } from "./chart-rows.ts";
+import { applyChange, readSlots, rowsOf } from "./chart-rows.ts";
+import type { ChartRow, ChartSlot } from "./chart-rows.ts";
 import { valueOf } from "./chart-ticks.ts";
 import { sameWindow, wheelWindow, zoomNotches } from "./chart-wheel.ts";
 import { panWindow } from "./chart-window.ts";
@@ -50,7 +50,10 @@ type ChartEntry = {
     readonly root: HTMLElement;
     /** The model in the page's words, translated again at a language switch. */
     model: ChartModel;
-    readonly rows: ChartRow[];
+    /** A slot per item of the collection, an empty one for an item that is no row, so a change's index finds its row. */
+    readonly slots: ChartSlot[];
+    /** What the slots hold, drawn. */
+    rows: ChartRow[];
     readonly hidden: Set<string>;
     readonly modelText: string;
     rowsText: string;
@@ -210,8 +213,9 @@ export class ChartEngine {
 
         if (existing !== undefined && existing.modelText === modelText) {
             if (existing.rowsText !== rowsText) {
-                existing.rows.length = 0;
-                existing.rows.push(...readRows(root, this.formatting.numbers.parseInvariant));
+                existing.slots.length = 0;
+                existing.slots.push(...readSlots(root, this.formatting.numbers.parseInvariant));
+                existing.rows = rowsOf(existing.slots);
                 existing.rowsText = rowsText;
             }
 
@@ -224,11 +228,13 @@ export class ChartEngine {
             return null;
 
         const model = translateModel(written, text => this.formatting.strings.resolveText(text));
+        const slots = readSlots(root, this.formatting.numbers.parseInvariant);
 
         const entry: ChartEntry = {
             root,
             model,
-            rows: readRows(root, this.formatting.numbers.parseInvariant),
+            slots,
+            rows: rowsOf(slots),
             hidden: existing?.hidden ?? new Set<string>(),
             modelText,
             rowsText,
@@ -351,7 +357,8 @@ export class ChartEngine {
 
         // The attribute stays as first-frame data; re-reading it would undo the patch. Only a fresh render from the server
         // writes a new one.
-        applyChange(entry.rows, change.action, change.items, change.moves, entry.model, this.readPath, this.formatting.numbers.parseInvariant);
+        applyChange(entry.slots, change.action, change.items, change.moves, entry.model, this.readPath, this.formatting.numbers.parseInvariant);
+        entry.rows = rowsOf(entry.slots);
 
         // A point arrived: a window at the far end follows it, which the draw works out from the data it draws.
         if (entry.model.followLatest && entry.view !== null && entry.anchored)
