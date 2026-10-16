@@ -1,6 +1,6 @@
 // A series as the SVG it becomes; the port of `ChartPath`, so a server- and a browser-drawn chart match exactly.
 
-import { plotX, plotY, within } from "./chart-ticks.ts";
+import { plotRight, plotX, plotY, within } from "./chart-ticks.ts";
 import type { Plot, Scale } from "./chart-ticks.ts";
 
 export type ChartPoint = {
@@ -87,52 +87,69 @@ export function lineSegments(points: readonly ChartPoint[], x: Scale, y: Scale, 
             continue;
         }
 
-        addRunPieces(segments, run, stepped, smooth);
+        addRunPieces(segments, run, stepped, smooth, plot);
         run = [];
     }
 
-    addRunPieces(segments, run, stepped, smooth);
+    addRunPieces(segments, run, stepped, smooth, plot);
 
     return segments;
 }
 
-/** One unbroken run's pieces, the way `linePath` walks it: straight, stepped, or curved. */
-function addRunPieces(segments: Segment[], run: readonly Vertex[], stepped: boolean, smooth: boolean): void {
+/**
+ * One unbroken run's pieces, the way `linePath` walks it: straight, stepped, or curved. A piece wholly beside the plot is left out,
+ * or a window deep in many points would lay a piece of every one of them off the plot.
+ */
+function addRunPieces(segments: Segment[], run: readonly Vertex[], stepped: boolean, smooth: boolean, plot: Plot): void {
     if (run.length < 2)
         return;
 
     if (stepped) {
-        addStepPieces(segments, run);
+        addStepPieces(segments, run, plot);
         return;
     }
 
     for (let i = 1; i < run.length; i++) {
         if (smooth)
-            addCurvePieces(segments, run, i);
+            addCurvePieces(segments, run, i, plot);
         else
-            addSegment(segments, run[i - 1].x, run[i - 1].y, run[i].x, run[i].y);
+            addShownSegment(segments, plot, run[i - 1].x, run[i - 1].y, run[i].x, run[i].y);
     }
 }
 
 /** The stair `steps` draws: across to halfway, up or down to the next value, and across to the last point. */
-function addStepPieces(segments: Segment[], run: readonly Vertex[]): void {
+function addStepPieces(segments: Segment[], run: readonly Vertex[], plot: Plot): void {
     let atX = run[0].x;
     let atY = run[0].y;
 
     for (let i = 1; i < run.length; i++) {
         const middle = (run[i - 1].x + run[i].x) / 2;
 
-        addSegment(segments, atX, atY, middle, atY);
-        addSegment(segments, middle, atY, middle, run[i].y);
+        addShownSegment(segments, plot, atX, atY, middle, atY);
+        addShownSegment(segments, plot, middle, atY, middle, run[i].y);
         atX = middle;
         atY = run[i].y;
     }
 
-    addSegment(segments, atX, atY, run[run.length - 1].x, atY);
+    addShownSegment(segments, plot, atX, atY, run[run.length - 1].x, atY);
 }
 
-/** The curve `curve` draws into a point, cut into pieces about `CurvePiece` long. */
-function addCurvePieces(segments: Segment[], run: readonly Vertex[], index: number): void {
+/** A piece from one place to another, left out where it lies wholly beside the plot. */
+function addShownSegment(segments: Segment[], plot: Plot, fromX: number, fromY: number, toX: number, toY: number): void {
+    if (!beside(plot, Math.min(fromX, toX), Math.max(fromX, toX)))
+        addSegment(segments, fromX, fromY, toX, toY);
+}
+
+/** Whether a stretch across, from its least x to its greatest, lies wholly before or past the plot, where none of it shows. */
+function beside(plot: Plot, least: number, greatest: number): boolean {
+    return greatest < plot.left || least > plotRight(plot);
+}
+
+/**
+ * The curve `curve` draws into a point, cut into pieces about `CurvePiece` long — none where it lies wholly beside the plot, and
+ * no more than the plot's edge is long, which a curve through a value far off a zoomed plot would pass many times over.
+ */
+function addCurvePieces(segments: Segment[], run: readonly Vertex[], index: number, plot: Plot): void {
     const before = Math.max(0, index - 2);
     const after = Math.min(run.length - 1, index + 1);
 
@@ -145,8 +162,12 @@ function addCurvePieces(segments: Segment[], run: readonly Vertex[], index: numb
     const secondX = endX - (run[after].x - startX) / 6;
     const secondY = endY - (run[after].y - startY) / 6;
 
+    // The curve lies inside the four points it is drawn through and toward, so one whose four lie beside the plot shows nothing.
+    if (beside(plot, Math.min(startX, firstX, secondX, endX), Math.max(startX, firstX, secondX, endX)))
+        return;
+
     const reach = distance(startX, startY, firstX, firstY) + distance(firstX, firstY, secondX, secondY) + distance(secondX, secondY, endX, endY);
-    const pieces = Math.max(1, Math.ceil(reach / CurvePiece));
+    const pieces = Math.max(1, Math.min(Math.ceil(reach / CurvePiece), Math.ceil(2 * (plot.width + plot.height) / CurvePiece)));
     let atX = startX;
     let atY = startY;
 

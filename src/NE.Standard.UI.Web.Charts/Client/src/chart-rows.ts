@@ -242,9 +242,12 @@ function moveSlot(slots: ChartSlot[], keys: ReadonlySet<string>, key: string | n
 
 /** The rows as points: a series per key, the names a category axis met, and how far the data reaches on either axis. */
 export function buildData(rows: readonly ChartRow[], model: ChartModel, parse: MomentParser, readNumber: NumberReader): ChartData {
-    const categories: string[] = [];
+    const categories = new Map<string, number>();
     const series: ChartSeriesData[] = model.series.map((entry, index) => ({ series: entry, index, points: [], drawn: [] }));
     const long = isLongForm(model);
+    // A logarithmic axis has no place for zero or below: such an x is no point and such a value a gap, so neither reaches a range.
+    const logarithmicX = model.x.kind === "Logarithmic";
+    const logarithmicY = model.y.kind === "Logarithmic";
     const x = emptyExtent();
     const y = emptyExtent();
     const size = emptyExtent();
@@ -256,7 +259,7 @@ export function buildData(rows: readonly ChartRow[], model: ChartModel, parse: M
         const at = model.xPath === null ? placeNumber(place, model.x.kind, categories) : row.x === null ? null : xNumber(row.x, model.x.kind, categories, parse, readNumber);
 
         // A row whose x cannot be read is no point at all, rather than a point at zero.
-        if (at === null)
+        if (at === null || (logarithmicX && at <= 0))
             continue;
 
         extend(x, at);
@@ -264,19 +267,24 @@ export function buildData(rows: readonly ChartRow[], model: ChartModel, parse: M
         if (long) {
             const target = resolveSeries(series, row.series ?? "");
 
-            addPoint(target, row, at, row.values.length > 0 ? row.values[0] : null, row.sizes.length > 0 ? row.sizes[0] : null, y, size);
+            addPoint(target, row, at, placed(row.values.length > 0 ? row.values[0] : null, logarithmicY), row.sizes.length > 0 ? row.sizes[0] : null, y, size);
             continue;
         }
 
         for (let i = 0; i < series.length; i++)
-            addPoint(series[i], row, at, i < row.values.length ? row.values[i] : null, i < row.sizes.length ? row.sizes[i] : null, y, size);
+            addPoint(series[i], row, at, placed(i < row.values.length ? row.values[i] : null, logarithmicY), i < row.sizes.length ? row.sizes[i] : null, y, size);
     }
 
     // Until a stack says otherwise, a series is drawn from its own points.
     for (const entry of series)
         entry.drawn = entry.points;
 
-    return { series, categories, xMin: x.min, xMax: x.max, yMin: y.min, yMax: y.max, sizeMin: size.min, sizeMax: size.max };
+    return { series, categories: [...categories.keys()], xMin: x.min, xMax: x.max, yMin: y.min, yMax: y.max, sizeMin: size.min, sizeMax: size.max };
+}
+
+/** The value as the y axis places it: none at zero or below on a logarithmic one. */
+function placed(value: number | null, logarithmic: boolean): number | null {
+    return logarithmic && value !== null && value <= 0 ? null : value;
 }
 
 /** One point onto its series, and the value and the size, where the row has them, into how far the data reaches. */
@@ -303,21 +311,25 @@ function extend(extent: Extent, value: number): void {
 }
 
 /** A row's place as its axis's number: itself, or on a category axis the place's own name, as the server writes it. */
-function placeNumber(place: number, kind: string, categories: string[]): number {
+function placeNumber(place: number, kind: string, categories: Map<string, number>): number {
     return kind === "Category" ? xNumber(String(place), kind, categories, () => null, () => null) ?? place : place;
 }
 
-/** The x as its axis's number, read as the server reads it (`ChartValues.TryToNumber`). */
-export function xNumber(text: string, kind: string, categories: string[], parse: MomentParser, readNumber: NumberReader): number | null {
+/**
+ * The x as its axis's number, read as the server reads it (`ChartValues.TryToNumber`). A name is its place among `categories`, the
+ * names met so far in the order they arrived, found by its key rather than by a search of every name for every row; a name met for
+ * the first time takes the next.
+ */
+export function xNumber(text: string, kind: string, categories: Map<string, number>, parse: MomentParser, readNumber: NumberReader): number | null {
     if (kind === "Category") {
-        const index = categories.indexOf(text);
+        const place = categories.get(text);
 
-        if (index >= 0)
-            return index;
+        if (place !== undefined)
+            return place;
 
-        categories.push(text);
+        categories.set(text, categories.size);
 
-        return categories.length - 1;
+        return categories.size - 1;
     }
 
     const value = readNumber(text);

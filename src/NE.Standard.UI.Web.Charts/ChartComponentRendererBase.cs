@@ -156,6 +156,11 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         ArgumentNullException.ThrowIfNull(root);
 
         ChartSpec spec = ReadSpec(context);
+
+        // Refused with no rows as well, as an axis format is: a row numbered by its place starts at 0, which no logarithm places.
+        if (spec.XAxis.Kind == UIChartAxisKind.Logarithmic && spec.XPath is null)
+            throw new InvalidOperationException($"XAxis of chart '{context.Node.AuthoringId}' cannot be logarithmic with no x path: its rows are numbered by their place from 0, which a logarithmic axis cannot place; read the x from a row property with SetX, or keep the axis linear.");
+
         ChartRenderData data = ChartDataReader.Read(spec, ResolveItems(context).Items);
         CultureInfo culture = ResolveCulture(context);
 

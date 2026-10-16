@@ -24,6 +24,13 @@ public static class ChartValues
     /// The number the axis reads the value as (a moment in milliseconds, a name by its place); false when it cannot.
     /// </summary>
     public static bool TryToNumber(object? value, UIChartAxisKind kind, IList<string>? categories, out double number)
+        => TryToNumber(value, kind, categories, null, out number);
+
+    /// <summary>
+    /// The number the axis reads the value as, a name found by its place in <paramref name="places"/>, which the caller keeps beside
+    /// <paramref name="categories"/>, rather than by a search of every name for every row; a name met for the first time joins both.
+    /// </summary>
+    public static bool TryToNumber(object? value, UIChartAxisKind kind, IList<string>? categories, IDictionary<string, int>? places, out double number)
     {
         number = 0;
 
@@ -36,12 +43,13 @@ public static class ChartValues
                 return false;
 
             var name = ToText(value);
-            var index = categories.IndexOf(name);
+            var index = places is null ? categories.IndexOf(name) : places.TryGetValue(name, out var place) ? place : -1;
 
             if (index < 0)
             {
                 index = categories.Count;
                 categories.Add(name);
+                places?.Add(name, index);
             }
 
             number = index;

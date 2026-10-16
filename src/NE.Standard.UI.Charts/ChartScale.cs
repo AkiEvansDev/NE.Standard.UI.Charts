@@ -26,6 +26,10 @@ public readonly record struct ChartScale(double Min, double Max, bool Logarithmi
 
         var width = Max - Min;
 
+        // A range wider than the largest double is measured in halves, which a double holds.
+        if (double.IsPositiveInfinity(width))
+            return ((value / 2) - (Min / 2)) / ((Max / 2) - (Min / 2));
+
         return width <= 0 ? 0 : (value - Min) / width;
     }
 
@@ -35,7 +39,12 @@ public readonly record struct ChartScale(double Min, double Max, bool Logarithmi
     public double Value(double share)
     {
         if (!Logarithmic)
-            return Min + (share * (Max - Min));
+        {
+            var width = Max - Min;
+
+            // A range wider than the largest double: each end weighed by its share, neither of which overflows.
+            return double.IsPositiveInfinity(width) ? ((1 - share) * Min) + (share * Max) : Min + (share * width);
+        }
 
         if (Min <= 0 || Max <= 0)
             return Min;

@@ -39,7 +39,7 @@ public static class ChartRange
 
             low = low > 0 ? low : 1;
 
-            return new ChartScale(low, high > low ? high : low * 10, true);
+            return new ChartScale(low, Finite(high > low ? high : low * 10), true);
         }
 
         if (max - min <= 0)
@@ -49,14 +49,14 @@ public static class ChartRange
             var padding = axis.Kind == UIChartAxisKind.Time ? Day : Math.Abs(min) > 0 ? Math.Abs(min) / 8 : 1;
 
             // An end the author fixed past the data leaves the open one built from it, so the range never runs backward.
-            return WithinTime(axis.Kind, axis.Min ?? (Math.Min(min, max) - padding), axis.Max ?? (Math.Max(min, max) + padding));
+            return Bounded(axis.Kind, axis.Min ?? (Math.Min(min, max) - padding), axis.Max ?? (Math.Max(min, max) + padding));
         }
 
         var step = ChartTicks.Step(axis.Kind, min, max, axis.TickCount);
         var months = axis.Kind == UIChartAxisKind.Time ? ChartCalendar.MonthsOf(step) : 0;
 
         if (months == 0)
-            return WithinTime(axis.Kind, axis.Min ?? (Math.Floor(min / step) * step), axis.Max ?? (Math.Ceiling(max / step) * step));
+            return Bounded(axis.Kind, axis.Min ?? (Math.Floor(min / step) * step), axis.Max ?? (Math.Ceiling(max / step) * step));
 
         // A step of whole months rounds out to the first of a month it marks, not to a multiple of days from the epoch.
         var last = ChartCalendar.FloorToStep(ChartCalendar.MonthOf(max), months);
@@ -64,14 +64,21 @@ public static class ChartRange
         if (ChartCalendar.MonthStart(last) < max)
             last += months;
 
-        return WithinTime(axis.Kind, axis.Min ?? ChartCalendar.MonthStart(ChartCalendar.FloorToStep(ChartCalendar.MonthOf(min), months)), axis.Max ?? ChartCalendar.MonthStart(last));
+        return Bounded(axis.Kind, axis.Min ?? ChartCalendar.MonthStart(ChartCalendar.FloorToStep(ChartCalendar.MonthOf(min), months)), axis.Max ?? ChartCalendar.MonthStart(last));
     }
 
-    /// <summary>A time axis stays inside the moments a <see cref="DateTime"/> can name, so no mark on it is one nothing can write.</summary>
-    private static ChartScale WithinTime(UIChartAxisKind kind, double min, double max)
+    /// <summary>A number held inside the doubles: an end rounded out past the largest is the largest, not an infinity no scale spans.</summary>
+    private static double Finite(double value)
+        => Math.Clamp(value, double.MinValue, double.MaxValue);
+
+    /// <summary>
+    /// The scale between two ends, each a number a double holds, and on a time axis a moment a <see cref="DateTime"/> can name, so no
+    /// mark on it is one nothing can write.
+    /// </summary>
+    private static ChartScale Bounded(UIChartAxisKind kind, double min, double max)
     {
         if (kind != UIChartAxisKind.Time)
-            return new ChartScale(min, max);
+            return new ChartScale(Finite(min), Finite(max));
 
         var low = Math.Clamp(min, ChartCalendar.MinTime, ChartCalendar.MaxTime);
         var high = Math.Clamp(max, ChartCalendar.MinTime, ChartCalendar.MaxTime);

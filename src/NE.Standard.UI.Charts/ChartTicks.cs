@@ -37,7 +37,10 @@ public static class ChartTicks
     /// </summary>
     public static double Step(UIChartAxisKind kind, double min, double max, int count)
     {
-        var target = (max - min) / Math.Max(1, count);
+        var parts = Math.Max(1, count);
+        var width = max - min;
+        // A range wider than the largest double is divided before it is measured, or its step would be none and its marks endless.
+        var target = double.IsPositiveInfinity(width) ? (max / parts) - (min / parts) : width / parts;
 
         if (target <= 0 || double.IsNaN(target) || double.IsInfinity(target))
             return 1;
@@ -83,14 +86,17 @@ public static class ChartTicks
 
         // A step the range does not divide starts at the first multiple inside it, so the marks are round numbers, not the range's ends.
         var first = Math.Ceiling(scale.Min / step) * step;
+        // Over a range wider than the largest double the way from the first mark to the last overflows; counted in halves, it does not.
+        var wide = double.IsPositiveInfinity(scale.Max - scale.Min);
         List<double> values = [];
 
         // Each mark counted from the first rather than added to the last: under values so large that the step is below their
         // precision a running sum stands still, and the axis would repeat one mark as often as it carries marks. A mark that rounds
-        // onto the one before it is left out.
-        for (var index = 0; values.Count < MaximumTicks; index++)
+        // onto the one before it is left out, and the count stops at as many steps as an axis carries marks, so a step too fine to
+        // move the first mark at all still ends.
+        for (var index = 0; index < MaximumTicks; index++)
         {
-            var value = first + (index * step);
+            var value = wide ? 2 * ((first / 2) + (index * (step / 2))) : first + (index * step);
 
             // Past the high end, or no number at all where an end of the range is none.
             if (value > scale.Max + slack || !double.IsFinite(value))

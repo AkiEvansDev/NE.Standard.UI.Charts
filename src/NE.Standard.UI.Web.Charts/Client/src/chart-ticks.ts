@@ -51,6 +51,10 @@ export function fraction(scale: Scale, value: number): number {
 
     const width = scale.max - scale.min;
 
+    // A range wider than the largest double is measured in halves, which a double holds.
+    if (width === Number.POSITIVE_INFINITY)
+        return (value / 2 - scale.min / 2) / (scale.max / 2 - scale.min / 2);
+
     return width <= 0 ? 0 : (value - scale.min) / width;
 }
 
@@ -65,7 +69,10 @@ export function valueOf(scale: Scale, share: number): number {
         return 10 ** (low + share * (Math.log10(scale.max) - low));
     }
 
-    return scale.min + share * (scale.max - scale.min);
+    const width = scale.max - scale.min;
+
+    // A range wider than the largest double: each end weighed by its share, neither of which overflows.
+    return width === Number.POSITIVE_INFINITY ? (1 - share) * scale.min + share * scale.max : scale.min + share * width;
 }
 
 /** The value held inside the range, whichever way round an author's fixed ends put it. */
@@ -105,7 +112,10 @@ export function plotBottom(plot: Plot): number {
  * label writes.
  */
 export function step(kind: AxisKind, min: number, max: number, count: number): number {
-    const target = (max - min) / Math.max(1, count);
+    const parts = Math.max(1, count);
+    const width = max - min;
+    // A range wider than the largest double is divided before it is measured, or its step would be none and its marks endless.
+    const target = width === Number.POSITIVE_INFINITY ? max / parts - min / parts : width / parts;
 
     if (target <= 0 || !Number.isFinite(target))
         return 1;
@@ -149,13 +159,16 @@ export function ticks(kind: AxisKind, scale: Scale, count: number): number[] {
 
     // A step the range does not divide starts at the first multiple inside it, so the marks are round numbers, not the range's ends.
     const first = Math.ceil(scale.min / size) * size;
+    // Over a range wider than the largest double the way from the first mark to the last overflows; counted in halves, it does not.
+    const wide = scale.max - scale.min === Number.POSITIVE_INFINITY;
     const values: number[] = [];
 
     // Each mark counted from the first rather than added to the last: under values so large that the step is below their
     // precision a running sum stands still, and the axis would repeat one mark as often as it carries marks. A mark that rounds
-    // onto the one before it is left out.
-    for (let index = 0; values.length < MaximumTicks; index++) {
-        const value = first + index * size;
+    // onto the one before it is left out, and the count stops at as many steps as an axis carries marks, so a step too fine to
+    // move the first mark at all still ends.
+    for (let index = 0; index < MaximumTicks; index++) {
+        const value = wide ? 2 * (first / 2 + index * (size / 2)) : first + index * size;
 
         // Past the high end, or no number at all where an end of the range is none.
         if (value > scale.max + slack || !Number.isFinite(value))
@@ -232,7 +245,7 @@ export function resolveRange(axis: ChartAxis, dataMin: number, dataMax: number, 
         const high = axis.max ?? 10 ** Math.ceil(Math.log10(max > 0 ? max : 10));
         const bottom = low > 0 ? low : 1;
 
-        return { min: bottom, max: high > bottom ? high : bottom * 10, logarithmic: true };
+        return { min: bottom, max: finite(high > bottom ? high : bottom * 10), logarithmic: true };
     }
 
     if (max - min <= 0) {
@@ -241,14 +254,14 @@ export function resolveRange(axis: ChartAxis, dataMin: number, dataMax: number, 
         const padding = axis.kind === "Time" ? Day : Math.abs(min) > 0 ? Math.abs(min) / 8 : 1;
 
         // An end the author fixed past the data leaves the open one built from it, so the range never runs backward.
-        return withinTime(axis.kind, axis.min ?? Math.min(min, max) - padding, axis.max ?? Math.max(min, max) + padding);
+        return bounded(axis.kind, axis.min ?? Math.min(min, max) - padding, axis.max ?? Math.max(min, max) + padding);
     }
 
     const size = step(axis.kind, min, max, axis.ticks);
     const months = axis.kind === "Time" ? monthsOf(size) : 0;
 
     if (months === 0)
-        return withinTime(axis.kind, axis.min ?? Math.floor(min / size) * size, axis.max ?? Math.ceil(max / size) * size);
+        return bounded(axis.kind, axis.min ?? Math.floor(min / size) * size, axis.max ?? Math.ceil(max / size) * size);
 
     // A step of whole months rounds out to the first of a month it marks, not to a multiple of days from the epoch.
     let last = floorToStep(monthOf(max), months);
@@ -256,13 +269,21 @@ export function resolveRange(axis: ChartAxis, dataMin: number, dataMax: number, 
     if (monthStart(last) < max)
         last += months;
 
-    return withinTime(axis.kind, axis.min ?? monthStart(floorToStep(monthOf(min), months)), axis.max ?? monthStart(last));
+    return bounded(axis.kind, axis.min ?? monthStart(floorToStep(monthOf(min), months)), axis.max ?? monthStart(last));
 }
 
-/** A time axis stays inside the moments the server's `DateTime` can name, so no mark on it is one nothing can write. */
-function withinTime(kind: AxisKind, min: number, max: number): Scale {
+/** A number held inside the doubles: an end rounded out past the largest is the largest, not an infinity no scale spans. */
+function finite(value: number): number {
+    return Math.min(Math.max(value, -Number.MAX_VALUE), Number.MAX_VALUE);
+}
+
+/**
+ * The scale between two ends, each a number a double holds, and on a time axis a moment the server's `DateTime` can name, so no
+ * mark on it is one nothing can write.
+ */
+function bounded(kind: AxisKind, min: number, max: number): Scale {
     if (kind !== "Time")
-        return { min, max, logarithmic: false };
+        return { min: finite(min), max: finite(max), logarithmic: false };
 
     const low = Math.min(Math.max(min, MinTime), MaxTime);
     const high = Math.min(Math.max(max, MinTime), MaxTime);

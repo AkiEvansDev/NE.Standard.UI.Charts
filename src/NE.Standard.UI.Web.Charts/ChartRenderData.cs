@@ -30,9 +30,15 @@ internal sealed class ChartRenderData
 {
     public List<string> Categories { get; } = [];
 
+    /// <summary>Each name of <see cref="Categories"/> by its place there, so a row finds its name without a search.</summary>
+    public Dictionary<string, int> CategoryPlaces { get; } = [];
+
     public List<ChartRenderSeries> Series { get; } = [];
 
-    /// <summary>The rows that are points: the key, the x as text, the value per series, and the series a long-form row names.</summary>
+    /// <summary>
+    /// The rows as the browser is told them: the key, the x as text, the value per series, and the series a long-form row names. One
+    /// whose x a logarithmic axis has no place for is a row too, keeping its place among them, and no point.
+    /// </summary>
     public List<object?[]> Rows { get; } = [];
 
     /// <summary>
@@ -53,7 +59,7 @@ internal sealed class ChartRenderData
 
     public double SizeMax { get; set; } = double.NegativeInfinity;
 
-    /// <summary>Holds a row that is a point, in its item's slot.</summary>
+    /// <summary>Holds a row, in its item's slot.</summary>
     public void AddRow(object?[] row)
     {
         Rows.Add(row);

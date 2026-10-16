@@ -1,6 +1,6 @@
-// A document just big enough for the legend, the pending mark and the plot's clip: elements in a tree, their classes and
-// attributes, the focus, and the simple selectors the client asks with (`.class`, `[attribute]`). Installed on globalThis before a
-// module under test runs.
+// A document just big enough for the legend, the pending mark, the plot's clip and a line chart's draw: elements in a tree, their
+// classes and attributes, the focus, a label's length, and the simple selectors the client asks with (`.class`, `[attribute]`).
+// Installed on globalThis before a module under test runs.
 
 type Listener = (domEvent: { readonly target: StubElement }) => void;
 
@@ -30,6 +30,15 @@ export class StubElement {
 
     public get children(): StubElement[] {
         return [...this.childList];
+    }
+
+    public get childNodes(): StubElement[] {
+        return [...this.childList];
+    }
+
+    /** A label's length as a type of one width for every character would set it. */
+    public getComputedTextLength(): number {
+        return this.textContent.length * 7;
     }
 
     public get firstElementChild(): StubElement | null {
@@ -75,6 +84,13 @@ export class StubElement {
     public append(...children: StubElement[]): void {
         for (const child of children)
             this.insertBefore(child, null);
+    }
+
+    public replaceChildren(...children: StubElement[]): void {
+        for (const child of this.children)
+            child.remove();
+
+        this.append(...children);
     }
 
     /** Moves a live element as the browser does: out first, which takes the focus off it. */

@@ -55,9 +55,14 @@ export function panWindow(span: Span, by: number, min: number, max: number): Spa
     return Number.isFinite(by) ? clampWindow({ from: span.from + by, to: span.to + by }, min, max) : clampWindow(span, min, max);
 }
 
-/** The window kept on the far end as the data grows: the same width, ending where the data now does. */
+/**
+ * The window kept on the far end as the data grows: the width it was given, ending where the data now does. Not narrowed to a whole
+ * narrower than it, which would keep it that narrow for good; a draw clamps what it shows. One with no width follows as the whole.
+ */
 export function followWindow(span: Span, min: number, max: number): Span {
-    return clampWindow({ from: max - spanWidth(span), to: max }, min, max);
+    const width = Number.isFinite(spanWidth(span)) && spanWidth(span) > 0 ? spanWidth(span) : max - min;
+
+    return { from: max - width, to: max };
 }
 
 /**

@@ -97,7 +97,7 @@ after it, as a render would.
 | `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x — a character's attributes, a product's scores, read against each other at a glance | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre, each ring's value written on the middle of its first side, over the series. No zoom, no window and no shared tooltip: there is no x to move along |
 | `SparklineComponent` | one series with nothing around it, a line of text high | `Bars` for a run of bars instead of a line; no axes, no grid, no legend, and no marks until the pointer finds one |
 | `ScatterChartComponent` | a mark per point and no line between them | a third value sizes each mark where the series names one: `AddSeries(key, caption, valuePath, sizePath)`, by area rather than by radius |
-| `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Caption`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule |
+| `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Caption`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule; a reading that is no number (NaN, an infinity) is none, a `Min` or `Max` that is none reads as unset, and a band with such an end is not drawn |
 
 An area's band, a bar's length and a radar's reach from its centre are read against zero, so those take zero into the
 range whether the data does or not; a line chart follows its data. A radar's spokes are every x any series holds, once, in
@@ -118,15 +118,19 @@ the legend puts aside leaves the stack rather than holding a gap in it.
 | `UIChartAxis.Logarithmic` | a number above zero, on a base-ten scale | a format of the shared number subset, or as many decimals as its smallest mark needs; marked at the powers of ten |
 
 The server and the page write a tick by the same formatters, so the first frame and every redraw agree; a format outside
-the subsets — `0.0`, `E2`, `#,##0`, a quoted literal — is refused when the chart renders, and so is a gauge's `Format`.
+the subsets — `0.0`, `E2`, `#,##0`, a quoted literal — is refused when the chart renders, and so is a gauge's `Format`. A
+logarithmic x axis reads its x from a row property (`SetX`): a chart that names none numbers its rows by their place from 0,
+which the axis cannot place, and is refused when it renders, with rows or without.
 
 A range the author leaves open follows the data, rounded outward to the axis's own round step; `Min`/`Max` fix
 either end, and an end fixed past all of the data leaves the open one built from it rather than a range running backward. `ShowGridLines` and `TickCount` are the axis's, and a caption stands beside it. A category axis with more names
 than an axis carries marks (two hundred) thins them by a stride rather than cutting the rest off.
 
 A value an axis cannot place is no value: a text `"NaN"` or `"Infinity"`, or a number too large to hold, is a gap, as a null
-is. A number written as text is read as .NET's invariant culture reads one — a hex, a blank or a thousands separator is no
-number. A moment, or its text, is placed only on a time axis — on a value axis a date would turn into a number no one wrote.
+is, and so is a value at or below zero on a logarithmic axis — an x there is no point. Values reaching towards the largest double
+on both sides of zero still make a range, though its width is more than a double holds. A number written as text is read as
+.NET's invariant culture reads one — a hex, a blank or a thousands separator is no number. A moment, or its text, is placed
+only on a time axis — on a value axis a date would turn into a number no one wrote.
 A text x is a moment only in the wire's own shape — `yyyy-MM-dd`, then a clock after a `T` or a space, then a zone, the last two
 optional — so `09/29/2026 10:00`, `Sep 29 2026` or a bare `10:30` is no value on either side.
 An x is read off the text the browser is told, on both sides, so a point the first frame places is the one every redraw
@@ -153,9 +157,10 @@ x there — held to one corpus of cases both test suites read.
 
 A painted line — a series, a radar's outline, rim and rings — is drawn as its straight pieces, a `<line>` each under one
 group, never as a single `<path>`: Chrome's GPU rasteriser antialiases a path at four samples a pixel, which reads as a
-staircase at 100% scale, and a lone line smoothly. A curve is cut into pieces about four pixels long. A band's fill and a
-line's unpainted pointer reach stay paths. A stylesheet that restyles a series' line targets `.ui-chart__line`, a group, and
-its lines inherit the stroke.
+staircase at 100% scale, and a lone line smoothly. A curve is cut into pieces about four pixels long, no more of them than would
+run round the plot's edge, and a piece lying wholly beside the plot — a zoomed window's neighbours — is left out. A band's
+fill and a line's unpainted pointer reach stay paths. A stylesheet that restyles a series' line targets `.ui-chart__line`, a
+group, and its lines inherit the stroke.
 
 The legend follows the data: the server writes it for the first frame, and a series or a sector that arrives or goes later
 arrives or goes in the legend too, an entry the viewer put aside staying aside. The legend is kept in step by key: an entry that
@@ -199,13 +204,17 @@ application's own.
   pointer — by how far it turned, so a trackpad's many small deltas zoom as far as a mouse's one notch — a drag moves it
   along, and a double press gives the whole of the data back — down the chart rather than across it where bars lie on their
   side, the shared tooltip's line with them. The wheel, the drag and the double press answer the plot, not the axes' labels
-  around it. A wheel with nothing to change — a chart already showing the whole, turned to
-  widen it, or a swipe mostly sideways — scrolls the page as it would anywhere else. A drag starts once the pointer has moved
+  around it. Each reads the window as drawn, and one wider than the data shows the whole. A wheel with nothing to change — a
+  chart already showing the whole, turned to widen it, or a swipe mostly sideways — scrolls the page as it would anywhere else;
+  a drag or a double press on a chart showing the whole does nothing and sends nothing. A drag starts once the pointer has moved
   a few pixels; a press that stayed within them is a press. Zoomed in, bars widen to share the band among the places on show. The window
   starts where the server drew it, bound or written by the author. The window is bound
-  (`BindVisibleRange`), so a controller hears where the viewer is reading and can move the chart itself;
-  `OnWindowChange(command)` runs a command once the viewer has moved it, with the bound range already on the server;
-  `FollowLatest` keeps a window standing at the far end on the newest point.
+  (`BindVisibleRange`), so a controller hears where the viewer is reading and can move the chart itself — a window it pushes
+  stands over one the viewer's wheel is still settling; `OnWindowChange(command)` runs a command once the viewer has moved it,
+  with the bound range already on the server, and never for a slide the chart made itself. `FollowLatest` keeps a window that
+  reaches the newest point standing at the far end: a point arriving past its end slides it along to end on that point, at the
+  width it was given, writing the bound range alone; a change that brings no point past it moves nothing. A window the viewer
+  moved back, or one first drawn on an older stretch, stays where it is, and a reset or no data moves none.
 - **Click a legend entry** to put its series aside and bring it back; the range then follows what is left. The
   choice stays in the browser and is never sent.
 - **Click a point** — a mark, a bar or a sector — where the author wired `OnPointClick(command)`: the command is

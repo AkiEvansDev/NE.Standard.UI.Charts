@@ -31,6 +31,9 @@ type CorpusPoint = { readonly x: number; readonly y: number | null; readonly bas
 /** A straight piece as the corpus writes it: where it starts and where it ends, across and down. */
 type CorpusSegment = readonly [number, number, number, number];
 
+/** The scales a line case is drawn on where they are not the shared ones: a window on x, a range on y. */
+type CorpusScales = { readonly x?: Scale; readonly y?: Scale };
+
 type CorpusWindow = { readonly case: string; readonly from: number; readonly to: number; readonly min: number; readonly max: number; readonly expected: Span }
     & ({ readonly op: "clamp" | "follow" } | { readonly op: "zoom"; readonly at: number; readonly factor: number } | { readonly op: "pan"; readonly by: number });
 
@@ -58,15 +61,15 @@ type Corpus = {
     readonly coords: readonly { readonly value: number; readonly expected: string }[];
     readonly lines: readonly { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: string }[];
     readonly areas: readonly { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: string }[];
-    readonly segments: readonly { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: readonly CorpusSegment[] }[];
-    readonly curves: readonly {
+    readonly segments: readonly (CorpusScales & { readonly case: string; readonly points: readonly CorpusPoint[]; readonly stepped: boolean; readonly smooth: boolean; readonly expected: readonly CorpusSegment[] })[];
+    readonly curves: readonly (CorpusScales & {
         readonly case: string;
         readonly points: readonly CorpusPoint[];
         readonly expectedCount: number;
         readonly expectedStart: readonly [number, number];
         readonly expectedEnd: readonly [number, number];
         readonly expectedLongest: number;
-    }[];
+    })[];
     readonly edges: readonly { readonly case: string; readonly spots: readonly Spot[]; readonly expected: readonly CorpusSegment[] }[];
     readonly stacks: readonly {
         readonly case: string;
@@ -147,7 +150,7 @@ test("corpus: the number a moment is read as", () => {
 
 test("corpus: the number an x's text is read as", () => {
     for (const entry of corpus.texts)
-        assert.equal(xNumber(entry.text, entry.kind, [], parse, readNumber), entry.expected, entry.case);
+        assert.equal(xNumber(entry.text, entry.kind, new Map(), parse, readNumber), entry.expected, entry.case);
 });
 
 test("corpus: the range an axis covers over the data it was given", () => {
@@ -204,10 +207,10 @@ test("corpus: the path a series is drawn as", () => {
 
 test("corpus: the straight pieces a line and a radar's shape are drawn with", () => {
     for (const entry of corpus.segments)
-        sameSegments(lineSegments(pointsOf(entry.points), scale, scale, plot, entry.stepped, entry.smooth), entry.expected, entry.case);
+        sameSegments(lineSegments(pointsOf(entry.points), entry.x ?? scale, entry.y ?? scale, plot, entry.stepped, entry.smooth), entry.expected, entry.case);
 
     for (const entry of corpus.curves) {
-        const pieces = lineSegments(pointsOf(entry.points), scale, scale, plot, false, true);
+        const pieces = lineSegments(pointsOf(entry.points), entry.x ?? scale, entry.y ?? scale, plot, false, true);
         const longest = Math.max(...pieces.map(piece => Math.hypot(piece.x2 - piece.x1, piece.y2 - piece.y1)));
 
         assert.equal(pieces.length, entry.expectedCount, entry.case);

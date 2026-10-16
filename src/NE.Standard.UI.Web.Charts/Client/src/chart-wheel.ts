@@ -36,7 +36,7 @@ export function sameWindow(left: Span | null, right: Span | null): boolean {
  * A window covering the whole of the data is no window at all: widening past the ends returns the chart's own range, so it
  * follows new data as before instead of sliding.
  */
-function narrowed(view: Span, whole: Span): Span | null {
+export function narrowed(view: Span, whole: Span): Span | null {
     return view.to - view.from >= whole.to - whole.from - slackOf(whole) ? null : view;
 }
 

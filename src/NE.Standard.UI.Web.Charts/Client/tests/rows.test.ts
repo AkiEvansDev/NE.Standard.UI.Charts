@@ -64,17 +64,35 @@ test("a row of the long form carries the series it names and the one value", () 
 });
 
 test("an x is read as this side's own number: a name's place, a moment's milliseconds, or the number itself", () => {
-    const categories: string[] = [];
+    const categories = new Map<string, number>();
 
     assert.equal(xNumber("Berlin", "Category", categories, parse, readNumber), 0);
     assert.equal(xNumber("Prague", "Category", categories, parse, readNumber), 1);
     assert.equal(xNumber("Berlin", "Category", categories, parse, readNumber), 0);
-    assert.deepEqual(categories, ["Berlin", "Prague"]);
+    assert.deepEqual([...categories], [["Berlin", 0], ["Prague", 1]]);
 
-    assert.equal(xNumber("1970-01-01T00:00:10.000Z", "Time", [], parse, readNumber), 10_000);
-    assert.equal(xNumber("not a moment", "Time", [], parse, readNumber), null);
-    assert.equal(xNumber("12.5", "Linear", [], parse, readNumber), 12.5);
-    assert.equal(xNumber("", "Linear", [], parse, readNumber), null);
+    assert.equal(xNumber("1970-01-01T00:00:10.000Z", "Time", new Map(), parse, readNumber), 10_000);
+    assert.equal(xNumber("not a moment", "Time", new Map(), parse, readNumber), null);
+    assert.equal(xNumber("12.5", "Linear", new Map(), parse, readNumber), 12.5);
+    assert.equal(xNumber("", "Linear", new Map(), parse, readNumber), null);
+});
+
+test("a name is found by its place among the names met, not by a search of them all: a known one keeps the place it was given", () => {
+    const categories = new Map([["Berlin", 0], ["Prague", 1]]);
+
+    assert.equal(xNumber("Prague", "Category", categories, parse, readNumber), 1);
+    assert.equal(xNumber("Vienna", "Category", categories, parse, readNumber), 2);
+    assert.equal(categories.get("Vienna"), 2);
+});
+
+test("the names a category axis meets are its places in the order they arrived, however many there are", () => {
+    const bands = model({ x: { kind: "Category", min: null, max: null, format: null, grid: true, ticks: 5, caption: null }, series: [series("value", "Value")] });
+    const rows: ChartRow[] = Array.from({ length: 4000 }, (_, i) => ({ key: `r${i}`, x: `n${i % 2000}`, values: [i], series: null, sizes: [] }));
+    const data = buildData(rows, bands, parse, readNumber);
+
+    assert.equal(data.categories.length, 2000);
+    assert.equal(data.categories[1999], "n1999");
+    assert.deepEqual(data.series[0].points.slice(1999, 2001).map(point => point.x), [1999, 0]);
 });
 
 test("the rows amount to a point per series, and to how far the data reaches", () => {
@@ -215,6 +233,29 @@ test("a patched row with no x is no point, and names no blank band, as the serve
 
     assert.deepEqual(data.categories, ["Berlin"]);
     assert.deepEqual(data.series[0].points.map(point => point.key), ["a"]);
+});
+
+test("on a logarithmic axis a value at zero or below is a gap and an x there no point, so neither reaches the range", () => {
+    const axis = { kind: "Logarithmic", min: null, max: null, format: null, grid: true, ticks: 5, caption: null } as const;
+    const logarithmic = model({ x: axis, y: axis, series: [series("value", "Value")] });
+    const rows: ChartRow[] = [
+        { key: "a", x: "0", values: [5], series: null, sizes: [] },
+        { key: "b", x: "10", values: [0.01], series: null, sizes: [] },
+        { key: "c", x: "100", values: [-5], series: null, sizes: [] },
+        { key: "d", x: "1000", values: [0], series: null, sizes: [] }
+    ];
+    const data = buildData(rows, logarithmic, parse, readNumber);
+
+    assert.deepEqual(data.series[0].points.map(point => [point.key, point.x, point.y]), [["b", 10, 0.01], ["c", 100, null], ["d", 1000, null]]);
+    assert.deepEqual([data.xMin, data.xMax, data.yMin, data.yMax], [10, 1000, 0.01, 0.01]);
+});
+
+test("with no x path a logarithmic axis leaves the row at place zero out, and the rest stand at their places", () => {
+    const axis = { kind: "Logarithmic", min: null, max: null, format: null, grid: true, ticks: 5, caption: null } as const;
+    const numbered = model({ x: axis, xPath: null, series: [series("value", "Value")] });
+    const rows: ChartRow[] = [0, 1, 2].map(place => ({ key: `r${place}`, x: String(place), values: [5 + place], series: null, sizes: [] }));
+
+    assert.deepEqual(buildData(rows, numbered, parse, readNumber).series[0].points.map(point => [point.key, point.x]), [["r1", 1], ["r2", 2]]);
 });
 
 test("a numeric text is read as the server's invariant culture reads one: a no-break space before it is no number", () => {

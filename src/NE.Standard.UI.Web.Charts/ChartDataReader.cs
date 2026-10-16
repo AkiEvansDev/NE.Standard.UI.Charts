@@ -50,9 +50,16 @@ internal static class ChartDataReader
 
         // A row whose x cannot be read is no point, not one at zero. Read off the text the browser is told, so every redraw
         // places it where the first frame did.
-        if (raw is null || !ChartValues.TryToNumber(text, spec.XAxis.Kind, data.Categories, out var x))
+        if (raw is null || !ChartValues.TryToNumber(text, spec.XAxis.Kind, data.Categories, data.CategoryPlaces, out var x))
         {
             data.Slots.Add(null);
+            return;
+        }
+
+        // A log axis has no place for zero or below: still a row, which a chart with no x path numbers by, but no point and no range.
+        if (spec.XAxis.Kind == UIChartAxisKind.Logarithmic && x <= 0)
+        {
+            data.AddRow([key, text, Array.Empty<double?>()]);
             return;
         }
 
@@ -63,7 +70,7 @@ internal static class ChartDataReader
             _ = ItemContext.TryReadPath(item, spec.SeriesPath!, out var seriesValue);
             var seriesKey = ChartValues.ToText(seriesValue);
             ChartRenderSeries series = ResolveSeries(data, seriesKey);
-            var value = ReadValue(item, series.Series.ValuePath ?? spec.ValuePath, data);
+            var value = ReadValue(item, series.Series.ValuePath ?? spec.ValuePath, spec.YAxis.Kind, data);
             var size = ReadSize(item, series.Series.SizePath, data);
 
             series.Points.Add(new ChartPoint(key, x, value, size));
@@ -80,7 +87,7 @@ internal static class ChartDataReader
         {
             ChartRenderSeries series = data.Series[i];
 
-            values[i] = ReadValue(item, series.Series.ValuePath ?? spec.ValuePath, data);
+            values[i] = ReadValue(item, series.Series.ValuePath ?? spec.ValuePath, spec.YAxis.Kind, data);
             sizes[i] = ReadSize(item, series.Series.SizePath, data);
             sized |= sizes[i] is not null;
             series.Points.Add(new ChartPoint(key, x, values[i], sizes[i]));
@@ -116,15 +123,16 @@ internal static class ChartDataReader
         return series;
     }
 
-    /// <summary>A point's value, and the reach of the y axis with it; null where the row had none.</summary>
-    private static double? ReadValue(object item, string? path, ChartRenderData data)
+    /// <summary>A point's value, and the reach of the y axis with it; null where the row had none the axis can place.</summary>
+    private static double? ReadValue(object item, string? path, UIChartAxisKind kind, ChartRenderData data)
     {
         if (string.IsNullOrWhiteSpace(path))
             return null;
 
         _ = ItemContext.TryReadPath(item, path, out var read);
 
-        if (!ChartValues.TryToNumber(read, UIChartAxisKind.Linear, null, out var value))
+        // A logarithmic axis has no place for zero or below: such a value is a gap, as one no axis can read is.
+        if (!ChartValues.TryToNumber(read, UIChartAxisKind.Linear, null, out var value) || (kind == UIChartAxisKind.Logarithmic && value <= 0))
             return null;
 
         data.TrackY(value);

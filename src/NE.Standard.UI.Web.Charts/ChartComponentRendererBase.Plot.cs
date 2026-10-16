@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Charts;
-using NE.Standard.UI.Primitives.Text;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -327,16 +326,16 @@ public abstract partial class ChartComponentRendererBase
     }
 
     /// <summary>
-    /// A point's series, x and value in the page's words; a sector's too. A tooltip reads its words as inline markup, so the caption
-    /// and the values are escaped: a series called `p*q` reads as written. The template's own markup stays.
+    /// A point's series, x and value in the page's words; a sector's too. A tooltip reads its words as inline markup, so they are
+    /// translated as such: a series called `p*q` reads as written, the template's own markup stays.
     /// </summary>
     private static string PointWords(WebRenderContext context, ChartSpec spec, ChartRenderData data, string caption, double x, double value, ChartFormats formats)
         => context.Translate(ChartsStrings.Point, new Dictionary<string, object?>(StringComparer.Ordinal)
         {
-            ["series"] = UIInlineMarkup.Escape(caption),
-            ["x"] = UIInlineMarkup.Escape(FormatValue(spec.XAxis.Kind, formats.X, x, data.Categories, formats)),
-            ["y"] = UIInlineMarkup.Escape(FormatValue(spec.YAxis.Kind, formats.Y, value, [], formats))
-        });
+            ["series"] = caption,
+            ["x"] = FormatValue(spec.XAxis.Kind, formats.X, x, data.Categories, formats),
+            ["y"] = FormatValue(spec.YAxis.Kind, formats.Y, value, [], formats)
+        }, markup: true);
 
     /// <summary>
     /// The turn shared out between the first series' points, with a donut's words over its hole.

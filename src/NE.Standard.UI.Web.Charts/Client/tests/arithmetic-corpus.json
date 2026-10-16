@@ -38,7 +38,11 @@
         { "case": "one moment is read against a day either side of it, not an eighth of the years since 1970", "kind": "Time", "min": null, "max": null, "ticks": 5, "dataMin": 1789257600000, "dataMax": 1789257600000, "categories": 0, "includeZero": false, "expected": { "min": 1789171200000, "max": 1789344000000, "logarithmic": false } },
         { "case": "one moment at the end of the calendar keeps its day inside it", "kind": "Time", "min": null, "max": null, "ticks": 5, "dataMin": 253402300799999, "dataMax": 253402300799999, "categories": 0, "includeZero": false, "expected": { "min": 253402214399999, "max": 253402300799999, "logarithmic": false } },
         { "case": "a low end fixed over the data builds the open high end from itself, so the range never runs backward", "kind": "Linear", "min": 20, "max": null, "ticks": 5, "dataMin": 5, "dataMax": 15, "categories": 0, "includeZero": true, "expected": { "min": 20, "max": 22.5, "logarithmic": false } },
-        { "case": "and a high end fixed under the data the open low end", "kind": "Linear", "min": null, "max": 10, "ticks": 5, "dataMin": 15, "dataMax": 15, "categories": 0, "includeZero": false, "expected": { "min": 8.125, "max": 10, "logarithmic": false } }
+        { "case": "and a high end fixed under the data the open low end", "kind": "Linear", "min": null, "max": 10, "ticks": 5, "dataMin": 15, "dataMax": 15, "categories": 0, "includeZero": false, "expected": { "min": 8.125, "max": 10, "logarithmic": false } },
+        { "case": "a range wider than a double holds: its round ends stop at the largest double", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": -1.7976931348623157e308, "dataMax": 1.7976931348623157e308, "categories": 0, "includeZero": false, "expected": { "min": -1.7976931348623157e308, "max": 1.7976931348623157e308, "logarithmic": false } },
+        { "case": "a range whose width alone passes the largest double rounds out to the round numbers it reaches", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": -9e307, "dataMax": 9e307, "categories": 0, "includeZero": false, "expected": { "min": -1e308, "max": 1e308, "logarithmic": false } },
+        { "case": "a single value at the largest double keeps its band inside the doubles", "kind": "Linear", "min": null, "max": null, "ticks": 5, "dataMin": 1.7976931348623157e308, "dataMax": 1.7976931348623157e308, "categories": 0, "includeZero": false, "expected": { "min": 1.5729814930045262e308, "max": 1.7976931348623157e308, "logarithmic": false } },
+        { "case": "a logarithmic axis past the last power of ten a double holds stops at the largest double", "kind": "Logarithmic", "min": null, "max": null, "ticks": 5, "dataMin": 3, "dataMax": 1.5e308, "categories": 0, "includeZero": false, "expected": { "min": 1, "max": 1.7976931348623157e308, "logarithmic": true } }
     ],
     "steps": [
         { "case": "a linear step is one, two or five times a power of ten", "kind": "Linear", "min": 0, "max": 100, "count": 5, "expected": 20 },
@@ -49,7 +53,8 @@
         { "case": "half an hour rather than twenty minutes", "kind": "Time", "min": 0, "max": 5400000, "count": 5, "expected": 1800000 },
         { "case": "six hours rather than five", "kind": "Time", "min": 0, "max": 86400000, "count": 5, "expected": 21600000 },
         { "case": "a logarithmic range answers with the power of ten at its low end, its finest mark", "kind": "Logarithmic", "min": 0.001, "max": 1, "count": 5, "expected": 0.001 },
-        { "case": "however many powers it spans", "kind": "Logarithmic", "min": 0.1, "max": 10, "count": 5, "expected": 0.1 }
+        { "case": "however many powers it spans", "kind": "Logarithmic", "min": 0.1, "max": 10, "count": 5, "expected": 0.1 },
+        { "case": "a range wider than a double is divided before it is measured", "kind": "Linear", "min": -1.7976931348623157e308, "max": 1.7976931348623157e308, "count": 5, "expected": 1e308 }
     ],
     "ticks": [
         { "case": "the round numbers inside the range", "kind": "Linear", "scale": { "min": 0, "max": 100, "logarithmic": false }, "count": 5, "expected": [0, 20, 40, 60, 80, 100] },
@@ -61,7 +66,10 @@
         { "case": "a step of a quarter marks January, April, July and October", "kind": "Time", "scale": { "min": 1768435200000, "max": 1799539200000, "logarithmic": false }, "count": 5, "expected": [1775001600000, 1782864000000, 1790812800000, 1798761600000] },
         { "case": "a step of two years marks the first of January of the even years", "kind": "Time", "scale": { "min": 1583020800000, "max": 1777593600000, "logarithmic": false }, "count": 5, "expected": [1640995200000, 1704067200000, 1767225600000] },
         { "case": "more names than an axis marks are thinned by a stride, not cut off", "kind": "Category", "scale": { "min": -0.5, "max": 399.5, "logarithmic": false }, "count": 5, "expected": [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36, 38, 40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 82, 84, 86, 88, 90, 92, 94, 96, 98, 100, 102, 104, 106, 108, 110, 112, 114, 116, 118, 120, 122, 124, 126, 128, 130, 132, 134, 136, 138, 140, 142, 144, 146, 148, 150, 152, 154, 156, 158, 160, 162, 164, 166, 168, 170, 172, 174, 176, 178, 180, 182, 184, 186, 188, 190, 192, 194, 196, 198, 200, 202, 204, 206, 208, 210, 212, 214, 216, 218, 220, 222, 224, 226, 228, 230, 232, 234, 236, 238, 240, 242, 244, 246, 248, 250, 252, 254, 256, 258, 260, 262, 264, 266, 268, 270, 272, 274, 276, 278, 280, 282, 284, 286, 288, 290, 292, 294, 296, 298, 300, 302, 304, 306, 308, 310, 312, 314, 316, 318, 320, 322, 324, 326, 328, 330, 332, 334, 336, 338, 340, 342, 344, 346, 348, 350, 352, 354, 356, 358, 360, 362, 364, 366, 368, 370, 372, 374, 376, 378, 380, 382, 384, 386, 388, 390, 392, 394, 396, 398] },
-        { "case": "a step below the precision of values so large marks each value it reaches once", "kind": "Linear", "scale": { "min": 100000000000000000, "max": 100000000000000016, "logarithmic": false }, "count": 5, "expected": [100000000000000000, 100000000000000016] }
+        { "case": "a step below the precision of values so large marks each value it reaches once", "kind": "Linear", "scale": { "min": 100000000000000000, "max": 100000000000000016, "logarithmic": false }, "count": 5, "expected": [100000000000000000, 100000000000000016] },
+        { "case": "a range wider than a double is marked across it, and the marks end", "kind": "Linear", "scale": { "min": -1.7976931348623157e308, "max": 1.7976931348623157e308, "logarithmic": false }, "count": 5, "expected": [-1e308, 0, 1e308] },
+        { "case": "the marks of a range that wide reach its high end", "kind": "Linear", "scale": { "min": -1e308, "max": 1e308, "logarithmic": false }, "count": 5, "expected": [-1e308, -5e307, 0, 5e307, 1e308] },
+        { "case": "a step too fine to move the first mark at all still ends", "kind": "Linear", "scale": { "min": -1.7976931348623157e308, "max": 1.7976931348623157e308, "logarithmic": false }, "count": 1, "expected": [-1.7976931348623157e308] }
     ],
     "formats": [
         { "kind": "Linear", "step": 20, "expected": "N0" },
@@ -81,13 +89,15 @@
         { "plot": { "left": 40, "top": 10, "width": 200, "height": 100 }, "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": 0, "expectedX": 40, "expectedY": 110, "expectedDown": 10 },
         { "plot": { "left": 40, "top": 10, "width": 200, "height": 100 }, "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": 10, "expectedX": 240, "expectedY": 10, "expectedDown": 110 },
         { "plot": { "left": 40, "top": 10, "width": 200, "height": 100 }, "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": 5, "expectedX": 140, "expectedY": 60, "expectedDown": 60 },
-        { "plot": { "left": 0, "top": 0, "width": 100, "height": 100 }, "scale": { "min": 1, "max": 10000, "logarithmic": true }, "value": 100, "expectedX": 50, "expectedY": 50, "expectedDown": 50 }
+        { "plot": { "left": 0, "top": 0, "width": 100, "height": 100 }, "scale": { "min": 1, "max": 10000, "logarithmic": true }, "value": 100, "expectedX": 50, "expectedY": 50, "expectedDown": 50 },
+        { "plot": { "left": 0, "top": 0, "width": 100, "height": 100 }, "scale": { "min": -1e308, "max": 1e308, "logarithmic": false }, "value": 5e307, "expectedX": 75, "expectedY": 25, "expectedDown": 75 }
     ],
     "shares": [
         { "scale": { "min": 10, "max": 50, "logarithmic": false }, "share": 0, "expected": 10 },
         { "scale": { "min": 10, "max": 50, "logarithmic": false }, "share": 1, "expected": 50 },
         { "scale": { "min": 10, "max": 50, "logarithmic": false }, "share": 0.25, "expected": 20 },
-        { "scale": { "min": 1, "max": 1000, "logarithmic": true }, "share": 0.3333333333333333, "expected": 10 }
+        { "scale": { "min": 1, "max": 1000, "logarithmic": true }, "share": 0.3333333333333333, "expected": 10 },
+        { "scale": { "min": -1e308, "max": 1e308, "logarithmic": false }, "share": 0.75, "expected": 5e307 }
     ],
     "withins": [
         { "case": "a value inside the range is itself", "scale": { "min": 0, "max": 10, "logarithmic": false }, "value": 5, "expected": 5 },
@@ -162,11 +172,16 @@
         { "case": "a straight line is a piece per pair of points", "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 5 }, { "x": 10, "y": 10 }], "stepped": false, "smooth": false, "expected": [[0, 100, 50, 50], [50, 50, 100, 0]] },
         { "case": "a gap breaks the line, and a run of one point draws nothing", "points": [{ "x": 0, "y": 0 }, { "x": 2, "y": 2 }, { "x": 4, "y": null }, { "x": 6, "y": 6 }, { "x": 8, "y": null }, { "x": 10, "y": 10 }], "stepped": false, "smooth": false, "expected": [[0, 100, 20, 80]] },
         { "case": "a stair is across to halfway, up, and across", "points": [{ "x": 0, "y": 0 }, { "x": 10, "y": 10 }], "stepped": true, "smooth": false, "expected": [[0, 100, 50, 100], [50, 100, 50, 0], [50, 0, 100, 0]] },
-        { "case": "a step to the same value draws no rise", "points": [{ "x": 0, "y": 5 }, { "x": 10, "y": 5 }], "stepped": true, "smooth": false, "expected": [[0, 50, 50, 50], [50, 50, 100, 50]] }
+        { "case": "a step to the same value draws no rise", "points": [{ "x": 0, "y": 5 }, { "x": 10, "y": 5 }], "stepped": true, "smooth": false, "expected": [[0, 50, 50, 50], [50, 50, 100, 50]] },
+        { "case": "a zoomed line draws the pieces that reach its plot, and none wholly beside it", "points": [{ "x": 0, "y": 0 }, { "x": 1, "y": 1 }, { "x": 2, "y": 2 }, { "x": 3, "y": 3 }, { "x": 4, "y": 4 }, { "x": 5, "y": 5 }, { "x": 6, "y": 6 }, { "x": 7, "y": 7 }, { "x": 8, "y": 8 }, { "x": 9, "y": 9 }, { "x": 10, "y": 10 }], "x": { "min": 4.5, "max": 5.5, "logarithmic": false }, "stepped": false, "smooth": false, "expected": [[-50, 60, 50, 50], [50, 50, 150, 40]] },
+        { "case": "and a zoomed stair the steps that reach its plot", "points": [{ "x": 0, "y": 0 }, { "x": 1, "y": 1 }, { "x": 2, "y": 2 }, { "x": 3, "y": 3 }, { "x": 4, "y": 4 }, { "x": 5, "y": 5 }, { "x": 6, "y": 6 }, { "x": 7, "y": 7 }, { "x": 8, "y": 8 }, { "x": 9, "y": 9 }, { "x": 10, "y": 10 }], "x": { "min": 4.5, "max": 5.5, "logarithmic": false }, "stepped": true, "smooth": false, "expected": [[-100, 60, 0, 60], [0, 60, 0, 50], [0, 50, 100, 50], [100, 50, 100, 40], [100, 40, 200, 40]] }
     ],
     "curves": [
         { "case": "a curve is cut into pieces about four long, from its first point to its last", "points": [{ "x": 0, "y": 0 }, { "x": 10, "y": 10 }], "expectedCount": 36, "expectedStart": [0, 100], "expectedEnd": [100, 0], "expectedLongest": 4.907432607771873 },
-        { "case": "a curve over a crest is counted along its handles", "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 10 }, { "x": 10, "y": 0 }], "expectedCount": 62, "expectedStart": [0, 100], "expectedEnd": [100, 100], "expectedLongest": 4.814578175993702 }
+        { "case": "a curve over a crest is counted along its handles", "points": [{ "x": 0, "y": 0 }, { "x": 5, "y": 10 }, { "x": 10, "y": 0 }], "expectedCount": 62, "expectedStart": [0, 100], "expectedEnd": [100, 100], "expectedLongest": 4.814578175993702 },
+        { "case": "a zoomed curve far from a spike draws the curves that reach its plot, and none wholly beside it", "points": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 100000 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }, { "x": 5, "y": 0 }, { "x": 6, "y": 0 }, { "x": 7, "y": 0 }, { "x": 8, "y": 0 }, { "x": 9, "y": 0 }, { "x": 10, "y": 0 }], "x": { "min": 8, "max": 10, "logarithmic": false }, "expectedCount": 39, "expectedStart": [-50, 100], "expectedEnd": [100, 100], "expectedLongest": 4.483386436049173 },
+        { "case": "a curve through a value far off a zoomed plot is cut no finer than the plot's edge is long", "points": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }, { "x": 5, "y": 100000 }, { "x": 6, "y": 0 }, { "x": 7, "y": 0 }, { "x": 8, "y": 0 }, { "x": 9, "y": 0 }, { "x": 10, "y": 0 }], "x": { "min": 5.9, "max": 6.1, "logarithmic": false }, "expectedCount": 200, "expectedStart": [-450.00000000000176, -999900], "expectedEnd": [550.0000000000018, 100], "expectedLongest": 13888.50090002523 },
+        { "case": "an unzoomed curve through a spike is cut as ever: the plot's edge is longer than any curve inside it", "points": [{ "x": 0, "y": 0 }, { "x": 1, "y": 0 }, { "x": 2, "y": 0 }, { "x": 3, "y": 0 }, { "x": 4, "y": 0 }, { "x": 5, "y": 100000 }, { "x": 6, "y": 0 }, { "x": 7, "y": 0 }, { "x": 8, "y": 0 }, { "x": 9, "y": 0 }, { "x": 10, "y": 0 }], "y": { "min": 0, "max": 100000, "logarithmic": false }, "expectedCount": 90, "expectedStart": [0, 100], "expectedEnd": [100, 100], "expectedLongest": 5.353501699563299 }
     ],
     "stacks": [
         {
@@ -274,7 +289,9 @@
         { "case": "and widens it back", "op": "zoom", "from": 12.5, "to": 62.5, "at": 25, "factor": 2, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } },
         { "case": "a drag moves it along", "op": "pan", "from": 20, "to": 40, "by": 10, "min": 0, "max": 100, "expected": { "from": 30, "to": 50 } },
         { "case": "a drag past the near end stops there", "op": "pan", "from": 20, "to": 40, "by": -40, "min": 0, "max": 100, "expected": { "from": 0, "to": 20 } },
-        { "case": "following keeps the width on the far end", "op": "follow", "from": 20, "to": 40, "min": 0, "max": 120, "expected": { "from": 100, "to": 120 } }
+        { "case": "following keeps the width on the far end", "op": "follow", "from": 20, "to": 40, "min": 0, "max": 120, "expected": { "from": 100, "to": 120 } },
+        { "case": "following keeps the width it was given past a whole narrower than it, for the data to grow into", "op": "follow", "from": 0, "to": 3600000, "min": 0, "max": 1000, "expected": { "from": -3599000, "to": 1000 } },
+        { "case": "a window with no width follows as the whole", "op": "follow", "from": 50, "to": 50, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } }
     ],
     "extents": [
         { "case": "every point counts where there is no window", "series": [[{ "x": 0, "y": 10 }, { "x": 10, "y": 50 }, { "x": 20, "y": 90 }, { "x": 30, "y": 20 }]], "window": null, "expected": { "min": 10, "max": 90 } },

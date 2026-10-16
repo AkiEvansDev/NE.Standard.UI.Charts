@@ -99,38 +99,41 @@ public static class ChartPath
                 continue;
             }
 
-            AddRunPieces(segments, run, stepped, smooth);
+            AddRunPieces(segments, run, stepped, smooth, plot);
             run.Clear();
         }
 
-        AddRunPieces(segments, run, stepped, smooth);
+        AddRunPieces(segments, run, stepped, smooth, plot);
 
         return segments;
     }
 
-    /// <summary>One unbroken run's pieces, the way <see cref="Line"/> walks it: straight, stepped, or curved.</summary>
-    private static void AddRunPieces(List<ChartSegment> segments, List<(double X, double Y)> run, bool stepped, bool smooth)
+    /// <summary>
+    /// One unbroken run's pieces, the way <see cref="Line"/> walks it: straight, stepped, or curved. A piece wholly beside the plot is
+    /// left out, or a window deep in many points would lay a piece of every one of them off the plot.
+    /// </summary>
+    private static void AddRunPieces(List<ChartSegment> segments, List<(double X, double Y)> run, bool stepped, bool smooth, ChartPlot plot)
     {
         if (run.Count < 2)
             return;
 
         if (stepped)
         {
-            AddStepPieces(segments, run);
+            AddStepPieces(segments, run, plot);
             return;
         }
 
         for (var i = 1; i < run.Count; i++)
         {
             if (smooth)
-                AddCurvePieces(segments, run, i);
+                AddCurvePieces(segments, run, i, plot);
             else
-                AddSegment(segments, run[i - 1].X, run[i - 1].Y, run[i].X, run[i].Y);
+                AddShownSegment(segments, plot, run[i - 1].X, run[i - 1].Y, run[i].X, run[i].Y);
         }
     }
 
     /// <summary>The stair <see cref="AppendSteps"/> draws: across to halfway, up or down to the next value, and across to the last point.</summary>
-    private static void AddStepPieces(List<ChartSegment> segments, List<(double X, double Y)> run)
+    private static void AddStepPieces(List<ChartSegment> segments, List<(double X, double Y)> run, ChartPlot plot)
     {
         var atX = run[0].X;
         var atY = run[0].Y;
@@ -139,19 +142,32 @@ public static class ChartPath
         {
             var middle = (run[i - 1].X + run[i].X) / 2;
 
-            AddSegment(segments, atX, atY, middle, atY);
-            AddSegment(segments, middle, atY, middle, run[i].Y);
+            AddShownSegment(segments, plot, atX, atY, middle, atY);
+            AddShownSegment(segments, plot, middle, atY, middle, run[i].Y);
             atX = middle;
             atY = run[i].Y;
         }
 
-        AddSegment(segments, atX, atY, run[^1].X, atY);
+        AddShownSegment(segments, plot, atX, atY, run[^1].X, atY);
     }
 
+    /// <summary>A piece from one place to another, left out where it lies wholly beside the plot.</summary>
+    private static void AddShownSegment(List<ChartSegment> segments, ChartPlot plot, double fromX, double fromY, double toX, double toY)
+    {
+        if (!Beside(plot, Math.Min(fromX, toX), Math.Max(fromX, toX)))
+            AddSegment(segments, fromX, fromY, toX, toY);
+    }
+
+    /// <summary>Whether a stretch across, from its least x to its greatest, lies wholly before or past the plot, where none of it shows.</summary>
+    private static bool Beside(ChartPlot plot, double least, double greatest)
+        => greatest < plot.Left || least > plot.Right;
+
     /// <summary>
-    /// The curve <see cref="AppendCurve"/> draws into a point, cut into pieces about <see cref="CurvePiece"/> long.
+    /// The curve <see cref="AppendCurve"/> draws into a point, cut into pieces about <see cref="CurvePiece"/> long — none where it lies
+    /// wholly beside the plot, and no more than the plot's edge is long, which a curve through a value far off a zoomed plot would
+    /// pass many times over.
     /// </summary>
-    private static void AddCurvePieces(List<ChartSegment> segments, List<(double X, double Y)> run, int index)
+    private static void AddCurvePieces(List<ChartSegment> segments, List<(double X, double Y)> run, int index, ChartPlot plot)
     {
         var before = Math.Max(0, index - 2);
         var after = Math.Min(run.Count - 1, index + 1);
@@ -163,8 +179,13 @@ public static class ChartPath
         var secondX = endX - ((run[after].X - startX) / 6);
         var secondY = endY - ((run[after].Y - startY) / 6);
 
+        // The curve lies inside the four points it is drawn through and toward, so one whose four lie beside the plot shows nothing.
+        if (Beside(plot, Math.Min(Math.Min(startX, firstX), Math.Min(secondX, endX)), Math.Max(Math.Max(startX, firstX), Math.Max(secondX, endX))))
+            return;
+
         var reach = Distance(startX, startY, firstX, firstY) + Distance(firstX, firstY, secondX, secondY) + Distance(secondX, secondY, endX, endY);
-        var pieces = Math.Max(1, (int)Math.Ceiling(reach / CurvePiece));
+        // Capped while a double: an infinite reach cast to an int first is no count at all.
+        var pieces = (int)Math.Max(1, Math.Min(Math.Ceiling(reach / CurvePiece), Math.Ceiling(2 * (plot.Width + plot.Height) / CurvePiece)));
         var atX = startX;
         var atY = startY;
 

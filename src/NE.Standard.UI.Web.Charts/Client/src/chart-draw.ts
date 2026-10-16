@@ -43,7 +43,10 @@ export type ChartFormatting = {
     readonly focusReturn: Popups["focusReturn"];
     readonly ensureId: DomRegistry["ensureId"];
     readonly colors: SeriesColors;
-    /** A caption or a value made safe among words a tooltip reads as inline markup, so `p*q` reads as written (`tooltips.escape`). */
+    /**
+     * A value standing on its own among words a tooltip reads as inline markup — a shared tooltip's x — made to read as written
+     * (`tooltips.escape`); a word's arguments are escaped by `strings.format` under `markup`.
+     */
     readonly escape: Tooltips["escape"];
 };
 
@@ -55,7 +58,10 @@ export type ChartState = {
     readonly hidden: Set<string>;
     /** The stretch of the x axis the viewer moved to, or null for the whole of what the data reaches. */
     view: Span | null;
-    /** Whether a point arrived while the window stood at the far end: the next draw slides it along before drawing, and clears this. */
+    /**
+     * Whether the rows changed while the window stood at the far end: the next draw slides it along to a point past it before drawing,
+     * and clears this.
+     */
     follow: boolean;
     /** The box the canvas was last measured at by a draw, once the legend beside it was in step. */
     width: number;
@@ -70,8 +76,14 @@ export type ChartFrame = {
     readonly x: Scale;
     /** The whole of what the data reaches, which is what a window is clamped inside. */
     readonly whole: Span;
+    /** Where the newest point stands, which a window reaches to stand at the far end and a followed one ends at; null with no data. */
+    readonly newest: number | null;
     /** Every x the drawn series hold, with what one tooltip says there; empty where the chart names its points one at a time. */
     readonly columns: readonly ChartColumn[];
+    /** The canvas the frame is drawn on, kept so a pointer's every move reads its box without a search of the chart. */
+    readonly canvas: SVGSVGElement;
+    /** The line a shared tooltip is read against; null where the chart shares none. */
+    readonly rule: SVGElement | null;
 };
 
 /** One x as a shared tooltip reads it: its place on the band axis and what every drawn series says there, written when first read. */
@@ -108,12 +120,15 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     if (model.stacked)
         stackSeries(visible);
 
-    // The window is the x axis this draw uses. It moves only when a point arrived while it stood at the far end: it slides along
-    // before this draw, so the frame is drawn once, where it ends up.
     const whole = resolveRange(model.x, data.xMin, data.xMax, data.categories.length);
+    // Where the newest point stands, which a window reaches to stand at the far end and a followed one ends at — not the axis's rounded
+    // end past it, which would show an empty stretch; a category's whole place, which its range reaches half a place past.
+    const newest = data.xMin > data.xMax ? null : model.x.kind === "Category" ? whole.max : data.xMax;
 
-    if (state.follow && state.view !== null)
-        state.view = followWindow(state.view, whole.min, whole.max);
+    // A followed window slides before the draw, which draws it once; over data only, as with none the whole is a stand-in (1970). Only
+    // a point past the window moves it: a change that brought none, a replace or a removal, leaves it where it stood.
+    if (state.follow && state.view !== null && newest !== null && newest > state.view.to)
+        state.view = followWindow(state.view, whole.min, newest);
 
     state.follow = false;
 
@@ -190,7 +205,7 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
         drawSeries(drawing, state, visible, bare, x, y, data.categories, formats, numbers, dates, formatting, colors);
         canvas.replaceChildren(...drawing.childNodes);
 
-        return { plot: bare, x, whole: { from: whole.min, to: whole.max }, columns: [] };
+        return { plot: bare, x, whole: { from: whole.min, to: whole.max }, newest, columns: [], canvas, rule: null };
     }
 
     // Measured before the canvas is cleared: a detached text has no length, and the plot's left edge is the widest label's own width.
@@ -218,12 +233,11 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
         ? buildColumns(model, visible, plot, x, data.categories, formats, numbers, dates, formatting)
         : [];
 
-    if (columns.length > 0)
-        drawRule(drawing, plot, model.horizontal);
+    const rule = columns.length > 0 ? drawRule(drawing, plot, model.horizontal) : null;
 
     canvas.replaceChildren(...drawing.childNodes);
 
-    return { plot, x, whole: { from: whole.min, to: whole.max }, columns };
+    return { plot, x, whole: { from: whole.min, to: whole.max }, newest, columns, canvas, rule };
 }
 
 /** A pie's legend: an entry per sector rather than per series, named by the row's x as the x axis writes it, coloured by its place. */
@@ -995,8 +1009,8 @@ function tooltipText(
 }
 
 /** A point's words from its caption and its written values, each as written: a tooltip reads its words as inline markup, the template's own kept. */
-export function pointWords(caption: string, x: string, y: string, formatting: Pick<ChartFormatting, "strings" | "escape">): string {
-    return formatting.strings.format(ChartWords.point, { series: formatting.escape(caption), x: formatting.escape(x), y: formatting.escape(y) });
+export function pointWords(caption: string, x: string, y: string, formatting: Pick<ChartFormatting, "strings">): string {
+    return formatting.strings.format(ChartWords.point, { series: caption, x, y }, true);
 }
 
 /** A chart with no rows keeps its frame and says there is nothing in it. */
@@ -1074,18 +1088,20 @@ function buildColumns(
 }
 
 /** One series' line of a shared tooltip, its caption and its value as written. */
-export function readingWords(caption: string, value: string, formatting: Pick<ChartFormatting, "strings" | "escape">): string {
-    return formatting.strings.format(ChartWords.reading, { series: formatting.escape(caption), value: formatting.escape(value) });
+export function readingWords(caption: string, value: string, formatting: Pick<ChartFormatting, "strings">): string {
+    return formatting.strings.format(ChartWords.reading, { series: caption, value }, true);
 }
 
 /** The line a shared tooltip is read against, which the engine moves and shows. */
-function drawRule(canvas: SVGSVGElement, plot: Plot, horizontal: boolean): void {
+function drawRule(canvas: SVGSVGElement, plot: Plot, horizontal: boolean): SVGElement {
     const rule = append(canvas, "rect", ClientNames.rule);
 
     rule.setAttribute("x", horizontal ? coord(plot.left) : "0");
     rule.setAttribute("y", horizontal ? "0" : coord(plot.top));
     rule.setAttribute("width", horizontal ? coord(plot.width) : "1");
     rule.setAttribute("height", horizontal ? "1" : coord(plot.height));
+
+    return rule;
 }
 
 /** The colour of a series: the one the author gave, or its place in the theme's categorical run, cycled by the run's length. */

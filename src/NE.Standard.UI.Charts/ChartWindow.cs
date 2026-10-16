@@ -50,9 +50,13 @@ public static class ChartWindow
     public static UIChartWindow Pan(UIChartWindow span, double by, double min, double max)
         => double.IsFinite(by) ? Clamp(new UIChartWindow(span.From + by, span.To + by), min, max) : Clamp(span, min, max);
 
-    /// <summary>The window kept on the far end as the data grows: the same width, ending where the data now does.</summary>
+    /// <summary>
+    /// The window kept on the far end as the data grows: the width it was given, ending where the data now does. Not narrowed to a
+    /// whole narrower than it, which would keep it that narrow for good; a draw clamps what it shows. One with no width follows as the
+    /// whole.
+    /// </summary>
     public static UIChartWindow Follow(UIChartWindow span, double min, double max)
-        => Clamp(new UIChartWindow(max - span.Width, max), min, max);
+        => new(max - (double.IsFinite(span.Width) && span.Width > 0 ? span.Width : max - min), max);
 
     /// <summary>
     /// What the series reach inside the window, with the point either side so a line entering the view starts at its true value —

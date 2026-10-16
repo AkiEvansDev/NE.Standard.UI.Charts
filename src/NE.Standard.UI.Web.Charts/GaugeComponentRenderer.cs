@@ -75,9 +75,11 @@ public class GaugeComponentRenderer : WebComponentRendererBase
         NumberCultureRenderer.RenderNumberCulture(root, culture);
         _ = root.Attribute(WebAttributes.PageCulture);
 
-        var low = ReadRenderValue(context, GaugeComponent.MinProperty, 0d);
+        // An end no number holds (NaN, an infinity) reads as unset, as a reading does: the stylesheet's arithmetic has no word for it.
+        var min = ReadRenderValue(context, GaugeComponent.MinProperty, 0d);
+        var low = double.IsFinite(min) ? min : 0;
         var max = ReadRenderValue<double?>(context, GaugeComponent.MaxProperty, null);
-        var high = max > low ? max.Value : low + 100;
+        var high = max is double end && double.IsFinite(end) && end > low ? end : low + 100;
 
         // The range and the reading, from which the stylesheet works out the reading's share; none reads as the low end.
         _ = root.Style(MinVariable, low.ToString(CultureInfo.InvariantCulture));
@@ -85,7 +87,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
 
         _ = RenderProperty<double?>(context, root, GaugeComponent.ValueProperty, static (target, current) =>
         {
-            if (current is double value)
+            if (current is double value && double.IsFinite(value))
                 _ = target.Style(ValueVariable, value.ToString(CultureInfo.InvariantCulture));
         },
         [
@@ -168,7 +170,8 @@ public class GaugeComponentRenderer : WebComponentRendererBase
         var from = Share(band.From, low, high);
         var to = Share(band.To, low, high);
 
-        if (to <= from)
+        // Not `to <= from`: a NaN end compares false both ways, and its share would be painted as NaN.
+        if (!(to > from))
             return;
 
         _ = svg.Element("g", group =>
@@ -216,7 +219,8 @@ public class GaugeComponentRenderer : WebComponentRendererBase
         if (!WebNumberFormat.IsSupported(format))
             throw new InvalidOperationException($"GaugeComponent.Format '{format}' cannot be written: a reading takes a format of the shared subset ({WebNumberFormat.Kinds}, with an optional precision).");
 
-        var value = ReadRenderValue<double?>(context, GaugeComponent.ValueProperty, null);
+        // A reading JSON has no number for (NaN, an infinity) reaches the page as null: painted as none, as the page writes it.
+        var value = ReadRenderValue<double?>(context, GaugeComponent.ValueProperty, null) is double read && double.IsFinite(read) ? read : (double?)null;
 
         _ = frame.Element("div", words =>
         {
