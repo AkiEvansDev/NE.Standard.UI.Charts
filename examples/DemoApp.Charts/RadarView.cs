@@ -19,10 +19,11 @@ internal sealed class RadarView : ChartsDemoView, IUIViewDefinition
         =>
         [
             Example("Three regions' quarter, measure by measure",
-                "A radar chart puts a spoke per row round a centre — the x names it — and closes each series' values along the spokes into a filled shape, so where one series reaches further than another shows at a glance. The y axis is the one scale every spoke shares: here fixed from nothing to a hundred, its ticks the rings. Hover a corner for its value; a press on a legend entry puts a region aside.",
+                "A radar chart puts a spoke per row round a centre — the x names it — and closes each series' values along the spokes into a filled shape, so where one series reaches further than another shows at a glance. The y axis is the one scale every spoke shares: here fixed from nothing to a hundred, its ticks the rings. Hover a corner for its value; a press on a legend entry puts a region aside. The measures are keys of the page's words, which the category axis translates, so a spoke's name follows a language switch.",
                 new RadarChartComponent("scores")
                     .SetItems(Catalogue.Scores())
                     .SetX(nameof(RegionScore.Measure))
+                    .SetXAxis(UIChartAxis.Category(translate: true))
                     .SetYAxis(UIChartAxis.Linear(min: 0, max: 100, format: "N0"))
                     .AddSeries("eu-west", "charts.eu-west", nameof(RegionScore.EuWest))
                     .AddSeries("us-east", "charts.us-east", nameof(RegionScore.UsEast))
@@ -35,6 +36,7 @@ internal sealed class RadarView : ChartsDemoView, IUIViewDefinition
                 new RadarChartComponent("asia-south")
                     .SetItems(Catalogue.Scores())
                     .SetX(nameof(RegionScore.Measure))
+                    .SetXAxis(UIChartAxis.Category(translate: true))
                     .SetYAxis(UIChartAxis.Linear(min: 0, max: 100, format: "N0"))
                     .AddSeries("ap-south", "charts.asia-south", nameof(RegionScore.ApSouth))
                     .SetShowMarkers(false)

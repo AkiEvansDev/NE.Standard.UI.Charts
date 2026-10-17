@@ -3,6 +3,7 @@
 
 import { bandWidth, barOf, barSlots } from "./chart-bars.ts";
 import { PlainRadius, bubbleRadius, pointReach } from "./chart-bubbles.ts";
+import { categoryNames } from "./chart-model.ts";
 import type { ChartAxis, ChartModel } from "./chart-model.ts";
 import { momentDate } from "./chart-moment.ts";
 import { fitTurn, placeSideLegend, syncLegend } from "./chart-legend.ts";
@@ -113,7 +114,9 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
         return null;
 
     const model = state.model;
-    const data = buildData(state.rows, model, formatting.temporal.parse, formatting.numbers.parseInvariant);
+    const built = buildData(state.rows, model, formatting.temporal.parse, formatting.numbers.parseInvariant);
+    // Translated at every draw, so a language switch's redraw writes the names anew; a name's place is the rows' own text.
+    const data: ChartData = { ...built, categories: categoryNames(model.x, built.categories, text => formatting.strings.resolveText(text)) };
     const visible = data.series.filter(series => !state.hidden.has(series.series.key));
 
     // The stack is of the series actually drawn: one the legend put aside leaves it rather than holding a gap in it.

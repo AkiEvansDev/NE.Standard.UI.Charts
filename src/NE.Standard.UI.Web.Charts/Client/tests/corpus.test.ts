@@ -118,7 +118,7 @@ function close(actual: number, expected: number, name: string): void {
 }
 
 function axisOf(entry: { kind: AxisKind; min: number | null; max: number | null; ticks: number }): ChartAxis {
-    return { kind: entry.kind, min: entry.min, max: entry.max, format: null, grid: true, ticks: entry.ticks, caption: null };
+    return { kind: entry.kind, min: entry.min, max: entry.max, format: null, grid: true, ticks: entry.ticks, translate: false, caption: null };
 }
 
 function pointsOf(entries: readonly CorpusPoint[]): ChartPoint[] {

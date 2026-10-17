@@ -76,6 +76,7 @@ public abstract partial class ChartComponentRendererBase
             Format = axis.Format,
             Grid = axis.ShowGridLines,
             Ticks = axis.TickCount,
+            Translate = axis.TranslateNames,
             Caption = string.IsNullOrWhiteSpace(axis.Caption) ? null : axis.Caption
         };
 

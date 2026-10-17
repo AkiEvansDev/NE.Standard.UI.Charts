@@ -30,6 +30,12 @@ public sealed record UIChartAxis
     /// <summary>How many ticks the axis aims for; the round step nearest that count wins.</summary>
     public int TickCount { get; init; } = 5;
 
+    /// <summary>
+    /// Whether a category axis reads its names as phrase keys, written in the page's words as a caption is; a name no word answers
+    /// stays as written.
+    /// </summary>
+    public bool TranslateNames { get; init; }
+
     /// <summary>An axis of numbers.</summary>
     public static UIChartAxis Linear(string? caption = null, double? min = null, double? max = null, string? format = null)
         => new() { Kind = UIChartAxisKind.Linear, Caption = caption, Min = min, Max = max, Format = format };
@@ -45,9 +51,9 @@ public sealed record UIChartAxis
             Format = format
         };
 
-    /// <summary>An axis of names, one place each, in the order the rows arrive.</summary>
-    public static UIChartAxis Category(string? caption = null)
-        => new() { Kind = UIChartAxisKind.Category, Caption = caption };
+    /// <summary>An axis of names, one place each, in the order the rows arrive; with <paramref name="translate"/>, each name a phrase key.</summary>
+    public static UIChartAxis Category(string? caption = null, bool translate = false)
+        => new() { Kind = UIChartAxisKind.Category, Caption = caption, TranslateNames = translate };
 
     /// <summary>An axis of numbers on a base-ten logarithmic scale.</summary>
     public static UIChartAxis Logarithmic(string? caption = null, double? min = null, double? max = null, string? format = null)

@@ -58,7 +58,7 @@ internal sealed class Quarter : IBindableItem
 }
 
 /// <summary>
-/// One plan's share of a month's revenue: a row of a pie, named by its own words.
+/// One plan's share of a month's revenue: a row of a pie, named by a key the axis translates.
 /// </summary>
 internal sealed class PlanShare : IBindableItem
 {
@@ -70,7 +70,8 @@ internal sealed class PlanShare : IBindableItem
 }
 
 /// <summary>
-/// One measure of a region's quarter, scored out of a hundred for three of the regions: a spoke of a radar, named by its own words.
+/// One measure of a region's quarter, scored out of a hundred for three of the regions: a spoke of a radar, named by a key the axis
+/// translates.
 /// </summary>
 internal sealed class RegionScore : IBindableItem
 {
@@ -173,10 +174,10 @@ internal static class Catalogue
     public static List<PlanShare> Plans()
         =>
         [
-            new PlanShare { Id = "starter", Name = "Starter", Revenue = 9.8 },
-            new PlanShare { Id = "standard", Name = "Standard", Revenue = 26.4 },
-            new PlanShare { Id = "pro", Name = "Pro", Revenue = 21.1 },
-            new PlanShare { Id = "dedicated", Name = "Dedicated", Revenue = 11.6 }
+            new PlanShare { Id = "starter", Name = "charts.plan.starter", Revenue = 9.8 },
+            new PlanShare { Id = "standard", Name = "charts.plan.standard", Revenue = 26.4 },
+            new PlanShare { Id = "pro", Name = "charts.plan.pro", Revenue = 21.1 },
+            new PlanShare { Id = "dedicated", Name = "charts.plan.dedicated", Revenue = 11.6 }
         ];
 
     /// <summary>A dozen of the fleet's servers: the plan's price a month, the average CPU over the day, and the requests a minute.</summary>
@@ -204,12 +205,12 @@ internal static class Catalogue
     public static List<RegionScore> Scores()
         =>
         [
-            new RegionScore { Id = "uptime", Measure = "Uptime", EuWest = 96, UsEast = 91, ApSouth = 88 },
-            new RegionScore { Id = "latency", Measure = "Latency", EuWest = 84, UsEast = 78, ApSouth = 62 },
-            new RegionScore { Id = "headroom", Measure = "Headroom", EuWest = 58, UsEast = 34, ApSouth = 90 },
-            new RegionScore { Id = "cost", Measure = "Cost per seat", EuWest = 72, UsEast = 66, ApSouth = 85 },
-            new RegionScore { Id = "support", Measure = "Support", EuWest = 88, UsEast = 80, ApSouth = 70 },
-            new RegionScore { Id = "growth", Measure = "Growth", EuWest = 40, UsEast = 64, ApSouth = 94 }
+            new RegionScore { Id = "uptime", Measure = "charts.measure.uptime", EuWest = 96, UsEast = 91, ApSouth = 88 },
+            new RegionScore { Id = "latency", Measure = "charts.measure.latency", EuWest = 84, UsEast = 78, ApSouth = 62 },
+            new RegionScore { Id = "headroom", Measure = "charts.measure.headroom", EuWest = 58, UsEast = 34, ApSouth = 90 },
+            new RegionScore { Id = "cost", Measure = "charts.measure.cost", EuWest = 72, UsEast = 66, ApSouth = 85 },
+            new RegionScore { Id = "support", Measure = "charts.measure.support", EuWest = 88, UsEast = 80, ApSouth = 70 },
+            new RegionScore { Id = "growth", Measure = "charts.measure.growth", EuWest = 40, UsEast = 64, ApSouth = 94 }
         ];
 
     private static double CpuAt(int index)

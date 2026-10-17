@@ -12,6 +12,8 @@ export type ChartAxis = {
     readonly format: string | null;
     readonly grid: boolean;
     readonly ticks: number;
+    /** Whether a category's name is a phrase key, written in the page's words as a caption is. */
+    readonly translate: boolean;
     readonly caption: string | null;
 };
 
@@ -85,6 +87,11 @@ export function translateModel(model: WrittenModel, translate: (text: string) =>
         y: axis(model.y),
         series: model.series.map(series => ({ ...series, caption: series.caption === null ? series.key : translate(series.caption) }))
     };
+}
+
+/** An axis's names as a draw writes them: each translated as a caption is where the axis says so, else as the rows hold them. */
+export function categoryNames(axis: ChartAxis, names: readonly string[], translate: (text: string) => string): readonly string[] {
+    return axis.translate ? names.map(translate) : names;
 }
 
 /** Whether a row is one point of the series it names, rather than an x with a value per series. */

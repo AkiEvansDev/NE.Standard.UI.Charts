@@ -28,6 +28,7 @@ internal sealed class ChartRenderSeries(UIChartSeries series, int index)
 /// </summary>
 internal sealed class ChartRenderData
 {
+    /// <summary>The names in the order met; in the page's words once read, where the axis translates them.</summary>
     public List<string> Categories { get; } = [];
 
     /// <summary>Each name of <see cref="Categories"/> by its place there, so a row finds its name without a search.</summary>

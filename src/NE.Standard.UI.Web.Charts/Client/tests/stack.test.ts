@@ -13,7 +13,7 @@ const plot = { left: 0, top: 0, width: 100, height: 100 };
 const scale = { min: 0, max: 10, logarithmic: false };
 
 function axis(values: Partial<ChartAxis>): ChartAxis {
-    return { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption: null, ...values };
+    return { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null, ...values };
 }
 
 function seriesData(key: string, points: ChartPoint[], index: number): ChartSeriesData {

@@ -14,8 +14,8 @@ function series(key: string, valuePath: string | null, sizePath: string | null):
 function model(values: Partial<ChartModel>): ChartModel {
     return {
         kind: "scatter",
-        x: { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption: null },
-        y: { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption: null },
+        x: { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null },
+        y: { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null },
         series: [],
         xPath: "Income",
         seriesPath: null,

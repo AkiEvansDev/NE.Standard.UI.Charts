@@ -114,7 +114,7 @@ the legend puts aside leaves the stack rather than holding a gap in it.
 |---|---|---|
 | `UIChartAxis.Linear` | a number | a format of the framework's shared number subset — `N`, `F`, `C`, `P` or `D` with an optional precision: `N0`, `N2`, `P`, `F1` — or as many decimals as the step needs |
 | `UIChartAxis.Time` | a `DateTime` | a pattern of the framework's shared token subset (`HH:mm`, `dd MMM`; no quotes, no letter outside a token), or the part of a clock the step moves |
-| `UIChartAxis.Category` | a name, one place per name in the order the rows arrive | the name itself |
+| `UIChartAxis.Category` | a name, one place per name in the order the rows arrive | the name itself, or with `translate: true` the name read as a key and written in the page's words |
 | `UIChartAxis.Logarithmic` | a number above zero, on a base-ten scale | a format of the shared number subset, or as many decimals as its smallest mark needs; marked at the powers of ten |
 
 The server and the page write a tick by the same formatters, so the first frame and every redraw agree; a format outside
@@ -174,6 +174,9 @@ browser decides it at every draw, from the legend's widest entry, so the server'
 
 The words are the page's. An axis's and a series' caption travel in the model as the author gave them — keys, not the words
 they read as — and the browser translates them at every draw and draws every chart again when the page's language changes. A
+category's name is data and stays as the rows hold it, unless the axis says otherwise: `UIChartAxis.Category(translate: true)`
+(`TranslateNames`) reads every name as a key, translated as a caption is wherever a name is written — the ticks, the legend, a
+sector's and a point's words, a radar's spokes — and a name no word answers stays as written. A
 donut's centre caption and a gauge's unit and caption are the properties' own words, each on an element of its own laid over
 the drawing in the page's own type — the centre over the hole, wrapped inside it; the unit written after the reading's
 number — written again at a switch, and a bound one follows its pushes. What a tooltip or the canvas's name

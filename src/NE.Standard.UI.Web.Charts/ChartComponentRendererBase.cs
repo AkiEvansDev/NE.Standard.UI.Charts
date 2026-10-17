@@ -164,6 +164,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         ChartRenderData data = ChartDataReader.Read(spec, ResolveItems(context).Items);
         CultureInfo culture = ResolveCulture(context);
 
+        TranslateCategories(context, spec, data);
         ApplyStacking(spec, data);
 
         // Once, on the root: the engine formats a tick and a tooltip by the nearest packs, as the typed cells of a grid do. They are
@@ -264,6 +265,19 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             Horizontal = ReadHorizontal(context),
             Donut = ReadDonut(context)
         };
+    }
+
+    /// <summary>
+    /// A translating axis's names in the page's words, as a series' caption is translated; a name's place stays the one the rows' own
+    /// text settled, and the browser translates them again at every draw.
+    /// </summary>
+    private static void TranslateCategories(WebRenderContext context, ChartSpec spec, ChartRenderData data)
+    {
+        if (!spec.XAxis.TranslateNames)
+            return;
+
+        for (var i = 0; i < data.Categories.Count; i++)
+            data.Categories[i] = context.Translate(data.Categories[i]);
     }
 
     /// <summary>

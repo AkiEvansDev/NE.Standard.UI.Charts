@@ -81,7 +81,7 @@ function followingChart(rows: ChartRow[]): State {
     // A canvas the page has not laid out yet: the draw settles the window, then keeps the server's frame.
     Object.assign(canvas, { getBoundingClientRect: () => ({ width: 0, height: 0 }) });
 
-    const axis = { min: null, max: null, format: null, grid: true, ticks: 5, caption: null };
+    const axis = { min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null };
     const model: ChartModel = {
         kind: "line",
         x: { kind: "Time", ...axis },

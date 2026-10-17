@@ -31,7 +31,7 @@ export type ChartSeriesData = {
 
 export type ChartData = {
     readonly series: ChartSeriesData[];
-    readonly categories: string[];
+    readonly categories: readonly string[];
     readonly xMin: number;
     readonly xMax: number;
     readonly yMin: number;

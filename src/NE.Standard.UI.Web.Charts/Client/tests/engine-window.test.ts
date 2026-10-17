@@ -64,7 +64,7 @@ Object.assign(globalThis, {
 
 const { ChartEngine } = await import("../src/chart-engine.ts");
 
-const axis = { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption: null } as const;
+const axis = { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null } as const;
 const model: ChartModel = {
     kind: "line",
     x: axis,

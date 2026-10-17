@@ -4,9 +4,9 @@ using System.Collections.Generic;
 namespace DemoApp.Charts;
 
 /// <summary>
-/// The demo's words: its pages' names, the captions it gives its series, axes and gauges, its buttons and its status lines, on
-/// keys of the demo's own prefix, in English and in a second language; the framework's, the code field's and the charts' own words
-/// are the tables they ship.
+/// The demo's words: its pages' names, the captions it gives its series, axes and gauges, the plans and measures its translating
+/// axes name, its buttons and its status lines, on keys of the demo's own prefix, in English and in a second language; the
+/// framework's, the code field's and the charts' own words are the tables they ship.
 /// </summary>
 internal static class ChartsDemoWords
 {
@@ -39,6 +39,16 @@ internal static class ChartsDemoWords
         ["charts.unit.falling"] = "% and falling",
         ["charts.spark.cpu"] = "CPU of api-eu-west-1, the last forty readings",
         ["charts.spark.revenue"] = "Revenue in Europe West, by quarter",
+        ["charts.plan.starter"] = "Starter",
+        ["charts.plan.standard"] = "Standard",
+        ["charts.plan.pro"] = "Pro",
+        ["charts.plan.dedicated"] = "Dedicated",
+        ["charts.measure.uptime"] = "Uptime",
+        ["charts.measure.latency"] = "Latency",
+        ["charts.measure.headroom"] = "Headroom",
+        ["charts.measure.cost"] = "Cost per seat",
+        ["charts.measure.support"] = "Support",
+        ["charts.measure.growth"] = "Growth",
 
         ["charts.button.take-reading"] = "Take a reading",
         ["charts.button.change-last"] = "Change the last one",
@@ -97,6 +107,16 @@ internal static class ChartsDemoWords
         ["charts.unit.falling"] = "%，下降中",
         ["charts.spark.cpu"] = "api-eu-west-1 的处理器占用，最近四十个读数",
         ["charts.spark.revenue"] = "西欧收入，按季度",
+        ["charts.plan.starter"] = "入门版",
+        ["charts.plan.standard"] = "标准版",
+        ["charts.plan.pro"] = "专业版",
+        ["charts.plan.dedicated"] = "专属版",
+        ["charts.measure.uptime"] = "可用性",
+        ["charts.measure.latency"] = "延迟",
+        ["charts.measure.headroom"] = "余量",
+        ["charts.measure.cost"] = "每席成本",
+        ["charts.measure.support"] = "支持",
+        ["charts.measure.growth"] = "增长",
 
         ["charts.button.take-reading"] = "读取一次",
         ["charts.button.change-last"] = "修改最后一个",

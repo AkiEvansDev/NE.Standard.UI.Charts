@@ -7,7 +7,7 @@ import { translateModel } from "../src/chart-model.ts";
 import type { ChartAxis, WrittenModel } from "../src/chart-model.ts";
 
 function axis(caption: string | null): ChartAxis {
-    return { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption };
+    return { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption };
 }
 
 function written(): WrittenModel {

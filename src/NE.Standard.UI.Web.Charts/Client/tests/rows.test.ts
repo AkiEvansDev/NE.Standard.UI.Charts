@@ -26,8 +26,8 @@ function series(key: string, valuePath: string | null, sizePath: string | null =
 function model(values: Partial<ChartModel>): ChartModel {
     return {
         kind: "line",
-        x: { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption: null },
-        y: { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption: null },
+        x: { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null },
+        y: { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null },
         series: [],
         xPath: "Time",
         seriesPath: null,
@@ -86,7 +86,7 @@ test("a name is found by its place among the names met, not by a search of them 
 });
 
 test("the names a category axis meets are its places in the order they arrived, however many there are", () => {
-    const bands = model({ x: { kind: "Category", min: null, max: null, format: null, grid: true, ticks: 5, caption: null }, series: [series("value", "Value")] });
+    const bands = model({ x: { kind: "Category", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null }, series: [series("value", "Value")] });
     const rows: ChartRow[] = Array.from({ length: 4000 }, (_, i) => ({ key: `r${i}`, x: `n${i % 2000}`, values: [i], series: null, sizes: [] }));
     const data = buildData(rows, bands, parse, readNumber);
 
@@ -224,7 +224,7 @@ test("an insert of many rows keeps their order and holds each key once", () => {
 });
 
 test("a patched row with no x is no point, and names no blank band, as the server's reader skips it", () => {
-    const bands = model({ x: { kind: "Category", min: null, max: null, format: null, grid: true, ticks: 5, caption: null }, series: [series("value", "Value")] });
+    const bands = model({ x: { kind: "Category", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null }, series: [series("value", "Value")] });
     const slots: ChartSlot[] = [];
 
     applyChange(slots, "Insert", [{ key: "a", oldKey: null, index: 0, item: { time: "Berlin", value: 1 } }, { key: "b", oldKey: null, index: 1, item: { time: null, value: 2 } }], [], bands, read, readNumber);
@@ -236,7 +236,7 @@ test("a patched row with no x is no point, and names no blank band, as the serve
 });
 
 test("on a logarithmic axis a value at zero or below is a gap and an x there no point, so neither reaches the range", () => {
-    const axis = { kind: "Logarithmic", min: null, max: null, format: null, grid: true, ticks: 5, caption: null } as const;
+    const axis = { kind: "Logarithmic", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null } as const;
     const logarithmic = model({ x: axis, y: axis, series: [series("value", "Value")] });
     const rows: ChartRow[] = [
         { key: "a", x: "0", values: [5], series: null, sizes: [] },
@@ -251,7 +251,7 @@ test("on a logarithmic axis a value at zero or below is a gap and an x there no 
 });
 
 test("with no x path a logarithmic axis leaves the row at place zero out, and the rest stand at their places", () => {
-    const axis = { kind: "Logarithmic", min: null, max: null, format: null, grid: true, ticks: 5, caption: null } as const;
+    const axis = { kind: "Logarithmic", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null } as const;
     const numbered = model({ x: axis, xPath: null, series: [series("value", "Value")] });
     const rows: ChartRow[] = [0, 1, 2].map(place => ({ key: `r${place}`, x: String(place), values: [5 + place], series: null, sizes: [] }));
 

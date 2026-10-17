@@ -34,7 +34,7 @@ function chart(sharedTooltip: boolean): { state: State; canvas: StubElement } {
 
     Object.assign(canvas, { getBoundingClientRect: () => ({ width: 400, height: 200 }) });
 
-    const axis = { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption: null } as const;
+    const axis = { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null } as const;
     const model: ChartModel = {
         kind: "line",
         x: axis,

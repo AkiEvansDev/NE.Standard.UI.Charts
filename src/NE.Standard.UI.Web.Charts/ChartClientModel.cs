@@ -66,6 +66,9 @@ internal sealed record ChartClientAxis
 
     public int Ticks { get; init; }
 
+    /// <summary>Whether the client writes a category's name in the page's words, translated at every draw as a caption is.</summary>
+    public bool Translate { get; init; }
+
     /// <summary>As the author wrote it: the client translates it, again at every language switch.</summary>
     public string? Caption { get; init; }
 }

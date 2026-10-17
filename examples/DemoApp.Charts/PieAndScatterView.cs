@@ -19,7 +19,7 @@ internal sealed class PieAndScatterView : ChartsDemoView, IUIViewDefinition
         =>
         [
             Example("A month's revenue shared out by plan",
-                "A pie chart shares the turn out between one series' points: a row is a sector, its x names it and its value is its share. There are no axes — the legend names the sectors, and a press there takes one out so the rest spread over the whole turn. A hole in the middle makes it a donut, and the words in the hole are the author's — bound here, so the buttons change them from the controller.",
+                "A pie chart shares the turn out between one series' points: a row is a sector, its x names it and its value is its share. There are no axes — the legend names the sectors, and a press there takes one out so the rest spread over the whole turn. A hole in the middle makes it a donut, and the words in the hole are the author's — bound here, so the buttons change them from the controller. The plans' names are keys of the page's words, which the category axis translates — switch the language and the legend and the tooltips follow.",
                 new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
@@ -38,7 +38,7 @@ internal sealed class PieAndScatterView : ChartsDemoView, IUIViewDefinition
                     .AddChild(new PieChartComponent("plans")
                         .SetItems(Catalogue.Plans())
                         .SetX(nameof(PlanShare.Name))
-                        .SetXAxis(UIChartAxis.Category())
+                        .SetXAxis(UIChartAxis.Category(translate: true))
                         .SetYAxis(UIChartAxis.Linear(format: "N1"))
                         .AddSeries("revenue", "charts.revenue", nameof(PlanShare.Revenue))
                         .SetDonut(0.62)

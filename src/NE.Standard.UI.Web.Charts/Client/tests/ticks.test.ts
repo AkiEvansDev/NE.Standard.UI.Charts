@@ -5,7 +5,7 @@ import type { ChartAxis } from "../src/chart-model.ts";
 import { defaultFormat, fraction, plotDown, plotX, plotY, resolveRange, step, ticks, valueOf } from "../src/chart-ticks.ts";
 
 function axis(values: Partial<ChartAxis>): ChartAxis {
-    return { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, caption: null, ...values };
+    return { kind: "Linear", min: null, max: null, format: null, grid: true, ticks: 5, translate: false, caption: null, ...values };
 }
 
 test("a linear step is one, two or five times a power of ten", () => {
