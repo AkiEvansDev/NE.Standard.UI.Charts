@@ -16,7 +16,8 @@ public sealed partial class ChartsStrings
             [NoReading] = "—",
             [Point] = "{series} — {x}: {y}",
             [Reading] = "{series}: {value}",
-            [List] = "{list}, {next}"
+            [List] = "{list}, {next}",
+            [Rest] = "Остаток"
         }.ToFrozenDictionary(StringComparer.Ordinal),
         ["zh-Hans"] = new Dictionary<string, string>(StringComparer.Ordinal)
         {
@@ -25,7 +26,8 @@ public sealed partial class ChartsStrings
             [NoReading] = "无读数",
             [Point] = "{series} — {x}：{y}",
             [Reading] = "{series}：{value}",
-            [List] = "{list}、{next}"
+            [List] = "{list}、{next}",
+            [Rest] = "剩余"
         }.ToFrozenDictionary(StringComparer.Ordinal)
     }.ToFrozenDictionary(StringComparer.Ordinal);
 }

@@ -21,6 +21,6 @@ internal static class ChartsWebServices
         _ = services.AddCodeInput();
         _ = services.AddCharts();
         // Only the glyphs the shell wears: registering a whole Material style costs over half a megabyte of stylesheet.
-        _ = services.AddMaterialWebIcons(MaterialIconStyle.Outlined, ChartsDemoView.LightIcon, ChartsDemoView.DarkIcon, ChartsDemoView.CodeIcon, ChartsDemoView.CopyIcon);
+        _ = services.AddMaterialWebIcons(MaterialIconStyle.Outlined, [ChartsDemoView.LightIcon, ChartsDemoView.DarkIcon, ChartsDemoView.CodeIcon, ChartsDemoView.CopyIcon, .. ChartsDemoView.PageIcons]);
     }
 }

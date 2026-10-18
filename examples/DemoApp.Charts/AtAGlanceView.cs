@@ -1,19 +1,19 @@
 namespace DemoApp.Charts;
 
 /// <summary>
-/// The small charts: two sparks, and two readings on an arc. One of each follows the live readings, so a reading taken here moves
-/// a spark and a gauge at once.
+/// The small charts: two sparks, and readings on an arc. One of each follows the live readings, so a reading taken here moves a spark
+/// and a gauge at once.
 /// </summary>
-internal sealed class SparksAndGaugesView : ChartsDemoView, IUIViewDefinition
+internal sealed class AtAGlanceView : ChartsDemoView, IUIViewDefinition
 {
-    public static string ViewKey => "charts.sparks-and-gauges";
+    public static string ViewKey => "charts.at-a-glance";
 
-    protected override string Route => SparksAndGaugesRoute;
+    protected override string Route => AtAGlanceRoute;
 
-    public override string Title => "charts.page.sparks-and-gauges";
+    public override string Title => "charts.page.at-a-glance";
 
     protected override string Description
-        => "charts.page.sparks-and-gauges.description";
+        => "charts.page.at-a-glance.description";
 
     protected override IVisualComponent[] CreateSections()
         =>

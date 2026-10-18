@@ -7,11 +7,13 @@ import { categoryNames } from "./chart-model.ts";
 import type { ChartAxis, ChartModel } from "./chart-model.ts";
 import { momentDate } from "./chart-moment.ts";
 import { fitTurn, placeSideLegend, syncLegend } from "./chart-legend.ts";
-import type { LegendEntry } from "./chart-legend.ts";
+import type { LegendEntry, LegendRest } from "./chart-legend.ts";
 import { ChartAttributes, ChartClasses, ChartKinds, ChartVariables, ChartWords, ClientNames, DrawnClipPrefix } from "./chart-names.ts";
 import { areaPath, coord, linePath, lineSegments } from "./chart-path.ts";
 import { sectorsOf, spotAt } from "./chart-pie.ts";
 import type { Sector, Spot } from "./chart-pie.ts";
+import { shareWhole, sharesOf } from "./chart-share.ts";
+import type { Share } from "./chart-share.ts";
 import { radarEdges, radarOutline, radarRadius, radarReach, radarSpokes, ringLabel, spokeAnchor, spokeAngle } from "./chart-radar.ts";
 import type { ChartPoint, Segment } from "./chart-path.ts";
 import { buildData } from "./chart-rows.ts";
@@ -32,7 +34,8 @@ const CaptionHeight = 16;
 const LabelGap = 8;
 /** A label's own line, which is what tells whether the one beside the plot has room for the next. */
 const LabelHeight = 16;
-/** How many colours the theme's categorical run holds, where the page does not say. */
+/** How a legend's share of the whole is written: a per cent to a tenth. */
+const ShareFormat = "P1";
 const CentreSelector = `:scope > .${ChartClasses.area} > .${ChartClasses.centre}`;
 
 /** What a draw takes from the framework: how a value and a word are written, and the attribute names it writes as the framework does. */
@@ -148,14 +151,17 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     };
 
     const colors = formatting.colors.count(state.root);
-    // A pie's legend names its sectors rather than its series.
-    const entries = model.kind === ChartKinds.pie
-        ? sectorEntries(model, data, formats, numbers, dates, formatting, colors)
+    const parts = model.kind === ChartKinds.pie || model.kind === ChartKinds.share;
+    const total = model.kind === ChartKinds.share ? readTotal(state.root) : null;
+    // A pie's and a share bar's legend names its parts rather than its series.
+    const entries = parts
+        ? partEntries(model, data, state.hidden, total, formats, numbers, dates, formatting, colors)
         : data.series.map(entry => ({ key: entry.series.key, caption: entry.series.caption, color: colorOf(entry, colors, formatting.colors) }));
+    const rest = model.kind === ChartKinds.share ? restEntry(model, data, state.hidden, total, formats, numbers, dates, formatting) : null;
 
     // The legend first: its entries move the plot's box, and a box measured before them would stretch the old frame into the new.
     if (model.legend !== "None")
-        syncLegend(state.root, entries, state.hidden, formatting.names, formatting.focusReturn);
+        syncLegend(state.root, entries, rest, state.hidden, formatting.names, formatting.focusReturn);
 
     // Beside the plot or under it, before the plot's box is measured: where the legend stands is what the plot is left.
     placeSideLegend(state.root, model.legend);
@@ -188,6 +194,14 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     // A turn shared out has no axes to lay out, and no labels to measure: the sectors are the whole drawing.
     if (model.kind === ChartKinds.pie) {
         drawPie(drawing, state, data, width, height, formats, numbers, dates, formatting, colors);
+        canvas.replaceChildren(...drawing.childNodes);
+
+        return null;
+    }
+
+    // Nor has a whole shared out along one bar: the parts and what they leave of the total are the whole drawing.
+    if (model.kind === ChartKinds.share) {
+        drawShare(drawing, state, data, width, height, total, formats, numbers, dates, formatting, colors);
         canvas.replaceChildren(...drawing.childNodes);
 
         return null;
@@ -243,10 +257,16 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     return { plot, x, whole: { from: whole.min, to: whole.max }, newest, columns, canvas, rule };
 }
 
-/** A pie's legend: an entry per sector rather than per series, named by the row's x as the x axis writes it, coloured by its place. */
-function sectorEntries(
+/**
+ * A pie's and a share bar's legend: an entry per part rather than per series, named by the row's x as the x axis writes it, coloured
+ * by its place. Where the legend is a table, each writes its value and its share of what the drawn parts share out; one put aside has
+ * no share of it.
+ */
+function partEntries(
     model: ChartModel,
     data: ChartData,
+    hidden: ReadonlySet<string>,
+    total: number | null,
     formats: ChartFormats,
     numbers: NumberCulturePack,
     dates: TemporalCulturePack,
@@ -254,12 +274,63 @@ function sectorEntries(
     colors: number
 ): LegendEntry[] {
     const points = data.series.length > 0 ? data.series[0].points : [];
+    const shares = sharesOf(keptValues(points, hidden), total);
 
-    return points.map((point, index) => ({
-        key: point.key,
-        caption: formatValue(model.x, formats.x, point.x, data.categories, numbers, dates, formatting),
-        color: formatting.colors.color(index, colors)
-    }));
+    return points.map((point, index) => {
+        const entry = {
+            key: point.key,
+            caption: formatValue(model.x, formats.x, point.x, data.categories, numbers, dates, formatting),
+            color: formatting.colors.color(index, colors)
+        };
+
+        if (!model.legendValues)
+            return entry;
+
+        if (point.y === null)
+            return { ...entry, value: formatting.strings.text(ChartWords.noReading), share: formatting.strings.text(ChartWords.noReading) };
+
+        const value = formatValue(model.y, formats.y, point.y, [], numbers, dates, formatting);
+
+        return hidden.has(point.key) ? { ...entry, value } : { ...entry, value, share: formatting.numbers.format(shares[index].length, ShareFormat, numbers) };
+    });
+}
+
+/** Every point's value as a whole shared out reads it: one the legend put aside holds none. */
+function keptValues(points: readonly ChartPoint[], hidden: ReadonlySet<string>): (number | null)[] {
+    return points.map(point => (hidden.has(point.key) ? null : point.y));
+}
+
+/** What the kept parts leave of a share bar's total, named in the legend; none where they reach it or there is none. */
+function restEntry(
+    model: ChartModel,
+    data: ChartData,
+    hidden: ReadonlySet<string>,
+    total: number | null,
+    formats: ChartFormats,
+    numbers: NumberCulturePack,
+    dates: TemporalCulturePack,
+    formatting: ChartFormatting
+): LegendRest | null {
+    const values = keptValues(data.series.length > 0 ? data.series[0].points : [], hidden);
+    const whole = shareWhole(values, total);
+    const rest = whole - shareWhole(values, null);
+
+    if (rest <= 0)
+        return null;
+
+    const caption = model.remainderCaption ?? formatting.strings.text(ChartWords.rest);
+
+    if (!model.legendValues)
+        return { caption };
+
+    return { caption, value: formatValue(model.y, formats.y, rest, [], numbers, dates, formatting), share: formatting.numbers.format(rest / whole, ShareFormat, numbers) };
+}
+
+/** A share bar's total off its root, as the server and a bound one's push write it; none where it is unset or no number. */
+function readTotal(root: Element): number | null {
+    const total = Number.parseFloat(root.getAttribute(ChartAttributes.total) ?? "");
+
+    return Number.isFinite(total) ? total : null;
 }
 
 /** What the canvas is announced as, as the server wrote it: the entries the legend names, or the chart's own word where there are none. */
@@ -359,6 +430,76 @@ function drawPie(
 
     if (points.length === 0)
         drawEmpty(canvas, { left: 0, top: 0, width, height }, formatting);
+}
+
+/**
+ * A share bar: the first series' kept points one after another along the bar, on whole pixels, and what they leave of the total as
+ * its empty track. A part the legend hid takes none of it, and colours stay where they were; one followed by another piece of the bar
+ * stops a pixel short of it, so neighbours read apart on the ground, as a sector's edge parts them.
+ */
+function drawShare(
+    canvas: SVGSVGElement,
+    state: ChartState,
+    data: ChartData,
+    width: number,
+    height: number,
+    total: number | null,
+    formats: ChartFormats,
+    numbers: NumberCulturePack,
+    dates: TemporalCulturePack,
+    formatting: ChartFormatting,
+    colors: number
+): void {
+    const model = state.model;
+    const points = data.series.length > 0 ? data.series[0].points : [];
+    const parts = sharesOf(keptValues(points, state.hidden), total);
+    const last = lastDrawn(parts);
+    const end = last < 0 ? 0 : Math.round((parts[last].start + parts[last].length) * width);
+    const group = append(canvas, "g", ChartClasses.plot);
+
+    for (let i = 0; i < points.length; i++) {
+        if (parts[i].length <= 0)
+            continue;
+
+        const point = points[i];
+        const start = Math.round(parts[i].start * width);
+        const length = Math.max(1, Math.round((parts[i].start + parts[i].length) * width) - start - (i < last || end < width ? 1 : 0));
+        const shape = append(group, "g", ChartClasses.series);
+        const segment = append(shape, "rect", ChartClasses.segment);
+
+        shape.setAttribute(ChartAttributes.series, point.key);
+        shape.style.setProperty(ChartVariables.seriesColor, formatting.colors.color(i, colors));
+        segment.setAttribute("x", coord(start));
+        segment.setAttribute("y", "0");
+        segment.setAttribute("width", coord(length));
+        segment.setAttribute("height", coord(height));
+        segment.setAttribute(ChartAttributes.point, point.key);
+        // The group is named by its row, so the part itself says which series a press on it belongs to.
+        segment.setAttribute(ChartAttributes.series, data.series[0].series.key);
+
+        if (model.tooltip)
+            segment.setAttribute(formatting.names.tooltip, tooltipText(model, data.series[0], point.x, point.y ?? 0, data.categories, formats, numbers, dates, formatting));
+    }
+
+    if (end >= width)
+        return;
+
+    const rest = append(group, "rect", ChartClasses.rest);
+
+    rest.setAttribute("x", coord(end));
+    rest.setAttribute("y", "0");
+    rest.setAttribute("width", coord(width - end));
+    rest.setAttribute("height", coord(height));
+}
+
+/** The last part that takes any of the bar, or -1 where none does. */
+function lastDrawn(parts: readonly Share[]): number {
+    for (let i = parts.length - 1; i >= 0; i--) {
+        if (parts[i].length > 0)
+            return i;
+    }
+
+    return -1;
 }
 
 /** An angle as the stylesheet writes one. */

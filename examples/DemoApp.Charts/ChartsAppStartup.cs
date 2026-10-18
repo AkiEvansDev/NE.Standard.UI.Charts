@@ -22,10 +22,9 @@ public sealed class ChartsAppStartup : UIStartupBase
             .ConfigureLightPalette(static palette => palette with { FocusRing = palette.PrimaryInk })
             .ConfigureDarkPalette(static palette => palette with { FocusRing = palette.PrimaryInk }));
 
-        _ = application.Route<LinesView, ChartsController>(ChartsDemoView.LinesRoute);
-        _ = application.Route<AreasAndBarsView, ChartsController>(ChartsDemoView.AreasAndBarsRoute);
-        _ = application.Route<PieAndScatterView, PlansController>(ChartsDemoView.PieAndScatterRoute);
-        _ = application.Route<RadarView>(ChartsDemoView.RadarRoute);
-        _ = application.Route<SparksAndGaugesView, ChartsController>(ChartsDemoView.SparksAndGaugesRoute);
+        _ = application.Route<OverTimeView, ChartsController>(ChartsDemoView.OverTimeRoute);
+        _ = application.Route<SideBySideView, ChartsController>(ChartsDemoView.SideBySideRoute);
+        _ = application.Route<PartsView, PlansController>(ChartsDemoView.PartsRoute);
+        _ = application.Route<AtAGlanceView, ChartsController>(ChartsDemoView.AtAGlanceRoute);
     }
 }

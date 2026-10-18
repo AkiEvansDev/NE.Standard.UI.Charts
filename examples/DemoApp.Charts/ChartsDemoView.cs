@@ -7,15 +7,15 @@ namespace DemoApp.Charts;
 
 /// <summary>
 /// What every page of the demo wears: the title band with the theme switcher, the sidebar naming the pages, and the page's own
-/// sections under them. One page per family of charts rather than one page holding the package.
+/// sections under them. One page per thing a chart tells — how a value runs, how things compare, what a whole is made of, a reading at
+/// a glance — rather than one per chart type, which left a type alone on a page.
 /// </summary>
 public abstract class ChartsDemoView : UIViewBase
 {
-    public const string LinesRoute = "/";
-    public const string AreasAndBarsRoute = "/areas-and-bars";
-    public const string PieAndScatterRoute = "/pie-and-scatter";
-    public const string SparksAndGaugesRoute = "/sparks-and-gauges";
-    public const string RadarRoute = "/radar";
+    public const string OverTimeRoute = "/";
+    public const string SideBySideRoute = "/side-by-side";
+    public const string PartsRoute = "/parts";
+    public const string AtAGlanceRoute = "/at-a-glance";
 
     /// <summary>The two glyphs the theme switcher wears, which the host registers with the pack.</summary>
     public const string LightIcon = MaterialIcons.LightMode;
@@ -28,15 +28,17 @@ public abstract class ChartsDemoView : UIViewBase
     /// <summary>The sidebar's authored id, stable across renders.</summary>
     private const string SidebarId = "charts-sidebar";
 
-    /// <summary>Each page's route and its name, a key the page's own title shares.</summary>
-    private static readonly (string Route, string Label)[] Pages =
+    /// <summary>Each page's route, its name (a key the page's own title shares) and its glyph, which a folded sidebar shows.</summary>
+    private static readonly (string Route, string Label, string Icon)[] Pages =
     [
-        (LinesRoute, "charts.page.lines"),
-        (AreasAndBarsRoute, "charts.page.areas-and-bars"),
-        (PieAndScatterRoute, "charts.page.pie-and-scatter"),
-        (RadarRoute, "charts.page.radar"),
-        (SparksAndGaugesRoute, "charts.page.sparks-and-gauges")
+        (OverTimeRoute, "charts.page.over-time", MaterialIcons.ShowChart),
+        (SideBySideRoute, "charts.page.side-by-side", MaterialIcons.BarChart),
+        (PartsRoute, "charts.page.parts", MaterialIcons.PieChart),
+        (AtAGlanceRoute, "charts.page.at-a-glance", MaterialIcons.Speed)
     ];
+
+    /// <summary>The pages' glyphs, which the host registers with the pack.</summary>
+    public static string[] PageIcons => [.. Pages.Select(static page => page.Icon)];
 
     /// <summary>The title band and the sidebar stand, the sidebar from the top of the page; the content scrolls by itself.</summary>
     public override UIViewOptions Options { get; } = new() { StickyHeader = true, ScrollContentOnly = true, ShellLayout = UIShellLayout.FullHeightSides };
@@ -60,7 +62,7 @@ public abstract class ChartsDemoView : UIViewBase
         MenuItem[] entries = new MenuItem[Pages.Length];
 
         for (var i = 0; i < Pages.Length; i++)
-            entries[i] = new MenuItem { Id = Pages[i].Route, Title = Pages[i].Label, Url = Pages[i].Route, Selected = Pages[i].Route == Route };
+            entries[i] = new MenuItem { Id = Pages[i].Route, Title = Pages[i].Label, Icon = MaterialIcons.Outlined(Pages[i].Icon), Url = Pages[i].Route, Selected = Pages[i].Route == Route };
 
         // The width sits on the menu, not the container.
         return new ContainerComponent()

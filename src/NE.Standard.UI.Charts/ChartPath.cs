@@ -30,23 +30,34 @@ public static class ChartPath
         StringBuilder builder = new();
         List<(double X, double Y)> run = [];
 
-        for (var i = 0; i < points.Count; i++)
+        for (var i = 0; i < points.Count;)
+        {
+            i = ReadRun(points, i, x, y, plot, run);
+            AppendRun(builder, run, stepped, smooth);
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>
+    /// The places of the unbroken run that starts at <paramref name="start"/>, into <paramref name="run"/>; returns the index past the
+    /// row with no value that ends it.
+    /// </summary>
+    private static int ReadRun(IReadOnlyList<ChartPoint> points, int start, ChartScale x, ChartScale y, ChartPlot plot, List<(double X, double Y)> run)
+    {
+        run.Clear();
+
+        for (var i = start; i < points.Count; i++)
         {
             ChartPoint point = points[i];
 
-            if (point.Y is double value)
-            {
-                run.Add((plot.X(x, point.X), plot.Y(y, value)));
-                continue;
-            }
+            if (point.Y is not double value)
+                return i + 1;
 
-            AppendRun(builder, run, stepped, smooth);
-            run.Clear();
+            run.Add((plot.X(x, point.X), plot.Y(y, value)));
         }
 
-        AppendRun(builder, run, stepped, smooth);
-
-        return builder.ToString();
+        return points.Count;
     }
 
     /// <summary>
@@ -89,21 +100,11 @@ public static class ChartPath
         List<ChartSegment> segments = [];
         List<(double X, double Y)> run = [];
 
-        for (var i = 0; i < points.Count; i++)
+        for (var i = 0; i < points.Count;)
         {
-            ChartPoint point = points[i];
-
-            if (point.Y is double value)
-            {
-                run.Add((plot.X(x, point.X), plot.Y(y, value)));
-                continue;
-            }
-
+            i = ReadRun(points, i, x, y, plot, run);
             AddRunPieces(segments, run, stepped, smooth, plot);
-            run.Clear();
         }
-
-        AddRunPieces(segments, run, stepped, smooth, plot);
 
         return segments;
     }

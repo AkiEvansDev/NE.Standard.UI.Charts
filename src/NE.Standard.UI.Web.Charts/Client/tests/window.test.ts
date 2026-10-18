@@ -101,7 +101,9 @@ function followingChart(rows: ChartRow[]): State {
         followLatest: true,
         horizontal: false,
         bare: false,
-        donut: 0
+        donut: 0,
+        legendValues: false,
+        remainderCaption: null
     };
 
     return { root: real(root), model, rows, hidden: new Set(), view: { from: Now - Hour, to: Now }, follow: true, width: 0, height: 0, clip: null };

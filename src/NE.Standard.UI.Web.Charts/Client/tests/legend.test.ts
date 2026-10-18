@@ -15,7 +15,7 @@ const { ChartAttributes, ChartClasses, ClientNames } = await import("../src/char
 
 type Entry = Parameters<typeof syncLegend>[1][number];
 
-const names = { eventBoundary: "data-ui-event-boundary", buttonClass: "ui-button" } as unknown as DomNames;
+const names = { eventBoundary: "data-ui-event-boundary", buttonClass: "ui-button", ghostButtonClass: "ui-button--ghost", smallButtonClass: "ui-button--small" } as unknown as DomNames;
 
 /** The entries as a legend of these keys names them, each caption its key's upper case. */
 function entries(...keys: string[]): Entry[] {
@@ -39,7 +39,7 @@ function focusReturn(opener: HTMLElement | null): HTMLElement | null {
 }
 
 function sync(root: StubElement, keys: string[], hidden: readonly string[] = []): void {
-    syncLegend(real<HTMLElement>(root), entries(...keys), new Set(hidden), names, focusReturn);
+    syncLegend(real<HTMLElement>(root), entries(...keys), null, new Set(hidden), names, focusReturn);
 }
 
 function buttons(root: StubElement): StubElement[] {
@@ -63,7 +63,7 @@ test("the same keys keep their buttons, each written again in place", () => {
     const before = buttons(root);
 
     before[1].focus();
-    syncLegend(real<HTMLElement>(root), [{ key: "west", caption: "西欧", color: "red" }, { key: "east", caption: "东部", color: "blue" }], new Set(["east"]), names, focusReturn);
+    syncLegend(real<HTMLElement>(root), [{ key: "west", caption: "西欧", color: "red" }, { key: "east", caption: "东部", color: "blue" }], null, new Set(["east"]), names, focusReturn);
 
     const after = buttons(root);
 

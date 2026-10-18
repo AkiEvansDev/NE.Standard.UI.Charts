@@ -33,7 +33,9 @@ function written(): WrittenModel {
         followLatest: false,
         horizontal: false,
         bare: false,
-        donut: 0
+        donut: 0,
+        legendValues: false,
+        remainderCaption: null
     };
 }
 

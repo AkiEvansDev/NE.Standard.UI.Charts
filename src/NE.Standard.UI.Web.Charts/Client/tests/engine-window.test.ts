@@ -84,7 +84,9 @@ const model: ChartModel = {
     followLatest: true,
     horizontal: false,
     bare: false,
-    donut: 0
+    donut: 0,
+    legendValues: false,
+    remainderCaption: null
 };
 
 /** A page holding one live line chart over x = 0, 10 … 100 (or the x's given), drawn on a 400 by 200 canvas, the engine running it. */

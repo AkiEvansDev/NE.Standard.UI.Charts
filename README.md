@@ -11,10 +11,10 @@ what the series now hold, and every mark is placed against them, which is one pa
 would be a second rendering path with a data protocol of its own; it comes back only when a case needs it.
 
 - **In this version:** the whole set — `LineChartComponent`, `AreaChartComponent`, `BarChartComponent`,
-  `PieChartComponent`, `RadarChartComponent`, `ScatterChartComponent`, `SparklineComponent` and `GaugeComponent`: one or
-  more series over a linear, time, category or logarithmic x axis, stacked or side by side, bars on their side, a turn
-  shared out as sectors, series closed into shapes over spokes, a cloud of bubbles, a shape with nothing around it, and one
-  reading on an arc. The viewer hovers a point
+  `PieChartComponent`, `ShareBarComponent`, `RadarChartComponent`, `ScatterChartComponent`, `SparklineComponent` and
+  `GaugeComponent`: one or more series over a linear, time, category or logarithmic x axis, stacked or side by side, bars on
+  their side, a turn shared out as sectors, a total shared out along one bar, series closed into shapes over spokes, a cloud of
+  bubbles, a shape with nothing around it, and one reading on an arc. The viewer hovers a point
   or a whole x, puts a series aside at the legend, presses a point to reach a command, and zooms and pans along the
   x axis where the author allowed it.
 - **The stages to come:** the pinch on a touch device.
@@ -94,10 +94,17 @@ after it, as a render would.
 | `AreaChartComponent` | the same lines with a band under each | `Stacked`, and the line chart's own; no marks are painted, though a point still answers the pointer |
 | `BarChartComponent` | a bar per series at every x | `Stacked` — otherwise the bars share the x's band side by side; `Horizontal` lays them on their side, the values across the box and a band per x down it |
 | `PieChartComponent` | one series' points as sectors of a turn | `SetDonut(share)` for a hole, `CentreCaption` (or `BindCentreCaption`) for the words in it; no axes, and the legend names the sectors |
+| `ShareBarComponent` | one series' points as parts of a single thin bar — a drive's storage, a budget, a context window | `Total` (bindable): the whole the parts are shares of, what they leave of it drawn as the bar's empty track and named in the legend by `RemainderCaption` (else *Remaining*); `Caption` (bindable) for the words over the bar. No axes; the legend names the parts and stands under the bar or over it, a `Start` or `End` one under it |
 | `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x — a character's attributes, a product's scores, read against each other at a glance | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre, each ring's value written on the middle of its first side, over the series. No zoom, no window and no shared tooltip: there is no x to move along |
 | `SparklineComponent` | one series with nothing around it, a line of text high | `Bars` for a run of bars instead of a line; no axes, no grid, no legend, and no marks until the pointer finds one |
 | `ScatterChartComponent` | a mark per point and no line between them | a third value sizes each mark where the series names one: `AddSeries(key, caption, valuePath, sizePath)`, by area rather than by radius |
 | `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Caption`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule; a reading that is no number (NaN, an infinity) is none, a `Min` or `Max` that is none reads as unset, and a band with such an end is not drawn |
+
+A pie's and a share bar's legend may be a table (`SetShowLegendValues(true)`): each part's value, written as the y axis writes
+it, and its share of the whole to a tenth of a per cent, in columns of their own. A share bar's whole is its `Total`, or what
+the parts come to where that is more; a pie's is what they come to. A part the legend puts aside takes none of the bar or the
+turn and none of the whole, keeping its value and dropping its share — on a share bar the rest of the total grows by it. A value
+that is zero or below takes none of either.
 
 An area's band, a bar's length and a radar's reach from its centre are read against zero, so those take zero into the
 range whether the data does or not; a line chart follows its data. A radar's spokes are every x any series holds, once, in
@@ -150,9 +157,9 @@ page's culture, the lines and bands of every series — at a nominal size the `v
 the size it really got, which is the only way text can be placed properly, and again whenever the collection
 changes or the viewer puts a series aside — once per frame, however many changes, drags or wheel notches arrived before
 it. Both sides run the same arithmetic: `ChartRange`, `ChartTicks`, `ChartScale`, `ChartPlot`, `ChartCalendar`,
-`ChartPath`, `ChartStacking`, `ChartBars`, `ChartPie`, `ChartRadar`, `ChartBubbles`, `ChartWindow` and `ChartValues` here,
+`ChartPath`, `ChartStacking`, `ChartBars`, `ChartPie`, `ChartShares`, `ChartRadar`, `ChartBubbles`, `ChartWindow` and `ChartValues` here,
 `chart-ticks.ts` (the range, the ticks, the scale and the plot), `chart-calendar.ts`, `chart-path.ts`, `chart-stack.ts`,
-`chart-bars.ts`, `chart-pie.ts`, `chart-radar.ts`, `chart-bubbles.ts`, `chart-window.ts`, `chart-moment.ts` and `chart-rows.ts`'s reading of an
+`chart-bars.ts`, `chart-pie.ts`, `chart-share.ts`, `chart-radar.ts`, `chart-bubbles.ts`, `chart-window.ts`, `chart-moment.ts` and `chart-rows.ts`'s reading of an
 x there — held to one corpus of cases both test suites read.
 
 A painted line — a series, a radar's outline, rim and rings — is drawn as its straight pieces, a `<line>` each under one

@@ -67,7 +67,9 @@ function chart(translate: boolean): { state: State; canvas: StubElement } {
         followLatest: false,
         horizontal: false,
         bare: false,
-        donut: 0
+        donut: 0,
+        legendValues: false,
+        remainderCaption: null
     };
     const rows: ChartRow[] = ["plan.starter", "plan.pro", "Legacy"].map((name, i) => ({ key: `r${i}`, x: name, values: [(i + 1) * 10], series: null, sizes: [] }));
 

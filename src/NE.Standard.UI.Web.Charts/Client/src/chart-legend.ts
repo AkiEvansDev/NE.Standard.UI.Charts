@@ -2,30 +2,49 @@
 
 import type { DomNames, Popups } from "ne-standard-ui";
 import type { ChartModel } from "./chart-model.ts";
-import { ChartAttributes, ChartClasses, ChartVariables, ClientNames, CoreNames } from "./chart-names.ts";
+import { ChartAttributes, ChartClasses, ChartVariables, ClientNames } from "./chart-names.ts";
 
 /** The least a plot keeps beside a start or end legend: with less, the legend stands under it as a bottom one does (a phone's width). */
 const SidePlotFloor = 256;
 
-/** One entry of the legend: the key it hides and shows by, what it says, and the colour its mark takes. */
+/**
+ * One entry of the legend: the key it hides and shows by, what it says, the colour its mark takes, and where the legend is a table
+ * its value and its share of the whole, each written.
+ */
 export type LegendEntry = {
     readonly key: string;
     readonly caption: string;
     readonly color: string;
+    readonly value?: string;
+    readonly share?: string;
+};
+
+/** A share bar's rest of its total: what it is called, and where the legend is a table its value and its share. */
+export type LegendRest = {
+    readonly caption: string;
+    readonly value?: string;
+    readonly share?: string;
 };
 
 /**
- * The chart's legend in step with `entries`, by key. An entry that stays keeps its button, written again in place, so a press, a
- * hover or the keyboard on it is never lost to a redraw; one the viewer put aside stays aside. The keyboard on an entry that went
- * moves to the entry now standing in its place, and where the whole legend went to the chart by the framework's return — never to the
- * page's body.
+ * The chart's legend in step with `entries`, by key, and a share bar's `rest` after them. An entry that stays keeps its button,
+ * written again in place, so a press, a hover or the keyboard on it is never lost to a redraw; one the viewer put aside stays aside.
+ * The keyboard on an entry that went moves to the entry now standing in its place, and where the whole legend went to the chart by
+ * the framework's return — never to the page's body.
  */
-export function syncLegend(root: HTMLElement, entries: readonly LegendEntry[], hidden: ReadonlySet<string>, names: DomNames, focusReturn: Popups["focusReturn"]): void {
+export function syncLegend(
+    root: HTMLElement,
+    entries: readonly LegendEntry[],
+    rest: LegendRest | null,
+    hidden: ReadonlySet<string>,
+    names: DomNames,
+    focusReturn: Popups["focusReturn"]
+): void {
     let legend = legendOf(root);
-    const buttons = legend === null ? [] : [...legend.children];
+    const buttons = legend === null ? [] : [...legend.children].filter(child => !child.classList.contains(ChartClasses.legendRest));
     const held = buttons.find(button => button === document.activeElement) ?? null;
 
-    if (entries.length === 0) {
+    if (entries.length === 0 && rest === null) {
         legend?.remove();
 
         if (held !== null)
@@ -64,6 +83,8 @@ export function syncLegend(root: HTMLElement, entries: readonly LegendEntry[], h
             legend.insertBefore(button, next);
     }
 
+    syncRest(legend, rest);
+
     if (held === null || held === document.activeElement)
         return;
 
@@ -101,33 +122,86 @@ function keepButtons(buttons: readonly Element[], entries: readonly LegendEntry[
     return kept;
 }
 
+/** A share bar's rest as the last row of the legend, written again in place; none where its parts reach the total. */
+function syncRest(legend: Element, rest: LegendRest | null): void {
+    let row = [...legend.children].find(child => child.classList.contains(ChartClasses.legendRest)) ?? null;
+
+    if (rest === null) {
+        row?.remove();
+        return;
+    }
+
+    if (row === null) {
+        row = document.createElement("div");
+        row.className = ChartClasses.legendRest;
+        row.append(legendMark());
+    }
+
+    writeLegendParts(row, rest);
+
+    if (row.parentElement !== legend || row.nextElementSibling !== null)
+        legend.append(row);
+}
+
 /** One entry as the server writes it: a small ghost button, pressed until the viewer puts its series aside. */
 function legendButton(entry: LegendEntry, hidden: boolean, names: DomNames): HTMLButtonElement {
     const button = document.createElement("button");
-    const mark = document.createElement("span");
-    const caption = document.createElement("span");
 
-    button.className = `${ChartClasses.legendEntry} ${names.buttonClass} ${CoreNames.ghostButtonClass} ${CoreNames.smallButtonClass}`;
+    button.className = `${ChartClasses.legendEntry} ${names.buttonClass} ${names.ghostButtonClass} ${names.smallButtonClass}`;
     button.type = "button";
     button.setAttribute(ChartAttributes.series, entry.key);
     button.setAttribute("aria-pressed", hidden ? "false" : "true");
     button.classList.toggle(ClientNames.legendOff, hidden);
     button.style.setProperty(ChartVariables.seriesColor, entry.color);
-    mark.className = ChartClasses.legendMark;
-    caption.className = ChartClasses.legendCaption;
-    caption.textContent = entry.caption;
-    button.append(mark, caption);
+    button.append(legendMark());
+    writeLegendParts(button, entry);
 
     return button;
 }
 
+function legendMark(): HTMLSpanElement {
+    const mark = document.createElement("span");
+
+    mark.className = ChartClasses.legendMark;
+
+    return mark;
+}
+
+/** An entry's or the rest's words — its name, and where the legend is a table its value and its share — each where it differs. */
+function writeLegendParts(entry: Element, parts: LegendRest): void {
+    writeLegendText(entry, ChartClasses.legendCaption, parts.caption);
+    writeLegendText(entry, ChartClasses.legendValue, parts.value);
+    writeLegendText(entry, ChartClasses.legendShare, parts.share);
+}
+
+/** One of an entry's words in its own span, after the ones written before it; a word the entry no longer has leaves with its span. */
+function writeLegendText(entry: Element, className: string, text: string | undefined): void {
+    const span = [...entry.children].find(child => child.classList.contains(className)) ?? null;
+
+    if (text === undefined) {
+        span?.remove();
+        return;
+    }
+
+    if (span !== null) {
+        if (span.textContent !== text)
+            span.textContent = text;
+
+        return;
+    }
+
+    const written = document.createElement("span");
+
+    written.className = className;
+    written.textContent = text;
+    entry.append(written);
+}
+
 /** Writes an entry into the button that already names its key: its words, its colour and whether it is put aside, each where it differs. */
 function writeLegendButton(button: Element, entry: LegendEntry, hidden: boolean): void {
-    const caption = button.querySelector(`.${ChartClasses.legendCaption}`);
     const pressed = hidden ? "false" : "true";
 
-    if (caption !== null && caption.textContent !== entry.caption)
-        caption.textContent = entry.caption;
+    writeLegendParts(button, entry);
 
     if (button instanceof HTMLElement && button.style.getPropertyValue(ChartVariables.seriesColor) !== entry.color)
         button.style.setProperty(ChartVariables.seriesColor, entry.color);

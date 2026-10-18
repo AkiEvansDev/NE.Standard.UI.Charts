@@ -475,7 +475,7 @@ public abstract partial class ChartComponentRendererBase
         }
     }
 
-    /// <summary>What a turn shared out is announced as: the rows its sectors stand for, or the chart's own word where there are none.</summary>
+    /// <summary>What a whole shared out is announced as: the rows its parts stand for, or the chart's own word where there are none.</summary>
     private static string SectorsLabel(WebRenderContext context, ChartSpec spec, ChartRenderData data, ChartFormats formats)
     {
         List<ChartPoint> points = data.Series.Count > 0 ? data.Series[0].Points : [];
@@ -491,9 +491,109 @@ public abstract partial class ChartComponentRendererBase
         return WordList(context, labels);
     }
 
-    /// <summary>What a sector is called: its row's x, written as the x axis would write it.</summary>
+    /// <summary>What a sector or a share bar's part is called: its row's x, written as the x axis would write it.</summary>
     private static string SectorLabel(ChartSpec spec, ChartRenderData data, ChartPoint point, ChartFormats formats)
         => FormatValue(spec.XAxis.Kind, formats.X, point.X, data.Categories, formats);
+
+    /// <summary>
+    /// The first series' points one after another along a single bar, and what they leave of the total as its empty track, under the
+    /// author's words. Drawn at a nominal width and stretched to the box, as nothing in it is text, until the browser draws it at its own.
+    /// </summary>
+    private void RenderShareBar(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartFormats formats)
+    {
+        List<ChartPoint> points = data.Series.Count > 0 ? data.Series[0].Points : [];
+        ChartShare[] parts = ChartShares.Parts(PartValues(points), spec.Total);
+        var last = LastDrawnPart(parts);
+        var end = last < 0 ? 0 : Math.Round((parts[last].Start + parts[last].Length) * NominalWidth);
+
+        // Always written, so a bound caption's push is a text write; with no words it takes no room over the bar.
+        _ = root.Element("div", heading =>
+        {
+            _ = heading.Class(HeadingClassName);
+            RenderHeading(context, heading);
+        });
+
+        _ = root.Element("div", area =>
+        {
+            _ = area.Class(AreaClassName);
+
+            ChartSvg.Render(area, CanvasClassName, NominalWidth, NominalThickness, SectorsLabel(context, spec, data, formats), svg =>
+            {
+                _ = svg.Attribute("preserveAspectRatio", "none");
+                RenderCanvasBoundary(svg, spec);
+
+                _ = svg.Element("g", group =>
+                {
+                    _ = group.Class(PlotClassName);
+
+                    for (var i = 0; i < points.Count; i++)
+                        RenderSegment(context, group, spec, data, points[i], parts[i], i, i < last || end < NominalWidth, formats);
+
+                    if (end < NominalWidth)
+                        RenderShareRect(group, RestClassName, end, NominalWidth - end);
+                });
+            });
+        });
+    }
+
+    /// <summary>The last part that takes any of the bar, or -1 where none does.</summary>
+    private static int LastDrawnPart(ChartShare[] parts)
+    {
+        for (var i = parts.Length - 1; i >= 0; i--)
+        {
+            if (parts[i].Length > 0)
+                return i;
+        }
+
+        return -1;
+    }
+
+    /// <summary>
+    /// One part in a group named by its row, as a sector is, on whole pixels; one followed by another piece of the bar stops a pixel
+    /// short of it, so neighbours read apart on the ground, as a sector's edge parts them.
+    /// </summary>
+    private static void RenderSegment(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, ChartPoint point, ChartShare part, int index, bool followed, ChartFormats formats)
+    {
+        if (part.Length <= 0)
+            return;
+
+        var start = Math.Round(part.Start * NominalWidth);
+        var width = Math.Max(1, Math.Round((part.Start + part.Length) * NominalWidth) - start - (followed ? 1 : 0));
+        // A point's words, the series naming what the value counts; a share bar shares no tooltip, so SharedTooltip silences none.
+        var tooltip = spec.Tooltip ? PointWords(context, spec, data, ReadCaption(context, data.Series[0].Series), point.X, point.Y ?? 0, formats) : null;
+
+        _ = plotGroup.Element("g", group =>
+        {
+            _ = group.Class(SeriesClassName);
+            _ = group.Attribute(SeriesAttribute, point.Key);
+            _ = group.Style(SeriesColorVariable, ThemeColorRenderer.SeriesColorCss(context, index));
+
+            _ = group.Element("rect", rectangle =>
+            {
+                _ = rectangle.Class(SegmentClassName);
+                _ = rectangle.Attribute("x", ChartPath.Coord(start));
+                _ = rectangle.Attribute("y", "0");
+                _ = rectangle.Attribute("width", ChartPath.Coord(width));
+                _ = rectangle.Attribute("height", ChartPath.Coord(NominalThickness));
+                _ = rectangle.Attribute(PointAttribute, point.Key);
+                // The group is named by its row, so the part itself says which series a press on it belongs to.
+                _ = rectangle.Attribute(SeriesAttribute, data.Series[0].Series.Key);
+
+                if (tooltip is not null)
+                    _ = rectangle.Attribute(WebAttributes.Tooltip, tooltip);
+            });
+        });
+    }
+
+    private static void RenderShareRect(IHtmlElementBuilder parent, string className, double start, double width)
+        => parent.Element("rect", rectangle =>
+        {
+            _ = rectangle.Class(className);
+            _ = rectangle.Attribute("x", ChartPath.Coord(start));
+            _ = rectangle.Attribute("y", "0");
+            _ = rectangle.Attribute("width", ChartPath.Coord(width));
+            _ = rectangle.Attribute("height", ChartPath.Coord(NominalThickness));
+        });
 
     /// <summary>
     /// The radar: spokes, rings and each series' filled outline, every band under every outline and mark.

@@ -413,6 +413,20 @@ export class ChartEngine {
         this.settling.delete(root);
     }
 
+    /** A share bar's total the server pushed: written on the root, where every draw reads it, and the bar drawn again. */
+    public applyTotal(target: Element, value: unknown): void {
+        const root = target.closest<HTMLElement>(RootSelector);
+        const total = typeof value === "number" ? value : typeof value === "string" ? this.formatting.numbers.parseInvariant(value) ?? Number.NaN : Number.NaN;
+
+        if (Number.isFinite(total))
+            target.setAttribute(ChartAttributes.total, String(total));
+        else
+            target.removeAttribute(ChartAttributes.total);
+
+        if (root !== null && this.charts.has(root))
+            this.schedule(root);
+    }
+
     /** A gauge's arc is the stylesheet's own work; its reading is written here, in the page's culture and the page's words. */
     public applyGaugeValue(target: Element, value: unknown): void {
         applyGaugeValue(target, value, this.formatting);

@@ -8,9 +8,13 @@ namespace NE.Standard.UI.Charts;
 /// <summary>
 /// One series as sectors of a turn: a row's x names the sector, its value is the share.
 /// </summary>
-public abstract partial class PieChartComponent<T>(string? id = null) : ChartComponentBase<T>(id)
+public abstract partial class PieChartComponent<T>(string? id = null) : ChartComponentBase<T>(id), IShareChartComponent
     where T : PieChartComponent<T>, IUIComponentDefinition
 {
+    /// <inheritdoc/>
+    [UIComponentProperty(Contract = typeof(IShareChartComponent), IsBindable = false, DefaultValue = false)]
+    public bool ShowLegendValues { get; set; }
+
     /// <summary>
     /// Gets how much of the radius the hole in the middle takes, set by <c>SetDonut</c>.
     /// </summary>

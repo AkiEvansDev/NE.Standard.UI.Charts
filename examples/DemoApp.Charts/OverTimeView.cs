@@ -1,18 +1,19 @@
 namespace DemoApp.Charts;
 
 /// <summary>
-/// The line chart: over names, over a clock with the readings that arrive, over series the data names, and with nothing in it.
+/// What runs over a clock or a row of names: the line chart over names, over a clock with the readings that arrive and over series
+/// the data names, the same quarters stacked as bands, and a chart with nothing in it.
 /// </summary>
-internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
+internal sealed class OverTimeView : ChartsDemoView, IUIViewDefinition
 {
-    public static string ViewKey => "charts.lines";
+    public static string ViewKey => "charts.over-time";
 
-    protected override string Route => LinesRoute;
+    protected override string Route => OverTimeRoute;
 
-    public override string Title => "charts.page.lines";
+    public override string Title => "charts.page.over-time";
 
     protected override string Description
-        => "charts.page.lines.description";
+        => "charts.page.over-time.description";
 
     protected override IVisualComponent[] CreateSections()
         =>
@@ -86,6 +87,19 @@ internal sealed class LinesView : ChartsDemoView, IUIViewDefinition
                     .SetStepped(true)
                     .SetSharedTooltip(true)
                     .SetLegend(UIChartLegendPlacement.End)
+                    .SetMinHeight(UILayoutLength.Absolute(280))
+            ),
+            Example("The same quarters, stacked as bands",
+                "An area chart is the line chart with the ground under each series filled. Stacked, the bands stand on one another, so the top edge is the total and each band is what its own series added to it; the y axis takes zero in, since a band drawn from anywhere else lies about its size. A tooltip still says what its own series holds, not the running total.",
+                new AreaChartComponent("revenue-stacked")
+                    .SetItems(Catalogue.Quarters())
+                    .SetX(nameof(Quarter.Name))
+                    .SetXAxis(UIChartAxis.Category("charts.quarter"))
+                    .SetYAxis(UIChartAxis.Linear("charts.revenue", format: "N0"))
+                    .AddSeries("eu-west", "charts.eu-west", nameof(Quarter.EuropeWest))
+                    .AddSeries("eu-central", "charts.eu-central", nameof(Quarter.EuropeCentral))
+                    .AddSeries("us-east", "charts.us-east", nameof(Quarter.UsEast))
+                    .SetStacked(true)
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
             Example("A chart with nothing in it",

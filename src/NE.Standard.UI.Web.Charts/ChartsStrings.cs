@@ -28,6 +28,9 @@ public sealed partial class ChartsStrings : IUIStringsSource
     /// <summary>A list of names, one joined on at a time: the <c>{list}</c> so far and the <c>{next}</c> name.</summary>
     public const string List = "ui.chart.list";
 
+    /// <summary>What a share bar's legend calls the part of its total the rows leave, where the author named it nothing.</summary>
+    public const string Rest = "ui.chart.rest";
+
     /// <inheritdoc/>
     public IReadOnlyDictionary<string, string> English { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
@@ -36,6 +39,7 @@ public sealed partial class ChartsStrings : IUIStringsSource
         [NoReading] = "—",
         [Point] = "{series} — {x}: {y}",
         [Reading] = "{series}: {value}",
-        [List] = "{list}, {next}"
+        [List] = "{list}, {next}",
+        [Rest] = "Remaining"
     }.ToFrozenDictionary(StringComparer.Ordinal);
 }

@@ -1,36 +1,23 @@
 namespace DemoApp.Charts;
 
 /// <summary>
-/// The area chart and the bar chart: the same quarters as stacked bands and as bars side by side, a day of requests as one bar an
-/// hour, and a dozen servers as bars on their side.
+/// What is read against each other: the quarters as bars side by side, a day of requests one bar an hour, a dozen servers as bars
+/// on their side and as a cloud of bubbles, and three regions' measures as shapes over spokes.
 /// </summary>
-internal sealed class AreasAndBarsView : ChartsDemoView, IUIViewDefinition
+internal sealed class SideBySideView : ChartsDemoView, IUIViewDefinition
 {
-    public static string ViewKey => "charts.areas-and-bars";
+    public static string ViewKey => "charts.side-by-side";
 
-    protected override string Route => AreasAndBarsRoute;
+    protected override string Route => SideBySideRoute;
 
-    public override string Title => "charts.page.areas-and-bars";
+    public override string Title => "charts.page.side-by-side";
 
     protected override string Description
-        => "charts.page.areas-and-bars.description";
+        => "charts.page.side-by-side.description";
 
     protected override IVisualComponent[] CreateSections()
         =>
         [
-            Example("The same quarters, stacked as bands",
-                "An area chart is the line chart with the ground under each series filled. Stacked, the bands stand on one another, so the top edge is the total and each band is what its own series added to it; the y axis takes zero in, since a band drawn from anywhere else lies about its size. A tooltip still says what its own series holds, not the running total.",
-                new AreaChartComponent("revenue-stacked")
-                    .SetItems(Catalogue.Quarters())
-                    .SetX(nameof(Quarter.Name))
-                    .SetXAxis(UIChartAxis.Category("charts.quarter"))
-                    .SetYAxis(UIChartAxis.Linear("charts.revenue", format: "N0"))
-                    .AddSeries("eu-west", "charts.eu-west", nameof(Quarter.EuropeWest))
-                    .AddSeries("eu-central", "charts.eu-central", nameof(Quarter.EuropeCentral))
-                    .AddSeries("us-east", "charts.us-east", nameof(Quarter.UsEast))
-                    .SetStacked(true)
-                    .SetMinHeight(UILayoutLength.Absolute(280))
-            ),
             Example("The same quarters, side by side",
                 "A bar chart gives every x a band and every series its share of it: three bars per quarter, read against each other. Hover one for its value, and put a series aside at the legend to give the rest the whole band.",
                 new BarChartComponent("revenue-bars")
@@ -78,6 +65,42 @@ internal sealed class AreasAndBarsView : ChartsDemoView, IUIViewDefinition
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                     )
+            ),
+            Example("A dozen servers as a cloud of bubbles",
+                "A scatter chart draws its points and no line between them: a row is a place on both axes, and a third value the series names sizes it — by area, so twice the number is twice the ink. Hover one for what it is.",
+                new ScatterChartComponent("servers")
+                    .SetItems(Catalogue.Servers())
+                    .SetX(nameof(Server.Requests))
+                    .SetXAxis(UIChartAxis.Linear("charts.requests-a-minute", format: "N0"))
+                    .SetYAxis(UIChartAxis.Linear("charts.average-cpu", format: "N0"))
+                    .AddSeries("servers", "charts.servers", nameof(Server.Cpu), nameof(Server.Cost))
+                    .SetLegend(UIChartLegendPlacement.None)
+                    .SetMinHeight(UILayoutLength.Absolute(320))
+            ),
+            Example("Three regions' quarter, measure by measure",
+                "A radar chart puts a spoke per row round a centre — the x names it — and closes each series' values along the spokes into a filled shape, so where one series reaches further than another shows at a glance. The y axis is the one scale every spoke shares: here fixed from nothing to a hundred, its ticks the rings. Hover a corner for its value; a press on a legend entry puts a region aside. The measures are keys of the page's words, which the category axis translates, so a spoke's name follows a language switch.",
+                new RadarChartComponent("scores")
+                    .SetItems(Catalogue.Scores())
+                    .SetX(nameof(RegionScore.Measure))
+                    .SetXAxis(UIChartAxis.Category(translate: true))
+                    .SetYAxis(UIChartAxis.Linear(min: 0, max: 100, format: "N0"))
+                    .AddSeries("eu-west", "charts.eu-west", nameof(RegionScore.EuWest))
+                    .AddSeries("us-east", "charts.us-east", nameof(RegionScore.UsEast))
+                    .AddSeries("ap-south", "charts.asia-south", nameof(RegionScore.ApSouth))
+                    .SetLegend(UIChartLegendPlacement.End)
+                    .SetMinHeight(UILayoutLength.Absolute(360))
+            ),
+            Example("One region alone, without marks",
+                "A single series reads as a character sheet does: the shape is the profile. Without marks the outline is all there is, and a hover still finds a corner's value.",
+                new RadarChartComponent("asia-south")
+                    .SetItems(Catalogue.Scores())
+                    .SetX(nameof(RegionScore.Measure))
+                    .SetXAxis(UIChartAxis.Category(translate: true))
+                    .SetYAxis(UIChartAxis.Linear(min: 0, max: 100, format: "N0"))
+                    .AddSeries("ap-south", "charts.asia-south", nameof(RegionScore.ApSouth))
+                    .SetShowMarkers(false)
+                    .SetLegend(UIChartLegendPlacement.None)
+                    .SetMinHeight(UILayoutLength.Absolute(320))
             )
         ];
 }

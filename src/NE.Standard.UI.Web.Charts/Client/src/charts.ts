@@ -34,6 +34,12 @@ api.registerEvent<CustomEvent<{ point: string; series: string }>>(ChartEvents.po
     dynamicParameters: context => [context.domEvent.detail?.point ?? "", context.domEvent.detail?.series ?? ""]
 });
 
+// A share bar's total is read at every draw off its root; a bound one's push writes it there and draws the bar again.
+api.registerDomOperation({
+    kind: ChartOperations.total,
+    handler: context => engine?.applyTotal(context.target, context.value)
+});
+
 // A gauge's arc is the stylesheet's own work; its reading is written here, in the page's culture and the page's words.
 api.registerDomOperation({
     kind: ChartOperations.gaugeValue,

@@ -15,6 +15,7 @@ import type { MomentParser } from "../src/chart-moment.ts";
 import { areaPath, coord, linePath, lineSegments } from "../src/chart-path.ts";
 import type { ChartPoint, Segment } from "../src/chart-path.ts";
 import { sectorsOf } from "../src/chart-pie.ts";
+import { shareWhole, sharesOf } from "../src/chart-share.ts";
 import type { Spot } from "../src/chart-pie.ts";
 import { radarEdges, radarOutline, radarRadius, radarReach, radarSpokes, ringLabel, spokeAnchor, spokeAngle } from "../src/chart-radar.ts";
 import { xNumber } from "../src/chart-rows.ts";
@@ -89,6 +90,13 @@ type Corpus = {
         readonly expected: { readonly start: number; readonly thickness: number };
     }[];
     readonly sectors: readonly { readonly case: string; readonly values: readonly (number | null)[]; readonly expectedShares: readonly number[] }[];
+    readonly wholes: readonly {
+        readonly case: string;
+        readonly values: readonly (number | null)[];
+        readonly total: number | null;
+        readonly expectedWhole: number;
+        readonly expectedParts: readonly (readonly [number, number])[];
+    }[];
     readonly spokes: readonly { readonly case: string; readonly series: readonly (readonly CorpusPoint[])[]; readonly expected: readonly number[] }[];
     readonly spokeAngles: readonly { readonly case: string; readonly index: number; readonly count: number; readonly expected: number; readonly anchor: string }[];
     readonly radarReaches: readonly { readonly case: string; readonly scale: Scale; readonly value: number | null; readonly radius: number; readonly expected: number }[];
@@ -273,6 +281,20 @@ test("corpus: the turn shared out", () => {
 
         for (let i = 0; i < sectors.length; i++)
             close(sectors[i].sweep / (Math.PI * 2), entry.expectedShares[i], `${entry.case} (${i})`);
+    }
+});
+
+test("corpus: a whole shared out along a line, and what it is", () => {
+    for (const entry of corpus.wholes) {
+        const parts = sharesOf(entry.values, entry.total);
+
+        close(shareWhole(entry.values, entry.total), entry.expectedWhole, `${entry.case} (whole)`);
+        assert.equal(parts.length, entry.expectedParts.length, entry.case);
+
+        for (let i = 0; i < parts.length; i++) {
+            close(parts[i].start, entry.expectedParts[i][0], `${entry.case} (${i} start)`);
+            close(parts[i].length, entry.expectedParts[i][1], `${entry.case} (${i} length)`);
+        }
     }
 });
 

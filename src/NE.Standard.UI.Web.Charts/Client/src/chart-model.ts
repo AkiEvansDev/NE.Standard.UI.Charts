@@ -54,6 +54,10 @@ export type ChartModel = {
     readonly bare: boolean;
     /** How much of a pie's radius the hole in the middle takes; its words are an element of their own the framework writes. */
     readonly donut: number;
+    /** Whether the legend is a table of each part's value and its share of the whole, a pie's or a share bar's. */
+    readonly legendValues: boolean;
+    /** What a share bar's legend calls the part of its total the rows leave; null for the package's word. */
+    readonly remainderCaption: string | null;
 };
 
 /** A series as the server writes it: its caption as the author wrote it, or null where it has none. */
@@ -85,6 +89,7 @@ export function translateModel(model: WrittenModel, translate: (text: string) =>
         ...model,
         x: axis(model.x),
         y: axis(model.y),
+        remainderCaption: model.remainderCaption === null ? null : translate(model.remainderCaption),
         series: model.series.map(series => ({ ...series, caption: series.caption === null ? series.key : translate(series.caption) }))
     };
 }

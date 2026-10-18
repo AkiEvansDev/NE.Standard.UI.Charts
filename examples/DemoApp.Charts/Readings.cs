@@ -70,6 +70,18 @@ internal sealed class PlanShare : IBindableItem
 }
 
 /// <summary>
+/// What one kind of file takes of a drive, in gigabytes, named by a key the axis translates.
+/// </summary>
+internal sealed class StorageUse : IBindableItem
+{
+    public required string Id { get; init; }
+
+    public required string Name { get; init; }
+
+    public required double Size { get; init; }
+}
+
+/// <summary>
 /// One measure of a region's quarter, scored out of a hundred for three of the regions: a spoke of a radar, named by a key the axis
 /// translates.
 /// </summary>
@@ -178,6 +190,17 @@ internal static class Catalogue
             new PlanShare { Id = "standard", Name = "charts.plan.standard", Revenue = 26.4 },
             new PlanShare { Id = "pro", Name = "charts.plan.pro", Revenue = 21.1 },
             new PlanShare { Id = "dedicated", Name = "charts.plan.dedicated", Revenue = 11.6 }
+        ];
+
+    /// <summary>What the kinds of file on a laptop take of its drive, in gigabytes.</summary>
+    public static List<StorageUse> Storage()
+        =>
+        [
+            new StorageUse { Id = "system", Name = "charts.storage.system", Size = 38.2 },
+            new StorageUse { Id = "apps", Name = "charts.storage.apps", Size = 96.5 },
+            new StorageUse { Id = "photos", Name = "charts.storage.photos", Size = 61 },
+            new StorageUse { Id = "documents", Name = "charts.storage.documents", Size = 17.4 },
+            new StorageUse { Id = "other", Name = "charts.storage.other", Size = 9.3 }
         ];
 
     /// <summary>A dozen of the fleet's servers: the plan's price a month, the average CPU over the day, and the requests a minute.</summary>

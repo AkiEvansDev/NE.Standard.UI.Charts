@@ -16,6 +16,9 @@ public class PieChartComponentRenderer : ChartComponentRendererBase
     protected override double ReadDonut(WebRenderContext context)
         => ReadRenderValue(context, PieChartComponent.DonutProperty, 0d);
 
+    protected override bool ReadLegendValues(WebRenderContext context)
+        => ReadRenderValue(context, IShareChartComponent.ShowLegendValuesProperty, false);
+
     protected override void RenderCentre(WebRenderContext context, IHtmlElementBuilder centre)
         => _ = RenderProperty<string?>(context, centre, PieChartComponent.CentreCaptionProperty, static (target, caption) =>
         {

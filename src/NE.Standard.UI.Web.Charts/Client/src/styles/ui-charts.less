@@ -6,6 +6,20 @@
 // point still waiting on its press lets go of the look the moment the chart does.
 @chart-press-live: ~".ui-chart--pressable:not(.ui-chart--dragging, .ui-disabled, .ui-loading)";
 
+// What a share bar's parts leave of its total, on the bar and in the legend's mark: the track share a progress bar's track is.
+@chart-share-track: color-mix(in srgb, @ui-text-ink percentage(@ui-track-share), transparent);
+
+// The frame's firm lines: the axis lines and the rule one tooltip is read against.
+@chart-frame-ink: color-mix(in srgb, @ui-text-ink 30%, transparent);
+
+// A part of a whole — a bar, a sector, a share bar's segment — at rest a step under whole, which the pointer brings, and a press
+// further under it.
+@chart-part-rest: 0.9;
+@chart-part-press: 0.75;
+
+// What goes back while another series or bar is read.
+@chart-back: 0.25;
+
 // A chart fills its box and has a floor of its own, so one dropped into a stack is not a line high. Height follows the
 // framework's five-tier variable, read by the same mixin every component uses.
 .ui-chart {
@@ -25,6 +39,12 @@
     .ui-responsive-property(min-height, --ui-min-height, 2rem);
 }
 
+// A share bar: its words, one thin bar and its legend, a column of them whatever the legend's placement; it draws no plot to give
+// a floor of room to.
+.ui-chart--share {
+    .ui-responsive-property(min-height, --ui-min-height, 0);
+}
+
 // The canvas is laid over its own area, not sized by it, since a viewBox's own aspect ratio reaching the layout would let each
 // redraw change the box it just measured — a loop without end.
 .ui-chart__area {
@@ -42,6 +62,27 @@
     height: 100%;
     overflow: visible;
 }
+
+// A share bar's bar: as thick as it is drawn and round at its ends as a progress bar's track is, the parts cut by the area's rounding.
+.ui-chart--share > .ui-chart__area {
+    flex: none;
+    height: 0.5rem;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+// The words over a share bar, in the page's type: what it shares out and how much is taken. Always written, so a bound caption's
+// push is a text write; with no words it takes no room.
+.ui-chart__heading {
+    order: -2;
+    color: @ui-text-ink;
+    font-size: 0.8125rem;
+    line-height: 1.25;
+}
+
+    .ui-chart__heading:empty {
+        display: none;
+    }
 
 // A chart the viewer may move is taken in hand: the drag is the chart's, never a text selection or the browser's own pan across
 // the band axis (down it where bars lie on their side), and the cursor says so — grabbing once a drag is past its slack.
@@ -69,7 +110,7 @@
 // The frame: the two axis lines read as the page's edges do, the grid a hair of the same ink. A radar's rim and rings carry the
 // class on a group of their sides, which the lines take the stroke from.
 .ui-chart__axis-line {
-    stroke: color-mix(in srgb, @ui-text-ink 28%, transparent);
+    stroke: @chart-frame-ink;
     stroke-width: 1;
 }
 
@@ -114,13 +155,13 @@
 }
 
 .ui-chart__series--back {
-    opacity: 0.25;
+    opacity: @chart-back;
 }
 
 // A bar is read on its own and every other bar goes back; a series of bars goes back bar by bar, never whole, or the bar read in it
 // would go too. The engine marks each bar.
 .ui-chart__bar--back {
-    opacity: 0.25;
+    opacity: @chart-back;
 }
 
 // A series' line is a group of straight pieces (ChartPath.Segments). Square ends overlap so a bend has no gap; the group's
@@ -204,7 +245,7 @@
 // points are, so it never takes the pointer from them.
 .ui-chart__rule {
     display: none;
-    fill: color-mix(in srgb, @ui-text-ink 30%, transparent);
+    fill: @chart-frame-ink;
     pointer-events: none;
 }
 
@@ -230,7 +271,7 @@
 // A bar: the series' own colour, whole where it is the bar being read.
 .ui-chart__bar {
     fill: var(--ui-chart-series-color, var(--ui-color-primary));
-    fill-opacity: 0.85;
+    fill-opacity: @chart-part-rest;
     transition: opacity @ui-motion-fast @ui-motion-ease, fill-opacity @ui-motion-fast @ui-motion-ease;
 }
 
@@ -239,14 +280,14 @@
     }
 
     @{chart-press-live} :is(.ui-chart__bar:active, .ui-chart__bar.ui-chart__point--pending) {
-        fill-opacity: 0.7;
+        fill-opacity: @chart-part-press;
     }
 
 // A sector is a ring cut to its angles (mixins/arc.less), not a filled path, whose arcs the browser antialiases in coarse steps.
 .ui-chart__sector {
     fill: none;
     stroke: var(--ui-chart-series-color, var(--ui-color-primary));
-    stroke-opacity: 0.9;
+    stroke-opacity: @chart-part-rest;
     transition: stroke-opacity @ui-motion-fast @ui-motion-ease;
     .ui-arc-cut();
 }
@@ -258,8 +299,31 @@
     }
 
     @{chart-press-live} .ui-chart__sector:active {
-        stroke-opacity: 0.75;
+        stroke-opacity: @chart-part-press;
     }
+
+// A share bar's part: the series' own colour, as a sector's, whole under the pointer.
+.ui-chart__segment {
+    fill: var(--ui-chart-series-color, var(--ui-color-primary));
+    fill-opacity: @chart-part-rest;
+    transition: fill-opacity @ui-motion-fast @ui-motion-ease;
+}
+
+    @media @{ui-can-hover} {
+        .ui-chart__segment:hover {
+            fill-opacity: 1;
+        }
+    }
+
+    @{chart-press-live} .ui-chart__segment:active {
+        fill-opacity: @chart-part-press;
+    }
+
+// What a share bar's parts leave of its total: the empty track, never the pointer's.
+.ui-chart__rest {
+    fill: @chart-share-track;
+    pointer-events: none;
+}
 
 // The line between two sectors, in the ground's colour so neighbours read apart; it is over the cut edges, never the pointer's.
 .ui-chart__sector-edge {
@@ -323,6 +387,11 @@
         flex-wrap: nowrap;
         justify-content: center;
         max-width: 40%;
+
+        // The column stretches every entry to the widest, so each reads from its start: centred, the marks stood off one another's.
+        > .ui-chart__legend-entry {
+            justify-content: flex-start;
+        }
     }
 
     .ui-chart--legend-start > .ui-chart__legend {
@@ -374,6 +443,68 @@
 
 .ui-chart__legend-entry--off > .ui-chart__legend-mark {
     background: @ui-text-muted;
+}
+
+// A share bar's rest of its total in the legend: named as an entry is, at a small button's size and inset, but no button.
+.ui-chart__legend-rest {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-height: @ui-button-height-sm;
+    padding: @ui-space-1 @ui-space-2;
+    border: 1px solid transparent;
+    font-size: var(--ui-text-caption-font-size);
+
+    > .ui-chart__legend-mark {
+        background: @chart-share-track;
+    }
+}
+
+// A legend that is a table: a row per part — its mark, its name, its value and its share — the numbers in columns of their own,
+// aligned down the rows. Centred under a pie as its buttons are, and down its side as theirs; a share bar's runs the bar's width, the
+// names taking what the numbers leave.
+.ui-chart__legend--values {
+    display: grid;
+    grid-template-columns: repeat(4, auto);
+    gap: 0;
+    justify-content: center;
+    align-content: center;
+
+    // A row a line of the caption's text high, closer than a small button's: a table reads down its rows, not as buttons apart.
+    > :is(.ui-chart__legend-entry, .ui-chart__legend-rest) {
+        display: grid;
+        grid-column: 1 / -1;
+        grid-template-columns: subgrid;
+        gap: 0;
+        min-height: 1.375rem;
+        padding-block: 0.125rem;
+        line-height: var(--ui-text-caption-line-height);
+        text-align: start;
+    }
+
+    > * > .ui-chart__legend-caption {
+        min-width: 0;
+        padding-inline-start: 0.375rem;
+        .ui-text-nowrap();
+    }
+}
+
+.ui-chart--share > .ui-chart__legend--values {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    justify-content: stretch;
+}
+
+.ui-chart__legend-value,
+.ui-chart__legend-share {
+    padding-inline-start: @ui-space-4;
+    font-variant-numeric: tabular-nums;
+    text-align: end;
+    white-space: nowrap;
+}
+
+.ui-chart__legend-share {
+    padding-inline-start: @ui-space-3;
+    color: @ui-text-muted;
 }
 
 // The reading's share, worked out from the range the root carries so a pushed reading moves it with no script; registered, so
@@ -436,10 +567,11 @@
     --ui-arc-at: var(--ui-arc-to, 1);
 }
 
-// A translucent ring is faded as one group rather than in its ink, so a dot laid over the circle's cut end is not a darker patch.
+// The track's share of the ink, as a progress ring's, but the ring is faded as one group rather than in its ink, so a dot laid over
+// the circle's cut end is not a darker patch.
 .ui-gauge__track {
     color: @ui-text-ink;
-    opacity: 0.12;
+    opacity: @ui-track-share;
     --ui-arc-width: 14px;
 }
 
@@ -529,8 +661,13 @@
         }
     }
 
-    .ui-chart__legend-entry--off > .ui-chart__legend-mark {
+    .ui-chart__legend-entry--off > .ui-chart__legend-mark,
+    .ui-chart__legend-rest > .ui-chart__legend-mark {
         background: GrayText;
+    }
+
+    .ui-chart__rest {
+        fill: GrayText;
     }
 
     .ui-gauge__track {

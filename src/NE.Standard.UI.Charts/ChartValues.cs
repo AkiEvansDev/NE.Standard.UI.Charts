@@ -128,9 +128,7 @@ public static class ChartValues
             DateTime moment => moment.ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture),
             DateTimeOffset moment => moment.DateTime.ToString("yyyy-MM-ddTHH:mm:ss.fff", CultureInfo.InvariantCulture),
             DateOnly date => date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
-            string text => text,
-            bool flag => flag ? "true" : "false",
-            IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
-            _ => value.ToString() ?? string.Empty
+            // The rest as the page writes it, so a name's place is the one the browser's redraw reads: 1.50m as 1.5.
+            _ => UIScriptText.Of(value)
         };
 }

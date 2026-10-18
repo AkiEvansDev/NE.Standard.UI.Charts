@@ -44,6 +44,8 @@ function model(values: Partial<ChartModel>): ChartModel {
         horizontal: false,
         bare: false,
         donut: 0,
+        legendValues: false,
+        remainderCaption: null,
         ...values
     };
 }

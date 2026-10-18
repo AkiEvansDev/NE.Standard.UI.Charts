@@ -47,6 +47,9 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     /// <summary>On the window's element: the window the chart shows, as its two ends.</summary>
     public const string WindowAttribute = "data-ui-chart-window";
 
+    /// <summary>On a share bar's root: the whole its parts are shares of, as an invariant number, written again by a bound one's push.</summary>
+    public const string TotalAttribute = "data-ui-chart-total";
+
     /// <summary>The kinds the browser draws, which is also what decides whether a range has to hold zero.</summary>
     protected const string LineKind = "line";
     protected const string AreaKind = "area";
@@ -54,6 +57,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string PieKind = "pie";
     protected const string ScatterKind = "scatter";
     protected const string RadarKind = "radar";
+    protected const string ShareKind = "share";
 
     protected const string RootClassName = "ui-chart";
     protected const string AreaClassName = "ui-chart__area";
@@ -83,6 +87,10 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string BandsClassName = "ui-chart__bands";
     protected const string CentreClassName = "ui-chart__centre";
     protected const string CentreHiddenClassName = "ui-chart__centre--hidden";
+    protected const string ShareClassName = "ui-chart--share";
+    protected const string HeadingClassName = "ui-chart__heading";
+    protected const string SegmentClassName = "ui-chart__segment";
+    protected const string RestClassName = "ui-chart__rest";
     protected const string PointClassName = "ui-chart__point";
     protected const string MarkerClassName = "ui-chart__marker";
     protected const string BareMarkerClassName = "ui-chart__marker--bare";
@@ -91,6 +99,10 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string LegendEntryClassName = "ui-chart__legend-entry";
     protected const string LegendMarkClassName = "ui-chart__legend-mark";
     protected const string LegendCaptionClassName = "ui-chart__legend-caption";
+    protected const string LegendValuesClassName = "ui-chart__legend--values";
+    protected const string LegendValueClassName = "ui-chart__legend-value";
+    protected const string LegendShareClassName = "ui-chart__legend-share";
+    protected const string LegendRestClassName = "ui-chart__legend-rest";
     protected const string EmptyClassName = "ui-chart__empty";
     protected const string WindowClassName = "ui-chart__window";
     protected const string SeriesColorVariable = "--ui-chart-series-color";
@@ -100,6 +112,9 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     private const double NominalWidth = 640;
     private const double NominalHeight = 280;
 
+    // A share bar's first frame: as wide as any chart's and as thick as the stylesheet draws it, stretched to its box until redrawn.
+    private const double NominalThickness = 8;
+
     // An estimated label cost for the unmeasured first frame; the browser measures its own by the same gaps (chart-draw.ts),
     // differing only by width.
     private const double LabelCharacterWidth = 6.5;
@@ -108,8 +123,6 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     private const double LabelHeight = 16;
     private const double TickHeight = 22;
     private const double PlotInset = 12;
-
-    private static readonly JsonSerializerOptions ModelJsonOptions = WebWireJson.CreateOptions();
 
     protected override string ClassName => RootClassName;
 
@@ -147,6 +160,30 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     /// Writes the words in the hole: a static caption recorded for a language switch, a bound one following its pushes.
     /// </summary>
     protected virtual void RenderCentre(WebRenderContext context, IHtmlElementBuilder centre)
+    {
+    }
+
+    /// <summary>Whether this chart's legend is a table of each part's value and share; a chart with no parts has none.</summary>
+    protected virtual bool ReadLegendValues(WebRenderContext context)
+        => false;
+
+    /// <summary>The whole this chart's parts are shares of, where the author set one; a chart with no parts has none.</summary>
+    protected virtual double? ReadTotal(WebRenderContext context)
+        => null;
+
+    /// <summary>What the legend calls the part of the total the rows leave, as the author wrote it; unset, the package's word.</summary>
+    protected virtual string? ReadRemainderCaption(WebRenderContext context)
+        => null;
+
+    /// <summary>Writes the total on the root for the browser to read at every draw, a bound one following its pushes.</summary>
+    protected virtual void RenderTotal(WebRenderContext context, IHtmlElementBuilder root)
+    {
+    }
+
+    /// <summary>
+    /// Writes the words over a share bar: a static caption recorded for a language switch, a bound one following its pushes.
+    /// </summary>
+    protected virtual void RenderHeading(WebRenderContext context, IHtmlElementBuilder heading)
     {
     }
 
@@ -189,8 +226,8 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         if (spec.Pressable)
             _ = root.Class(PressableClassName);
 
-        _ = root.Attribute(ModelAttribute, JsonSerializer.Serialize(BuildModel(spec, data, context), ModelJsonOptions));
-        _ = root.Attribute(RowsAttribute, JsonSerializer.Serialize(data.Slots, ModelJsonOptions));
+        _ = root.Attribute(ModelAttribute, JsonSerializer.Serialize(BuildModel(spec, data, context), WebWireJson.Options));
+        _ = root.Attribute(RowsAttribute, JsonSerializer.Serialize(data.Slots, WebWireJson.Options));
 
         // The window is the x axis this frame draws; the y axis covers what the series reach inside it. Formats follow the
         // resolved scales, as the browser's do, so a tick and tooltip read the same on both sides.
@@ -205,6 +242,18 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         if (spec.Kind == PieKind)
         {
             RenderPie(context, root, spec, data, formats);
+            RenderWindowValue(context, root);
+            RenderSectorLegend(context, root, spec, data, formats);
+
+            return;
+        }
+
+        // A whole shared out along one bar has no axes either: the parts and what they leave of the total are the whole drawing.
+        if (spec.Kind == ShareKind)
+        {
+            _ = root.Class(ShareClassName);
+            RenderTotal(context, root);
+            RenderShareBar(context, root, spec, data, formats);
             RenderWindowValue(context, root);
             RenderSectorLegend(context, root, spec, data, formats);
 
@@ -232,7 +281,8 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     }
 
     /// <summary>
-    /// The chart's settings, read once; a pie, a radar or a bare chart never zooms, and a radar has no x to share or window.
+    /// The chart's settings, read once; a pie, a share bar, a radar or a bare chart never zooms, and a radar has no x to share or
+    /// window. A share bar's legend stands over it or under it, a start or end one under it.
     /// </summary>
     private ChartSpec ReadSpec(WebRenderContext context)
     {
@@ -240,6 +290,8 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         var kind = ReadKind(context);
         var bare = ReadBare(context);
         var radar = kind == RadarKind;
+        var parts = kind is PieKind or ShareKind;
+        UIChartLegendPlacement legend = ReadRenderValue(context, IChartComponent.LegendProperty, UIChartLegendPlacement.Bottom);
 
         return new ChartSpec
         {
@@ -251,19 +303,22 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             XPath = ReadRenderValue<string?>(context, IChartComponent.XPathProperty, null),
             SeriesPath = ReadRenderValue<string?>(context, IChartComponent.SeriesPathProperty, null),
             ValuePath = ReadRenderValue<string?>(context, IChartComponent.ValuePathProperty, null),
-            Legend = ReadRenderValue(context, IChartComponent.LegendProperty, UIChartLegendPlacement.Bottom),
+            Legend = kind == ShareKind && legend is UIChartLegendPlacement.Start or UIChartLegendPlacement.End ? UIChartLegendPlacement.Bottom : legend,
             Tooltip = ReadRenderValue(context, IChartComponent.ShowTooltipProperty, true),
             Stepped = lines.Stepped,
             Smooth = lines.Smooth,
             Markers = lines.Markers,
             Stacked = ReadStacked(context),
             SharedTooltip = !radar && ReadRenderValue(context, IChartComponent.SharedTooltipProperty, false),
-            Zoomable = kind != PieKind && !radar && !bare && ReadRenderValue(context, IChartComponent.ZoomableProperty, false),
+            Zoomable = !parts && !radar && !bare && ReadRenderValue(context, IChartComponent.ZoomableProperty, false),
             Pressable = context.ViewResolution.View.Events.TryGet(new CompiledUIEventAddress(context.Node.ComponentId, ChartEvents.PointClick), out _),
             FollowLatest = ReadRenderValue(context, IChartComponent.FollowLatestProperty, false),
             VisibleRange = radar ? null : ReadRenderValue<UIChartWindow?>(context, IChartComponent.VisibleRangeProperty, null),
             Horizontal = ReadHorizontal(context),
-            Donut = ReadDonut(context)
+            Donut = ReadDonut(context),
+            LegendValues = ReadLegendValues(context),
+            Total = ReadTotal(context),
+            RemainderCaption = ReadRemainderCaption(context) is { } remainder && !string.IsNullOrWhiteSpace(remainder) ? remainder : null
         };
     }
 
@@ -344,7 +399,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             _ = RenderProperty<UIChartWindow?>(context, value, IChartComponent.VisibleRangeProperty, static (target, window) =>
             {
                 if (window is UIChartWindow view)
-                    _ = target.Attribute(WindowAttribute, JsonSerializer.Serialize(view, ModelJsonOptions));
+                    _ = target.Attribute(WindowAttribute, JsonSerializer.Serialize(view, WebWireJson.Options));
             }, [WebDomOperation.Custom(WindowValueKind)]);
         });
     }

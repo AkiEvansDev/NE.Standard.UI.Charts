@@ -54,7 +54,9 @@ function chart(sharedTooltip: boolean): { state: State; canvas: StubElement } {
         followLatest: false,
         horizontal: false,
         bare: false,
-        donut: 0
+        donut: 0,
+        legendValues: false,
+        remainderCaption: null
     };
     const rows: ChartRow[] = [1, 2, 3].map(x => ({ key: `r${x}`, x: String(x), values: [x * 10], series: null, sizes: [] }));
 

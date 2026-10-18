@@ -1,5 +1,5 @@
-// Every name the charts' client spells: what the renderers write, what the client writes for itself, and the framework's names
-// `names` does not carry. ChartsNamesSyncTests holds each table to its C# spelling; a name is read from here, never written again.
+// Every name the charts' client spells: what the renderers write and what the client writes for itself; the framework's come from
+// the plugin surface's `names`. ChartsNamesSyncTests holds each table to its C# spelling; a name is read from here, never written again.
 
 /** The attributes the renderers write and the engine reads. */
 export const ChartAttributes = {
@@ -10,6 +10,8 @@ export const ChartAttributes = {
     point: "data-ui-chart-point",
     /** On a sector: what its tooltip says, shown against the sector's own middle rather than the ring it is cut from. */
     sectorTooltip: "data-ui-chart-tooltip",
+    /** On a share bar's root: the whole its parts are shares of, as an invariant number; none where the author set none. */
+    total: "data-ui-chart-total",
     gaugeFormat: "data-ui-gauge-format"
 } as const;
 
@@ -44,10 +46,18 @@ export const ChartClasses = {
     centre: "ui-chart__centre",
     /** On a donut's words while the chart draws nothing: the empty word stands in the same middle. */
     centreHidden: "ui-chart__centre--hidden",
+    segment: "ui-chart__segment",
+    rest: "ui-chart__rest",
     legend: "ui-chart__legend",
     legendEntry: "ui-chart__legend-entry",
     legendMark: "ui-chart__legend-mark",
     legendCaption: "ui-chart__legend-caption",
+    /** On a legend that is a table of each part's value and share. */
+    legendValues: "ui-chart__legend--values",
+    legendValue: "ui-chart__legend-value",
+    legendShare: "ui-chart__legend-share",
+    /** A share bar's rest of its total, after the entries: named, but no button. */
+    legendRest: "ui-chart__legend-rest",
     gauge: "ui-gauge",
     gaugeNumber: "ui-gauge__number",
     gaugeUnit: "ui-gauge__unit"
@@ -93,7 +103,8 @@ export const ChartKinds = {
     bar: "bar",
     pie: "pie",
     scatter: "scatter",
-    radar: "radar"
+    radar: "radar",
+    share: "share"
 } as const;
 
 /** The events a chart raises, by the names `ChartEvents` hangs a command on. */
@@ -106,7 +117,8 @@ export const ChartEvents = {
 export const ChartOperations = {
     sink: "chart",
     window: "chart-window",
-    gaugeValue: "chart-gauge-value"
+    gaugeValue: "chart-gauge-value",
+    total: "chart-total"
 } as const;
 
 /** The words the client writes itself, by their `ChartsStrings` keys. */
@@ -116,11 +128,6 @@ export const ChartWords = {
     noReading: "ui.chart.no-reading",
     point: "ui.chart.point",
     reading: "ui.chart.reading",
-    list: "ui.chart.list"
-} as const;
-
-/** The framework's names the client writes that `names` does not carry, held by the test to the framework's own spelling. */
-export const CoreNames = {
-    ghostButtonClass: "ui-button--ghost",
-    smallButtonClass: "ui-button--small"
+    list: "ui.chart.list",
+    rest: "ui.chart.rest"
 } as const;

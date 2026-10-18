@@ -230,6 +230,14 @@
         { "case": "a set that adds up to nothing takes no angle", "values": [0, 0], "expectedShares": [0, 0] },
         { "case": "no values at all", "values": [], "expectedShares": [] }
     ],
+    "wholes": [
+        { "case": "the parts follow one another along the whole their sum is", "values": [1, 1, 2], "total": null, "expectedWhole": 4, "expectedParts": [[0, 0.25], [0.25, 0.25], [0.5, 0.5]] },
+        { "case": "a total past the parts leaves the rest of it", "values": [3, 1], "total": 8, "expectedWhole": 8, "expectedParts": [[0, 0.375], [0.375, 0.125]] },
+        { "case": "a total short of the parts is their sum", "values": [3, 1], "total": 2, "expectedWhole": 4, "expectedParts": [[0, 0.75], [0.75, 0.25]] },
+        { "case": "a value of nothing, or one below zero, takes none and counts for nothing", "values": [null, -2, 2], "total": null, "expectedWhole": 2, "expectedParts": [[0, 0], [0, 0], [0, 1]] },
+        { "case": "a whole that is nothing gives every part nothing", "values": [0, null], "total": 0, "expectedWhole": 0, "expectedParts": [[0, 0], [0, 0]] },
+        { "case": "a total with no parts is all rest", "values": [], "total": 5, "expectedWhole": 5, "expectedParts": [] }
+    ],
     "spokes": [
         { "case": "every x any series holds, once, low to high", "series": [[{ "x": 2, "y": 1 }, { "x": 0, "y": null }], [{ "x": 1, "y": 3 }, { "x": 2, "y": 4 }]], "expected": [0, 1, 2] },
         { "case": "no points, no spokes", "series": [[]], "expected": [] }
