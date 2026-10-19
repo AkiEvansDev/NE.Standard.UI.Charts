@@ -4,6 +4,7 @@ using System.Globalization;
 using System.Text.Json;
 using NE.Standard.UI.Charts;
 using NE.Standard.UI.Compiled.Models;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -172,7 +173,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         => null;
 
     /// <summary>What the legend calls the part of the total the rows leave, as the author wrote it; unset, the package's word.</summary>
-    protected virtual string? ReadRemainderCaption(WebRenderContext context)
+    protected virtual UIPhrase? ReadRemainderCaption(WebRenderContext context)
         => null;
 
     /// <summary>Writes the total on the root for the browser to read at every draw, a bound one following its pushes.</summary>
@@ -318,7 +319,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             Donut = ReadDonut(context),
             LegendValues = ReadLegendValues(context),
             Total = ReadTotal(context),
-            RemainderCaption = ReadRemainderCaption(context) is { } remainder && !string.IsNullOrWhiteSpace(remainder) ? remainder : null
+            Remainder = ChartCaption.Words(ReadRemainderCaption(context))
         };
     }
 

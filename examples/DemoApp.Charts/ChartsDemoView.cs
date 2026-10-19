@@ -83,7 +83,7 @@ public abstract class ChartsDemoView : UIViewBase
             .SetPadding(UIThickness.All(24, 4, 24, 24))
             .AddChildren(CreateSections());
 
-    /// <summary>The page's own content: one <see cref="UIPage.Section(string, string?, IVisualComponent[])"/> per chart it shows.</summary>
+    /// <summary>The page's own content: one <see cref="UIPage.Section(UIPhrase, UIPhrase, IVisualComponent[])"/> per chart it shows.</summary>
     protected abstract IVisualComponent[] CreateSections();
 
     /// <summary>

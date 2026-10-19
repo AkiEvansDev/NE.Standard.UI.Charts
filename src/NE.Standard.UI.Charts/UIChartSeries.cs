@@ -1,4 +1,5 @@
 using NE.Standard.UI.Abstractions.Styling;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Charts;
 
@@ -10,8 +11,8 @@ public sealed record UIChartSeries
     /// <summary>The key the legend, the tooltip and a point's click name the series by.</summary>
     public required string Key { get; init; }
 
-    /// <summary>The words the legend shows; unset, the key itself.</summary>
-    public string? Caption { get; init; }
+    /// <summary>The words the legend shows — a string is the author's text, a key with arguments a phrase; unset, the key itself.</summary>
+    public UIPhrase? Caption { get; init; }
 
     /// <summary>
     /// The row property this series' value is read from; unset, the chart's own <c>ValuePath</c>.

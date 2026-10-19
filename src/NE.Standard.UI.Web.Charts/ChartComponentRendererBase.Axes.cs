@@ -77,8 +77,8 @@ public abstract partial class ChartComponentRendererBase
         for (var i = 0; i < leftTicks.Count; i++)
             widest = Math.Max(widest, leftTicks[i].Text.Length);
 
-        var left = (widest * LabelCharacterWidth) + (LabelGap * 2) + (string.IsNullOrWhiteSpace(LeftAxis(spec).Caption) ? 0 : CaptionHeight);
-        var bottom = TickHeight + (string.IsNullOrWhiteSpace(BottomAxis(spec).Caption) ? 0 : CaptionHeight);
+        var left = (widest * LabelCharacterWidth) + (LabelGap * 2) + (ChartCaption.Words(LeftAxis(spec).Caption) is null ? 0 : CaptionHeight);
+        var bottom = TickHeight + (ChartCaption.Words(BottomAxis(spec).Caption) is null ? 0 : CaptionHeight);
 
         return new ChartPlot(left, PlotInset, Math.Max(1, NominalWidth - left - PlotInset), Math.Max(1, NominalHeight - bottom - PlotInset));
     }
@@ -173,13 +173,10 @@ public abstract partial class ChartComponentRendererBase
                 RenderText(axes, LabelClassName, beside[i].Text, plot.Left - LabelGap, down + 4, "end");
             }
 
-            var bottomCaption = BottomAxis(spec).Caption;
-            var leftCaption = LeftAxis(spec).Caption;
-
-            if (!string.IsNullOrWhiteSpace(bottomCaption))
+            if (ChartCaption.Words(BottomAxis(spec).Caption) is { } bottomCaption)
                 RenderText(axes, CaptionClassName, context.Translate(bottomCaption), plot.Left + (plot.Width / 2), NominalHeight - 2, "middle");
 
-            if (!string.IsNullOrWhiteSpace(leftCaption))
+            if (ChartCaption.Words(LeftAxis(spec).Caption) is { } leftCaption)
             {
                 // Reading up the axis, which is how the caption beside a plot is read; the rotation is about the point it is placed at.
                 var middle = plot.Top + (plot.Height / 2);

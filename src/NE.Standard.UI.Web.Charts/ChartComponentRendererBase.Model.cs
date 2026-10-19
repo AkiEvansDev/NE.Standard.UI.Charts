@@ -35,7 +35,7 @@ public abstract partial class ChartComponentRendererBase
             series.Add(new ChartClientSeries
             {
                 Key = current.Series.Key,
-                Caption = string.IsNullOrWhiteSpace(current.Series.Caption) ? null : current.Series.Caption,
+                Caption = ChartCaption.Wire(current.Series.Caption),
                 ValuePath = current.Series.ValuePath ?? spec.ValuePath,
                 SizePath = current.Series.SizePath,
                 Color = SeriesColor(context, current),
@@ -68,7 +68,7 @@ public abstract partial class ChartComponentRendererBase
 
     /// <summary>The words the legend and the tooltip name a series by: the caption, translated, or the key itself.</summary>
     private static string ReadCaption(WebRenderContext context, UIChartSeries series)
-        => string.IsNullOrWhiteSpace(series.Caption) ? series.Key : context.Translate(series.Caption);
+        => ChartCaption.Words(series.Caption) is { } caption ? context.Translate(caption) : series.Key;
 
     /// <summary>
     /// An entry per part rather than per series — a pie's sector, a share bar's part — and a share bar's rest of its total: a pie's
@@ -125,7 +125,7 @@ public abstract partial class ChartComponentRendererBase
         if (rest <= 0)
             return null;
 
-        var caption = context.Translate(spec.RemainderCaption ?? ChartsStrings.Rest);
+        var caption = spec.Remainder is { } remainder ? context.Translate(remainder) : context.Translate(ChartsStrings.Rest);
 
         return spec.LegendValues
             ? new LegendEntry(string.Empty, caption, string.Empty, PartValue(context, spec, rest, formats), WebNumberFormat.Format(rest / whole, ShareFormat, formats.Numbers))

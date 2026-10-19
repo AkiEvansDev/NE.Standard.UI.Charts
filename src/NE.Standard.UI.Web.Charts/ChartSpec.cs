@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Web.Charts;
 
@@ -89,11 +90,15 @@ internal sealed record ChartSpec
     [JsonIgnore]
     public double? Total { get; init; }
 
+    /// <summary>What a share bar's legend calls the part of the total the rows leave, where it has words; null for the package's word.</summary>
+    [JsonIgnore]
+    public UIPhrase? Remainder { get; init; }
+
     /// <summary>
-    /// What a share bar's legend calls the part of the total the rows leave, as the author wrote it; null for the package's word. The
+    /// <see cref="Remainder"/> as the author wrote it — a text as the plain string, a key as its phrase; null for the package's word. The
     /// client translates it, again at every language switch.
     /// </summary>
-    public string? RemainderCaption { get; init; }
+    public object? RemainderCaption => ChartCaption.Wire(Remainder);
 
     /// <summary>Whether a row is one point of the series it names, rather than an x with a value per series.</summary>
     [JsonIgnore]

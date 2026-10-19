@@ -1,5 +1,6 @@
 using System.Globalization;
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 
@@ -24,8 +25,8 @@ public class ShareBarComponentRenderer : ChartComponentRendererBase
     protected override double? ReadTotal(WebRenderContext context)
         => ReadRenderValue<double?>(context, ShareBarComponent.TotalProperty, null);
 
-    protected override string? ReadRemainderCaption(WebRenderContext context)
-        => ReadRenderValue<string?>(context, ShareBarComponent.RemainderCaptionProperty, null);
+    protected override UIPhrase? ReadRemainderCaption(WebRenderContext context)
+        => ReadRenderValue<UIPhrase?>(context, ShareBarComponent.RemainderCaptionProperty, null);
 
     protected override void RenderTotal(WebRenderContext context, IHtmlElementBuilder root)
         => _ = RenderProperty<double?>(context, root, ShareBarComponent.TotalProperty, static (target, total) =>

@@ -20,8 +20,8 @@ internal sealed record ChartClientAxis
     /// <summary>Whether the client writes a category's name in the page's words, translated at every draw as a caption is.</summary>
     public bool Translate { get; init; }
 
-    /// <summary>As the author wrote it: the client translates it, again at every language switch.</summary>
-    public string? Caption { get; init; }
+    /// <summary>As the author wrote it — a text as the plain string, a key as its phrase: the client translates it, again at every language switch.</summary>
+    public object? Caption { get; init; }
 
     /// <summary>An authored axis as the client reads it.</summary>
     public static ChartClientAxis Of(UIChartAxis axis)
@@ -34,7 +34,7 @@ internal sealed record ChartClientAxis
             Grid = axis.ShowGridLines,
             Ticks = axis.TickCount,
             Translate = axis.TranslateNames,
-            Caption = string.IsNullOrWhiteSpace(axis.Caption) ? null : axis.Caption
+            Caption = ChartCaption.Wire(axis.Caption)
         };
 }
 
@@ -43,8 +43,8 @@ internal sealed record ChartClientSeries
 {
     public required string Key { get; init; }
 
-    /// <summary>As the author wrote it, or null for none — the client then names the series by its key; translated there.</summary>
-    public string? Caption { get; init; }
+    /// <summary>As the author wrote it — a text as the plain string, a key as its phrase — or null for none, the series then named by its key; translated there.</summary>
+    public object? Caption { get; init; }
 
     public string? ValuePath { get; init; }
 

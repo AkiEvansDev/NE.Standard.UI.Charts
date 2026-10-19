@@ -34,7 +34,7 @@ public abstract partial class ShareBarComponent<T>(string? id = null) : ChartCom
     /// the package's word.
     /// </summary>
     [UIComponentProperty(IsBindable = false, DefaultValue = null)]
-    public string? RemainderCaption { get; set; }
+    public UIPhrase? RemainderCaption { get; set; }
 }
 
 /// <summary>

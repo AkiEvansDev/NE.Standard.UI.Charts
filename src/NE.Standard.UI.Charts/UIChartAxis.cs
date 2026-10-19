@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Charts;
 
@@ -7,8 +8,8 @@ namespace NE.Standard.UI.Charts;
 /// </summary>
 public sealed record UIChartAxis
 {
-    /// <summary>The caption beside the axis; unset, none is drawn.</summary>
-    public string? Caption { get; init; }
+    /// <summary>The caption beside the axis — a string is the author's text, a key with arguments a phrase; unset, none is drawn.</summary>
+    public UIPhrase? Caption { get; init; }
 
     /// <summary>How the values along the axis are read.</summary>
     public UIChartAxisKind Kind { get; init; }
@@ -37,11 +38,11 @@ public sealed record UIChartAxis
     public bool TranslateNames { get; init; }
 
     /// <summary>An axis of numbers.</summary>
-    public static UIChartAxis Linear(string? caption = null, double? min = null, double? max = null, string? format = null)
+    public static UIChartAxis Linear(UIPhrase? caption = null, double? min = null, double? max = null, string? format = null)
         => new() { Kind = UIChartAxisKind.Linear, Caption = caption, Min = min, Max = max, Format = format };
 
     /// <summary>An axis of moments, marked at round intervals.</summary>
-    public static UIChartAxis Time(string? caption = null, DateTime? min = null, DateTime? max = null, string? format = null)
+    public static UIChartAxis Time(UIPhrase? caption = null, DateTime? min = null, DateTime? max = null, string? format = null)
         => new()
         {
             Kind = UIChartAxisKind.Time,
@@ -52,10 +53,10 @@ public sealed record UIChartAxis
         };
 
     /// <summary>An axis of names, one place each, in the order the rows arrive; with <paramref name="translate"/>, each name a phrase key.</summary>
-    public static UIChartAxis Category(string? caption = null, bool translate = false)
+    public static UIChartAxis Category(UIPhrase? caption = null, bool translate = false)
         => new() { Kind = UIChartAxisKind.Category, Caption = caption, TranslateNames = translate };
 
     /// <summary>An axis of numbers on a base-ten logarithmic scale.</summary>
-    public static UIChartAxis Logarithmic(string? caption = null, double? min = null, double? max = null, string? format = null)
+    public static UIChartAxis Logarithmic(UIPhrase? caption = null, double? min = null, double? max = null, string? format = null)
         => new() { Kind = UIChartAxisKind.Logarithmic, Caption = caption, Min = min, Max = max, Format = format };
 }

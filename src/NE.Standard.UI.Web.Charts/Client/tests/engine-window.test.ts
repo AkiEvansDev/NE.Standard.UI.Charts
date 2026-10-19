@@ -131,7 +131,7 @@ function livePage(view: Span | null, xs: readonly number[] = Array.from({ length
         root: page,
         numbers: { parseInvariant: readNumber, readCulture: () => ({}), format: (value: number) => String(value) },
         temporal: { parse: () => null, readCulture: () => ({}) },
-        strings: { text: (key: string) => key, format: (key: string) => key, resolveText: (text: string) => text, onChange: () => {} },
+        strings: { text: (key: string) => key, format: (key: string) => key, resolveText: (text: string) => text, resolve: (words: string) => words, onChange: () => {} },
         names: { tooltip: "data-tooltip" },
         popups: { focusReturn: () => null },
         dom: { ensureId: (_target: StubElement, prefix: string) => `${prefix}-1` },

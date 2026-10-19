@@ -1,18 +1,20 @@
 using System;
 using System.Collections.Generic;
 using NE.Standard.UI.Abstractions.Binding;
+using NE.Standard.UI.Abstractions.Interaction;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Components.Foundation;
 using NE.Standard.UI.Primitives.Annotations;
 using NE.Standard.UI.Primitives.Binding;
+using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Charts;
 
 /// <summary>
 /// The base every chart shares: rows, x, series, axes and legend; a chart hosts no item template.
 /// </summary>
-public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsComponentBase<T, IBindableItem>(id), IChartComponent, IItemValuesComponent
+public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsComponentBase<T, IBindableItem>(id), IChartComponent, IItemValuesComponent, IPressablePartsComponent
     where T : ChartComponentBase<T>, IUIComponentDefinition
 {
     private readonly List<UIChartSeries> _series = [];
@@ -98,6 +100,23 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     public bool TakesItemValues => true;
 
     /// <summary>
+    /// Gets whether the chart's own parts are presses — a legend's entries, which hide and show their series, a zoom, a point's click —
+    /// so that a link may hold only a chart with none, a sparkline's as it comes.
+    /// </summary>
+    public bool HasPressableParts => Legend != UIChartLegendPlacement.None || Zoomable || HasPointClick();
+
+    private bool HasPointClick()
+    {
+        foreach (UIEvent registered in Events)
+        {
+            if (string.Equals(registered.Name, ChartEvents.PointClick, StringComparison.Ordinal))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
     /// Reads the x of every point from this row property — a number, a moment or a name, which the x axis's kind says which of.
     /// </summary>
     public T SetX(string propertyPath)
@@ -133,7 +152,7 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     /// <summary>
     /// Adds a series reading <paramref name="valuePath"/>, else the chart's own <c>ValuePath</c> for rows keyed by <c>SeriesPath</c>.
     /// </summary>
-    public T AddSeries(string key, string? caption = null, string? valuePath = null, string? sizePath = null, UIThemeColor? color = null)
+    public T AddSeries(string key, UIPhrase? caption = null, string? valuePath = null, string? sizePath = null, UIThemeColor? color = null)
         => AddSeries(new UIChartSeries { Key = key, Caption = caption, ValuePath = valuePath, SizePath = sizePath, Color = color });
 
     /// <summary>

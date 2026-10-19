@@ -133,10 +133,10 @@ function m(e) {
 	}
 }
 function h(e, t) {
-	let n = (e) => e.caption === null ? e : {
+	let n = (e) => ({
 		...e,
-		caption: t(e.caption)
-	};
+		caption: e.caption === null ? null : t(e.caption)
+	});
 	return {
 		...e,
 		x: n(e.x),
@@ -1488,7 +1488,7 @@ var Z = `.${o.root}`, Yn = `.${o.canvas}`, Xn = `.${o.plot}`, Zn = `.${o.series}
 	wordsChanged(e) {
 		for (let t of e.querySelectorAll(Z)) {
 			let e = this.charts.get(t), n = e === void 0 ? null : m(t);
-			e !== void 0 && n !== null && (e.model = h(n, (e) => this.formatting.strings.resolveText(e)), this.schedule(t));
+			e !== void 0 && n !== null && (e.model = h(n, (e) => this.formatting.strings.resolve(e)), this.schedule(t));
 		}
 		Mn(e, this.formatting);
 	}
@@ -1501,7 +1501,7 @@ var Z = `.${o.root}`, Yn = `.${o.canvas}`, Xn = `.${o.plot}`, Zn = `.${o.series}
 		if (r !== void 0 && r.modelText === t) return r.rowsText !== n && (r.slots.length = 0, r.slots.push(...st(e, this.formatting.numbers.parseInvariant)), r.rows = ct(r.slots), r.rowsText = n), r;
 		let i = m(e);
 		if (i === null) return null;
-		let o = h(i, (e) => this.formatting.strings.resolveText(e)), s = st(e, this.formatting.numbers.parseInvariant), c = {
+		let o = h(i, (e) => this.formatting.strings.resolve(e)), s = st(e, this.formatting.numbers.parseInvariant), c = {
 			root: e,
 			model: o,
 			slots: s,

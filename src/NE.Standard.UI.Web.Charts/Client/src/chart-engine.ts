@@ -191,7 +191,7 @@ export class ChartEngine {
             if (entry === undefined || written === null)
                 continue;
 
-            entry.model = translateModel(written, text => this.formatting.strings.resolveText(text));
+            entry.model = translateModel(written, caption => this.formatting.strings.resolve(caption));
             this.schedule(chart);
         }
 
@@ -232,7 +232,7 @@ export class ChartEngine {
         if (written === null)
             return null;
 
-        const model = translateModel(written, text => this.formatting.strings.resolveText(text));
+        const model = translateModel(written, caption => this.formatting.strings.resolve(caption));
         const slots = readSlots(root, this.formatting.numbers.parseInvariant);
 
         const entry: ChartEntry = {

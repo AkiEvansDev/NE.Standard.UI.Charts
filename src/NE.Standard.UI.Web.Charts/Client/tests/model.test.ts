@@ -41,11 +41,23 @@ function written(): WrittenModel {
 
 test("every caption the author wrote is translated, and a series with none is named by its key untranslated", () => {
     const words: Readonly<Record<string, string>> = { "sales.month": "月份", "sales.revenue": "收入", cost: "成本" };
-    const model = translateModel(written(), text => words[text] ?? text);
+    const model = translateModel(written(), caption => (typeof caption === "string" ? words[caption] ?? caption : ""));
 
     assert.equal(model.x.caption, "月份");
     assert.equal(model.y.caption, null);
     assert.deepEqual(model.series.map(series => series.caption), ["收入", "cost"]);
+});
+
+test("every caption reaches the page's words as the server wrote it: a key with its arguments, an author's text in either shape", () => {
+    const seen: string[] = [];
+    const model = translateModel(
+        { ...written(), x: { ...axis(null), caption: { key: "sales.by", args: { unit: "month" } } }, remainderCaption: { text: "Free" } },
+        caption => { seen.push(JSON.stringify(caption)); return "words"; }
+    );
+
+    assert.equal(model.x.caption, "words");
+    assert.equal(model.remainderCaption, "words");
+    assert.deepEqual(seen, ["{\"key\":\"sales.by\",\"args\":{\"unit\":\"month\"}}", "{\"text\":\"Free\"}", "\"sales.revenue\""]);
 });
 
 test("the model the server wrote is left as it was, so a language switch translates it again", () => {

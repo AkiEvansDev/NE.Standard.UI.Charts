@@ -1,5 +1,6 @@
 // The chart as the server wrote it on the root; axes carry only the author's fixed ends, so a later point can widen the range.
 
+import type { WrittenWords } from "ne-standard-ui";
 import { ChartAttributes } from "./chart-names.ts";
 
 export type AxisKind = "Linear" | "Time" | "Category" | "Logarithmic";
@@ -60,11 +61,19 @@ export type ChartModel = {
     readonly remainderCaption: string | null;
 };
 
+/** An axis as the server writes it: its caption as the author wrote it — a text as a plain string, a key as its phrase — or null for none. */
+type WrittenAxis = Omit<ChartAxis, "caption"> & { readonly caption: WrittenWords | null };
+
 /** A series as the server writes it: its caption as the author wrote it, or null where it has none. */
-type WrittenSeries = Omit<ChartSeries, "caption"> & { readonly caption: string | null };
+type WrittenSeries = Omit<ChartSeries, "caption"> & { readonly caption: WrittenWords | null };
 
 /** The model as the server writes it: every caption as the author wrote it, for the page to translate. */
-export type WrittenModel = Omit<ChartModel, "series"> & { readonly series: readonly WrittenSeries[] };
+export type WrittenModel = Omit<ChartModel, "x" | "y" | "series" | "remainderCaption"> & {
+    readonly x: WrittenAxis;
+    readonly y: WrittenAxis;
+    readonly series: readonly WrittenSeries[];
+    readonly remainderCaption: WrittenWords | null;
+};
 
 /** The model off a chart's root; null when the attribute is missing or does not parse, which leaves the server's frame alone. */
 export function readModel(root: Element): WrittenModel | null {
@@ -81,9 +90,9 @@ export function readModel(root: Element): WrittenModel | null {
     }
 }
 
-/** The model in the page's words: each caption the author wrote translated as a plain value is, a series with none named by its key. */
-export function translateModel(model: WrittenModel, translate: (text: string) => string): ChartModel {
-    const axis = (written: ChartAxis): ChartAxis => (written.caption === null ? written : { ...written, caption: translate(written.caption) });
+/** The model in the page's words: each caption the author wrote translated (`strings.resolve`), a series with none named by its key. */
+export function translateModel(model: WrittenModel, translate: (caption: WrittenWords) => string): ChartModel {
+    const axis = (written: WrittenAxis): ChartAxis => ({ ...written, caption: written.caption === null ? null : translate(written.caption) });
 
     return {
         ...model,

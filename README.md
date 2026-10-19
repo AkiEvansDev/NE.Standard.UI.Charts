@@ -179,8 +179,9 @@ unannounced beside the words laid over it. A `Start` or `End` legend stands unde
 chart is too narrow for the two side by side — where beside it the plot would keep less than 256 px (a phone's width); the
 browser decides it at every draw, from the legend's widest entry, so the server's first frame always draws it beside.
 
-The words are the page's. An axis's and a series' caption travel in the model as the author gave them — keys, not the words
-they read as — and the browser translates them at every draw and draws every chart again when the page's language changes. A
+The words are the page's. An axis's and a series' caption is a phrase: a string is the author's text, shown as written, and a key
+(`UIPhrase.Of(key, arguments)`) travels in the model as its key and arguments, not the words it reads as — the browser translates
+it at every draw and draws every chart again when the page's language changes. A
 category's name is data and stays as the rows hold it, unless the axis says otherwise: `UIChartAxis.Category(translate: true)`
 (`TranslateNames`) reads every name as a key, translated as a caption is wherever a name is written — the ticks, the legend, a
 sector's and a point's words, a radar's spokes — and a name no word answers stays as written. A
@@ -221,7 +222,8 @@ application's own.
   starts where the server drew it, bound or written by the author. The window is bound
   (`BindVisibleRange`), so a controller hears where the viewer is reading and can move the chart itself — a window it pushes
   stands over one the viewer's wheel is still settling; `OnWindowChange(command)` runs a command once the viewer has moved it,
-  with the bound range already on the server, and never for a slide the chart made itself. `FollowLatest` keeps a window that
+  with the bound range already on the server (`OnWindowChangeLiteral(command, values)` with values of the author's), and never for
+  a slide the chart made itself. `FollowLatest` keeps a window that
   reaches the newest point standing at the far end: a point arriving past its end slides it along to end on that point, at the
   width it was given, writing the bound range alone; a change that brings no point past it moves nothing. A window the viewer
   moved back, or one first drawn on an older stretch, stays where it is, and a reset or no data moves none.
@@ -229,7 +231,8 @@ application's own.
   choice stays in the browser and is never sent.
 - **Click a point** — a mark, a bar or a sector — where the author wired `OnPointClick(command)`: the command is
   handed the key of the row the point was read from as `point` and the key of its series as `series` — a sector's series
-  being the pie's one series. The pointer says which points a press reaches. On a zoomable chart a double press is the
+  being the pie's one series; `OnPointClickLiteral(command, values)` hands it values of the author's instead, for one that needs
+  no point. The pointer says which points a press reaches. On a zoomable chart a double press is the
   zoom's own gesture and runs no command, so a press on a point there answers once no second press followed it; elsewhere
   it answers at once. The point gives under the press — a mark sinks back, a bar or a sector thins — and on a zoomable chart
   keeps that look from the release until its command runs or a second press calls it off, so the wait reads as taken. A press on the legend, or on a canvas that answers presses of its own, stays the chart's: a clickable
