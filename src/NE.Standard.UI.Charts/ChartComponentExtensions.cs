@@ -18,7 +18,7 @@ public static class ChartComponentExtensions
     {
         ArgumentNullException.ThrowIfNull(chart);
 
-        return chart.On(ChartEvents.PointClick, command, ChartArguments.Point("point"), ChartArguments.Series("series"));
+        return chart.On(ChartEvents.PointClick, command, UIAction.Offered(ChartArguments.Point("point")), UIAction.Offered(ChartArguments.Series("series")));
     }
 
     /// <inheritdoc cref="OnPointClick{T}(T, string)"/>
