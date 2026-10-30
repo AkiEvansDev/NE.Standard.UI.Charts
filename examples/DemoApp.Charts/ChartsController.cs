@@ -51,11 +51,11 @@ internal sealed partial class ChartsController : UIControllerBase
     [RecursiveMember]
     public partial double Load { get; set; }
 
-    /// <summary>The gauge's caption, which names the reading's minute: a bound caption the server pushes with every reading.</summary>
+    /// <summary>The gauge's title, which names the reading's minute: a bound title the server pushes with every reading.</summary>
     [RecursiveMember]
-    public partial UIPhrase? LoadCaption { get; set; }
+    public partial UIPhrase? LoadTitle { get; set; }
 
-    /// <summary>The gauge's unit, which says whether the load rose or fell since the reading before: a bound unit, pushed as the caption is.</summary>
+    /// <summary>The gauge's unit, which says whether the load rose or fell since the reading before: a bound unit, pushed as the title is.</summary>
     [RecursiveMember]
     public partial UIPhrase? LoadUnit { get; set; }
 
@@ -75,13 +75,13 @@ internal sealed partial class ChartsController : UIControllerBase
         Status = UIPhrase.Of("charts.status.reading", ("time", Clock(Samples[^1].Time)), ("cpu", Percent(Samples[^1].Cpu)), ("memory", Percent(Samples[^1].Memory)));
     }
 
-    /// <summary>The gauge follows the last reading: its arc, the minute its caption names, and the way its unit says it went.</summary>
+    /// <summary>The gauge follows the last reading: its arc, the minute its title names, and the way its unit says it went.</summary>
     private void ShowLoad()
     {
         Sample last = Samples[^1];
 
         Load = last.Cpu;
-        LoadCaption = UIPhrase.Of("charts.processor-at", ("time", Clock(last.Time)));
+        LoadTitle = UIPhrase.Of("charts.processor-at", ("time", Clock(last.Time)));
         LoadUnit = new UIPhrase(Samples.Count > 1 && last.Cpu < Samples[^2].Cpu ? "charts.unit.falling" : "charts.unit.rising");
     }
 

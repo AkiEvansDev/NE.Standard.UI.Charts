@@ -111,7 +111,7 @@ public abstract partial class ChartComponentRendererBase
     {
         // Bars share the band one x owns; a line and an area own the whole width and need none of this.
         var band = spec.Kind == BarKind
-            ? ChartBars.Band(spec.Horizontal ? plot.Height : plot.Width, ChartBars.Slots(DrawnSeries(data), x))
+            ? ChartBars.Band(spec.IsHorizontal ? plot.Height : plot.Width, ChartBars.Slots(DrawnSeries(data), x))
             : 0;
 
         _ = svg.Element("g", group =>
@@ -277,7 +277,7 @@ public abstract partial class ChartComponentRendererBase
     /// <summary>A bar per point, from what it stands on — its place in a stack, or zero — to the value, in its own place across the band.</summary>
     private static void RenderBars(WebRenderContext context, IHtmlElementBuilder group, ChartSpec spec, ChartRenderData data, ChartRenderSeries series, string caption, int index, ChartPlot plot, ChartScale x, ChartScale y, double band, ChartFormats formats)
     {
-        var sideways = spec.Horizontal;
+        var sideways = spec.IsHorizontal;
 
         for (var i = 0; i < series.Drawn.Count; i++)
         {
@@ -506,11 +506,11 @@ public abstract partial class ChartComponentRendererBase
         var last = LastDrawnPart(parts);
         var end = last < 0 ? 0 : Math.Round((parts[last].Start + parts[last].Length) * NominalWidth);
 
-        // Always written, so a bound caption's push is a text write; with no words it takes no room over the bar.
-        _ = root.Element("div", heading =>
+        // Always written, so a bound title's push is a text write; with no words it takes no room over the bar.
+        _ = root.Element("div", title =>
         {
-            _ = heading.Class(HeadingClassName);
-            RenderHeading(context, heading);
+            _ = title.Class(TitleClassName);
+            RenderTitle(context, title);
         });
 
         _ = root.Element("div", area =>

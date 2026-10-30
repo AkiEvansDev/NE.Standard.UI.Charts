@@ -31,14 +31,14 @@ public class ShareBarComponentRenderer : ChartComponentRendererBase
     protected override void RenderTotal(WebRenderContext context, IHtmlElementBuilder root)
         => _ = RenderProperty<double?>(context, root, ShareBarComponent.TotalProperty, static (target, total) =>
         {
-            if (total is double value)
+            if (total is double value && double.IsFinite(value))
                 _ = target.Attribute(TotalAttribute, value.ToString("R", CultureInfo.InvariantCulture));
         }, [WebDomOperation.Custom(TotalOperationKind)]);
 
-    protected override void RenderHeading(WebRenderContext context, IHtmlElementBuilder heading)
-        => _ = RenderProperty<string?>(context, heading, ShareBarComponent.CaptionProperty, static (target, caption) =>
+    protected override void RenderTitle(WebRenderContext context, IHtmlElementBuilder title)
+        => _ = RenderProperty<string?>(context, title, ShareBarComponent.TitleProperty, static (target, title) =>
         {
-            if (!string.IsNullOrWhiteSpace(caption))
-                _ = target.Text(caption);
+            if (!string.IsNullOrWhiteSpace(title))
+                _ = target.Text(title);
         }, [WebDomOperation.Text()]);
 }

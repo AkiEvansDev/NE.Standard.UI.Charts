@@ -26,13 +26,13 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
     /// Gets the low end of the range, set by <see cref="SetRange"/>.
     /// </summary>
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = 0d)]
-    public double Min { get; private set; }
+    public double? Min { get; private set; }
 
     /// <summary>
     /// Gets the high end of the range, set by <see cref="SetRange"/>.
     /// </summary>
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = 100d)]
-    public double Max { get; private set; } = 100;
+    public double? Max { get; private set; }
 
     /// <summary>
     /// Gets the bands along the arc, in the order they were added.
@@ -46,13 +46,13 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public UIPhrase? Caption { get; set; }
+    public UIPhrase? Title { get; set; }
 
     /// <summary>
     /// Gets or sets how the reading is written: a standard number format in the page's culture.
     /// </summary>
     [UIComponentProperty(IsBindable = false, DefaultValue = "N0")]
-    public string? Format { get; set; } = "N0";
+    public string? Format { get; set; }
 
     /// <summary>
     /// Gets or sets the unit written after the reading — a per cent sign, a word.

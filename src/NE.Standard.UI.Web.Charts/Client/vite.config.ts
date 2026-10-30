@@ -5,11 +5,14 @@ export default defineConfig({
     build: {
         emptyOutDir: true,
         outDir: "dist",
-        lib: {
-            entry: resolve(__dirname, "src/charts.ts"),
-            formats: ["es"],
-            fileName: () => "ui-charts.js",
-            cssFileName: "ui-charts"
+        modulePreload: false,
+        cssCodeSplit: false,
+        rolldownOptions: {
+            input: resolve(import.meta.dirname, "src/charts.ts"),
+            output: {
+                entryFileNames: "ui-charts.js",
+                assetFileNames: "ui-charts[extname]"
+            }
         }
     }
 });

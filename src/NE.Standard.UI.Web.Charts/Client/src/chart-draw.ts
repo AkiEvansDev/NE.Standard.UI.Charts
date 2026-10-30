@@ -3,7 +3,7 @@
 
 import { bandWidth, barOf, barSlots } from "./chart-bars.ts";
 import { PlainRadius, bubbleRadius, pointReach } from "./chart-bubbles.ts";
-import { categoryNames } from "./chart-model.ts";
+import { categoryNames, isHorizontal } from "./chart-model.ts";
 import type { ChartAxis, ChartModel } from "./chart-model.ts";
 import { momentDate } from "./chart-moment.ts";
 import { fitTurn, placeSideLegend, syncLegend } from "./chart-legend.ts";
@@ -232,7 +232,7 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     const yLabels = labelsOf(model.y, formats.y, y, data.categories, numbers, dates, formatting, measure.width, hasRows);
     // The labels beside the plot are what its left edge has to make room for: the values, or the bands where the chart lies on
     // its side.
-    const beside = model.horizontal ? xLabels : yLabels;
+    const beside = isHorizontal(model) ? xLabels : yLabels;
     const widest = beside.reduce((longest, label) => Math.max(longest, label.width), 0);
 
     measure.release();
@@ -250,7 +250,7 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
         ? buildColumns(model, visible, plot, x, data.categories, formats, numbers, dates, formatting)
         : [];
 
-    const rule = columns.length > 0 ? drawRule(drawing, plot, model.horizontal) : null;
+    const rule = columns.length > 0 ? drawRule(drawing, plot, isHorizontal(model)) : null;
 
     canvas.replaceChildren(...drawing.childNodes);
 
@@ -335,7 +335,7 @@ function readTotal(root: Element): number | null {
 
 /** What the canvas is announced as, as the server wrote it: the entries the legend names, or the chart's own word where there are none. */
 function labelCanvas(canvas: SVGSVGElement, entries: readonly LegendEntry[], formatting: ChartFormatting): void {
-    const label = entries.length > 0 ? wordList(entries.map(entry => entry.caption), formatting.strings) : formatting.strings.text(ChartWords.label);
+    const label = entries.length > 0 ? wordList(entries.map(entry => entry.caption), formatting.strings) : formatting.strings.text(ChartWords.chart);
 
     if (canvas.getAttribute("aria-label") !== label)
         canvas.setAttribute("aria-label", label);
@@ -810,22 +810,22 @@ function resolvePlot(model: ChartModel, width: number, height: number, widest: n
 
 /** The axis written down the left of the plot: the values, or the bands where the chart lies on its side. */
 function leftAxis(model: ChartModel): ChartAxis {
-    return model.horizontal ? model.x : model.y;
+    return isHorizontal(model) ? model.x : model.y;
 }
 
 /** The axis written under the plot: the bands, or the values where the chart lies on its side. */
 function bottomAxis(model: ChartModel): ChartAxis {
-    return model.horizontal ? model.y : model.x;
+    return isHorizontal(model) ? model.y : model.x;
 }
 
 /** Where a place on the band axis lands, across the plot or down it when bars lie on their side. */
 function bandCoord(model: ChartModel, plot: Plot, band: Scale, value: number): number {
-    return model.horizontal ? plotDown(plot, band, value) : plotX(plot, band, value);
+    return isHorizontal(model) ? plotDown(plot, band, value) : plotX(plot, band, value);
 }
 
 /** Where a value lands: up the plot, or across it where the chart lies on its side. */
 function valueCoord(model: ChartModel, plot: Plot, value: Scale, reading: number): number {
-    return model.horizontal ? plotX(plot, value, reading) : plotY(plot, value, reading);
+    return isHorizontal(model) ? plotX(plot, value, reading) : plotY(plot, value, reading);
 }
 
 function drawGrid(
@@ -844,14 +844,14 @@ function drawGrid(
 
     if (model.y.grid) {
         for (const label of yLabels)
-            gridLine(group, plot, valueCoord(model, plot, y, label.value), model.horizontal);
+            gridLine(group, plot, valueCoord(model, plot, y, label.value), isHorizontal(model));
     }
 
     if (!model.x.grid)
         return;
 
     for (const label of xLabels)
-        gridLine(group, plot, bandCoord(model, plot, x, label.value), !model.horizontal);
+        gridLine(group, plot, bandCoord(model, plot, x, label.value), !isHorizontal(model));
 }
 
 /** One line across the plot at a mark: down the box for a mark on the axis under it, across for one beside it. */
@@ -878,14 +878,14 @@ function drawAxes(
     line(group, ChartClasses.axisLine, plot.left, plotBottom(plot), plotRight(plot), plotBottom(plot));
     line(group, ChartClasses.axisLine, plot.left, plot.top, plot.left, plotBottom(plot));
 
-    const under = model.horizontal ? yLabels : xLabels;
-    const beside = model.horizontal ? xLabels : yLabels;
+    const under = isHorizontal(model) ? yLabels : xLabels;
+    const beside = isHorizontal(model) ? xLabels : yLabels;
     // A label that would run into the one before it is dropped: the marks stay where they are, and only some of them are named.
     let occupied = Number.NEGATIVE_INFINITY;
 
     for (const label of under) {
         const half = label.width / 2;
-        const along = model.horizontal ? valueCoord(model, plot, y, label.value) : bandCoord(model, plot, x, label.value);
+        const along = isHorizontal(model) ? valueCoord(model, plot, y, label.value) : bandCoord(model, plot, x, label.value);
         // A label at either end is kept inside the frame rather than hanging off it; its mark stays where it is.
         const at = Math.min(Math.max(along, half), width - half);
 
@@ -900,7 +900,7 @@ function drawAxes(
     let last = Number.NaN;
 
     for (const label of beside) {
-        const at = model.horizontal ? bandCoord(model, plot, x, label.value) : valueCoord(model, plot, y, label.value);
+        const at = isHorizontal(model) ? bandCoord(model, plot, x, label.value) : valueCoord(model, plot, y, label.value);
 
         if (Number.isFinite(last) && Math.abs(at - last) < LabelHeight)
             continue;
@@ -977,7 +977,7 @@ function drawSeries(
 
     // Bars share the band one x owns; a line and an area own the whole width and need none of this.
     const band = model.kind === ChartKinds.bar
-        ? bandWidth(model.horizontal ? plot.height : plot.width, barSlots(series.map(entry => entry.drawn), x))
+        ? bandWidth(isHorizontal(model) ? plot.height : plot.width, barSlots(series.map(entry => entry.drawn), x))
         : 0;
 
     for (let index = 0; index < series.length; index++) {
@@ -1097,7 +1097,7 @@ function drawBars(
     formatting: ChartFormatting,
     model: ChartModel
 ): void {
-    const sideways = model.horizontal;
+    const sideways = isHorizontal(model);
 
     for (let i = 0; i < entry.drawn.length; i++) {
         const point = entry.drawn[i];

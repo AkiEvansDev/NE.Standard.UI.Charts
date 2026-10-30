@@ -92,13 +92,13 @@ after it, as a render would.
 |---|---|---|
 | `LineChartComponent` | a line per series | `Stepped`, `Smooth`, `ShowMarkers` — a series added as a `UIChartSeries` may say otherwise |
 | `AreaChartComponent` | the same lines with a band under each | `Stacked`, and the line chart's own; no marks are painted, though a point still answers the pointer |
-| `BarChartComponent` | a bar per series at every x | `Stacked` — otherwise the bars share the x's band side by side; `Horizontal` lays them on their side, the values across the box and a band per x down it |
+| `BarChartComponent` | a bar per series at every x | `Stacked` — otherwise the bars share the x's band side by side; `Orientation` `Horizontal` lays them on their side, the values across the box and a band per x down it |
 | `PieChartComponent` | one series' points as sectors of a turn | `SetDonut(share)` for a hole, `CentreCaption` (or `BindCentreCaption`) for the words in it; no axes, and the legend names the sectors |
-| `ShareBarComponent` | one series' points as parts of a single thin bar — a drive's storage, a budget, a context window | `Total` (bindable): the whole the parts are shares of, what they leave of it drawn as the bar's empty track and named in the legend by `RemainderCaption` (else *Remaining*); `Caption` (bindable) for the words over the bar. No axes; the legend names the parts and stands under the bar or over it, a `Start` or `End` one under it |
+| `ShareBarComponent` | one series' points as parts of a single thin bar — a drive's storage, a budget, a context window | `Total` (bindable): the whole the parts are shares of, what they leave of it drawn as the bar's empty track and named in the legend by `RemainderCaption` (else *Remaining*); `Title` (bindable) for the words over the bar. No axes; the legend names the parts and stands under the bar or over it, a `Start` or `End` one under it |
 | `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x — a character's attributes, a product's scores, read against each other at a glance | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre, each ring's value written on the middle of its first side, over the series. No zoom, no window and no shared tooltip: there is no x to move along |
 | `SparklineComponent` | one series with nothing around it, a line of text high | `Bars` for a run of bars instead of a line; no axes, no grid, no legend, and no marks until the pointer finds one |
 | `ScatterChartComponent` | a mark per point and no line between them | a third value sizes each mark where the series names one: `AddSeries(key, caption, valuePath, sizePath)`, by area rather than by radius |
-| `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Caption`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule; a reading that is no number (NaN, an infinity) is none, a `Min` or `Max` that is none reads as unset, and a band with such an end is not drawn |
+| `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Title`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule; a reading that is no number (NaN, an infinity) is none, a `Min` or `Max` that is none reads as unset, and a band with such an end is not drawn |
 
 A pie's and a share bar's legend may be a table (`SetShowLegendValues(true)`): each part's value, written as the y axis writes
 it, and its share of the whole to a tenth of a per cent, in columns of their own. A share bar's whole is its `Total`, or what
@@ -174,7 +174,7 @@ arrives or goes in the legend too, an entry the viewer put aside staying aside. 
 stays keeps its button, written again in place, so a press, a hover or the keyboard on it is never lost to a redraw — the series
 being read stays forward through one. A keyboard standing on an entry whose series or sector went moves to the entry now in its
 place, and to the chart itself where the whole legend went, never to the page's body. The canvas is announced as a picture named
-by what the legend names — or by the `ui.chart.label` string (*Chart*) where there is nothing to name; a gauge's arc is left
+by what the legend names — or by the `ui.chart.name` string (*Chart*) where there is nothing to name; a gauge's arc is left
 unannounced beside the words laid over it. A `Start` or `End` legend stands under the plot, as a `Bottom` one does, while the
 chart is too narrow for the two side by side — where beside it the plot would keep less than 256 px (a phone's width); the
 browser decides it at every draw, from the legend's widest entry, so the server's first frame always draws it beside.
@@ -185,7 +185,7 @@ it at every draw and draws every chart again when the page's language changes. A
 category's name is data and stays as the rows hold it, unless the axis says otherwise: `UIChartAxis.Category(translate: true)`
 (`TranslateNames`) reads every name as a key, translated as a caption is wherever a name is written — the ticks, the legend, a
 sector's and a point's words, a radar's spokes — and a name no word answers stays as written. A
-donut's centre caption and a gauge's unit and caption are the properties' own words, each on an element of its own laid over
+donut's centre caption and a gauge's unit and title are the properties' own words, each on an element of its own laid over
 the drawing in the page's own type — the centre over the hole, wrapped inside it; the unit written after the reading's
 number — written again at a switch, and a bound one follows its pushes. What a tooltip or the canvas's name
 puts between its parts is the package's own word with slots — `ui.chart.point` (`{series} — {x}: {y}`, a sector's too), `ui.chart.reading`, `ui.chart.list` (`{list}, {next}`) — so a language punctuates its own. Numbers and dates are the page's
@@ -220,7 +220,9 @@ application's own.
   a drag or a double press on a chart showing the whole does nothing and sends nothing. A drag starts once the pointer has moved
   a few pixels; a press that stayed within them is a press. Zoomed in, bars widen to share the band among the places on show. The window
   starts where the server drew it, bound or written by the author. The window is bound
-  (`BindVisibleRange`), so a controller hears where the viewer is reading and can move the chart itself — a window it pushes
+  (`BindVisibleRange`) — two-way only while the chart is `Zoomable` or `FollowLatest` and has a window at all (not a pie, a share
+  bar or a radar; a sparkline never zooms), one way otherwise, the page's write refused; a window the page sends needs two finite ends, the near one first —
+  so a controller hears where the viewer is reading and can move the chart itself — a window it pushes
   stands over one the viewer's wheel is still settling; `OnWindowChange(command)` runs a command once the viewer has moved it,
   with the bound range already on the server (`OnWindowChangeLiteral(command, values)` with values of the author's), and never for
   a slide the chart made itself. `FollowLatest` keeps a window that

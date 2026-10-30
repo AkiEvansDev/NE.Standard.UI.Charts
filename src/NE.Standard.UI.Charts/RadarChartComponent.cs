@@ -13,7 +13,11 @@ public abstract partial class RadarChartComponent<T>(string? id = null) : ChartC
     /// Gets or sets whether a mark is drawn where a series meets a spoke. A series may say otherwise.
     /// </summary>
     [UIComponentProperty(IsBindable = false, DefaultValue = true)]
-    public bool ShowMarkers { get; set; } = true;
+    public bool? ShowMarkers { get; set; }
+
+    /// <inheritdoc/>
+    /// <remarks>Spokes have no x axis to window.</remarks>
+    protected override bool HasWindow => false;
 }
 
 /// <summary>

@@ -11,5 +11,5 @@ public interface IShareChartComponent
     static UIProperty ShowLegendValuesProperty { get; } = new(nameof(ShowLegendValues));
 
     /// <summary>Whether the legend is a table: each part's name, its value and its share of the whole.</summary>
-    bool ShowLegendValues { get; }
+    bool? ShowLegendValues { get; }
 }

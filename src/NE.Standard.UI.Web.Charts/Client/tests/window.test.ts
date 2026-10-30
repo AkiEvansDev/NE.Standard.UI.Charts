@@ -99,7 +99,7 @@ function followingChart(rows: ChartRow[]): State {
         sharedTooltip: false,
         zoomable: true,
         followLatest: true,
-        horizontal: false,
+        orientation: "Vertical",
         bare: false,
         donut: 0,
         legendValues: false,

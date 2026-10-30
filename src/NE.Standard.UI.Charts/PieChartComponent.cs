@@ -13,13 +13,17 @@ public abstract partial class PieChartComponent<T>(string? id = null) : ChartCom
 {
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IShareChartComponent), IsBindable = false, DefaultValue = false)]
-    public bool ShowLegendValues { get; set; }
+    public bool? ShowLegendValues { get; set; }
+
+    /// <inheritdoc/>
+    /// <remarks>Sectors of a turn have no x axis to window.</remarks>
+    protected override bool HasWindow => false;
 
     /// <summary>
     /// Gets how much of the radius the hole in the middle takes, set by <c>SetDonut</c>.
     /// </summary>
     [UIComponentProperty(IsBindable = false, GenerateSetter = false, DefaultValue = 0d)]
-    public double Donut { get; private set; }
+    public double? Donut { get; private set; }
 
     /// <summary>
     /// Gets or sets the words in the middle of a donut; nothing is written without a hole.

@@ -31,7 +31,7 @@ function written(): WrittenModel {
         sharedTooltip: false,
         zoomable: false,
         followLatest: false,
-        horizontal: false,
+        orientation: "Vertical",
         bare: false,
         donut: 0,
         legendValues: false,

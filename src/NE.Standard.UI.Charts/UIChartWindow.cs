@@ -7,6 +7,8 @@ namespace NE.Standard.UI.Charts;
 /// <summary>
 /// The stretch of the x axis a chart shows, in the axis's own units.
 /// </summary>
+/// <remarks>Read from the page only with two finite ends, the near one first (<see cref="UIChartWindowJsonConverter"/>).</remarks>
+[JsonConverter(typeof(UIChartWindowJsonConverter))]
 public readonly record struct UIChartWindow(double From, double To)
 {
     // The two ends are the wire; nothing computed goes on it, so the browser reads the same shape it writes.

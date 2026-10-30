@@ -37,7 +37,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
     protected const string ValueClassName = "ui-gauge__value";
     protected const string NumberClassName = "ui-gauge__number";
     protected const string UnitClassName = "ui-gauge__unit";
-    protected const string CaptionClassName = "ui-gauge__caption";
+    protected const string TitleClassName = "ui-gauge__title";
     protected const string BandColorVariable = "--ui-gauge-band-color";
     protected const string RatioVariable = "--ui-gauge-ratio";
     protected const string CentreXVariable = "--ui-gauge-centre-x";
@@ -45,7 +45,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
 
     private const string DefaultFormat = "N0";
 
-    // The box the arc is drawn in: three quarters of a turn from lower left to lower right, with the reading and caption in
+    // The box the arc is drawn in: three quarters of a turn from lower left to lower right, with the reading and title in
     // the middle.
     private const double Width = 200;
     private const double Height = 170;
@@ -91,7 +91,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
                 _ = target.Style(ValueVariable, value.ToString(CultureInfo.InvariantCulture));
         },
         [
-            WebDomOperation.Style(ValueVariable),
+            WebDomOperation.Style(ValueVariable, converter: WebDomConverters.FiniteNumber),
             WebDomOperation.Custom(ValueOperationKind, target: $".{NumberClassName}")
         ]);
 
@@ -208,7 +208,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
         => high > low ? Math.Clamp((value - low) / (high - low), 0, 1) : 0;
 
     /// <summary>
-    /// The reading and caption: words of the page's own type laid over the arc, not drawn inside the viewBox, since scaled
+    /// The reading and title: words of the page's own type laid over the arc, not drawn inside the viewBox, since scaled
     /// text can't survive a dial's stretch.
     /// </summary>
     private static void RenderWords(WebRenderContext context, IHtmlElementBuilder frame, CultureInfo culture)
@@ -253,11 +253,11 @@ public class GaugeComponentRenderer : WebComponentRendererBase
                 });
             });
 
-            // Always written, empty or not: a static caption is recorded for a language switch, a bound one follows its pushes.
+            // Always written, empty or not: a static title is recorded for a language switch, a bound one follows its pushes.
             _ = words.Element("span", text =>
             {
-                _ = text.Class(CaptionClassName);
-                _ = RenderProperty<string?>(context, text, GaugeComponent.CaptionProperty, static (target, value) =>
+                _ = text.Class(TitleClassName);
+                _ = RenderProperty<string?>(context, text, GaugeComponent.TitleProperty, static (target, value) =>
                 {
                     if (!string.IsNullOrWhiteSpace(value))
                         _ = target.Text(value);

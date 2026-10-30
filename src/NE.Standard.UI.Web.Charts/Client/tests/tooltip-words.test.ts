@@ -19,7 +19,7 @@ const { escapeInlineMarkup, inlineMarkupToPlainText } = await import(pathToFileU
     readonly inlineMarkupToPlainText: (text: string) => string;
 };
 // The framework's own filling, which `strings.format` runs: its `markup` flag escapes the arguments, not the package.
-const { formatWords } = await import(pathToFileURL(resolve(client, "runtime/words.ts")).href) as {
+const { formatWords } = await import(pathToFileURL(resolve(client, "rendering/words.ts")).href) as {
     readonly formatWords: (template: string, args: Readonly<Record<string, unknown>>, translateNested?: undefined, writeMoment?: undefined, markup?: boolean) => string;
 };
 

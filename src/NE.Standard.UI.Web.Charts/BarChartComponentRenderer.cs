@@ -1,4 +1,5 @@
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Charts;
@@ -15,6 +16,6 @@ public class BarChartComponentRenderer : ChartComponentRendererBase
     protected override bool ReadStacked(WebRenderContext context)
         => ReadRenderValue(context, IStackedChartComponent.StackedProperty, false);
 
-    protected override bool ReadHorizontal(WebRenderContext context)
-        => ReadRenderValue(context, IBarChartComponent.HorizontalProperty, false);
+    protected override UIOrientation ReadOrientation(WebRenderContext context)
+        => ReadRenderValue(context, IBarChartComponent.OrientationProperty, UIOrientation.Vertical);
 }

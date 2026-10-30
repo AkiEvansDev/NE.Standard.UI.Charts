@@ -21,7 +21,7 @@ public abstract partial class ChartComponentRendererBase
     private const string ShareFormat = "P1";
 
     /// <summary>An entry's classes: the framework's own small ghost button, marked as the legend's.</summary>
-    private static readonly string LegendEntryClasses = $"{LegendEntryClassName} ui-button {WebClassNames.ButtonClass(UIButtonType.Ghost)} {WebClassNames.ButtonSize(UIButtonSize.Small)}";
+    private static readonly string LegendEntryClasses = $"{LegendEntryClassName} {WebClassNames.Button} {WebClassNames.ButtonVariant(UIButtonVariant.Ghost)} {WebClassNames.ButtonSize(UISize.Small)}";
 
     /// <summary>The chart as the browser reads it: the settings with the series as the client reads them.</summary>
     private static ChartSpec BuildModel(ChartSpec spec, ChartRenderData data, WebRenderContext context)

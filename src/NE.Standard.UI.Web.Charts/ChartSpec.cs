@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Text.Json.Serialization;
 using NE.Standard.UI.Charts;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Web.Charts;
 
@@ -74,8 +75,12 @@ internal sealed record ChartSpec
     [JsonIgnore]
     public UIChartWindow? VisibleRange { get; init; }
 
-    /// <summary>Whether the bars lie on their side: the values run across the box and one band per x runs down it.</summary>
-    public bool Horizontal { get; init; }
+    /// <summary>Which way the bars run: horizontal lays them on their side, the values across the box and one band per x down it.</summary>
+    public UIOrientation Orientation { get; init; } = UIOrientation.Vertical;
+
+    /// <summary>Whether the bars lie on their side (<see cref="Orientation"/> horizontal), as the drawing's arithmetic reads it.</summary>
+    [JsonIgnore]
+    public bool IsHorizontal => Orientation == UIOrientation.Horizontal;
 
     /// <summary>Whether the chart is drawn with nothing around it: no grid, no axes, the plot the whole box.</summary>
     public bool Bare { get; init; }

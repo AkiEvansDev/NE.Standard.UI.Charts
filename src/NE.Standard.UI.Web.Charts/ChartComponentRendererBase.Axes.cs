@@ -85,21 +85,21 @@ public abstract partial class ChartComponentRendererBase
 
     /// <summary>The axis written down the left of the plot: the values, or the bands where the chart lies on its side.</summary>
     private static UIChartAxis LeftAxis(ChartSpec spec)
-        => spec.Horizontal ? spec.XAxis : spec.YAxis;
+        => spec.IsHorizontal ? spec.XAxis : spec.YAxis;
 
     /// <summary>The axis written under the plot: the bands, or the values where the chart lies on its side.</summary>
     private static UIChartAxis BottomAxis(ChartSpec spec)
-        => spec.Horizontal ? spec.YAxis : spec.XAxis;
+        => spec.IsHorizontal ? spec.YAxis : spec.XAxis;
 
     /// <summary>
     /// Where a place on the band axis lands, across the plot or down it when bars lie on their side.
     /// </summary>
     private static double BandCoord(ChartSpec spec, ChartPlot plot, ChartScale band, double value)
-        => spec.Horizontal ? plot.Down(band, value) : plot.X(band, value);
+        => spec.IsHorizontal ? plot.Down(band, value) : plot.X(band, value);
 
     /// <summary>Where a value lands: up the plot, or across it where the chart lies on its side.</summary>
     private static double ValueCoord(ChartSpec spec, ChartPlot plot, ChartScale value, double reading)
-        => spec.Horizontal ? plot.X(value, reading) : plot.Y(value, reading);
+        => spec.IsHorizontal ? plot.X(value, reading) : plot.Y(value, reading);
 
     /// <summary>A line across the plot at every mark of an axis that asked for them.</summary>
     private static void RenderGrid(IHtmlElementBuilder svg, ChartSpec spec, ChartPlot plot, ChartScale x, ChartScale y, IReadOnlyList<ChartLabel> xTicks, IReadOnlyList<ChartLabel> yTicks)
@@ -114,14 +114,14 @@ public abstract partial class ChartComponentRendererBase
             if (spec.YAxis.ShowGridLines)
             {
                 for (var i = 0; i < yTicks.Count; i++)
-                    RenderGridLine(grid, plot, ValueCoord(spec, plot, y, yTicks[i].Value), spec.Horizontal);
+                    RenderGridLine(grid, plot, ValueCoord(spec, plot, y, yTicks[i].Value), spec.IsHorizontal);
             }
 
             if (!spec.XAxis.ShowGridLines)
                 return;
 
             for (var i = 0; i < xTicks.Count; i++)
-                RenderGridLine(grid, plot, BandCoord(spec, plot, x, xTicks[i].Value), !spec.Horizontal);
+                RenderGridLine(grid, plot, BandCoord(spec, plot, x, xTicks[i].Value), !spec.IsHorizontal);
         });
     }
 
@@ -154,21 +154,21 @@ public abstract partial class ChartComponentRendererBase
             RenderLine(axes, AxisLineClassName, plot.Left, plot.Bottom, plot.Right, plot.Bottom);
             RenderLine(axes, AxisLineClassName, plot.Left, plot.Top, plot.Left, plot.Bottom);
 
-            IReadOnlyList<ChartLabel> under = spec.Horizontal ? yTicks : xTicks;
-            IReadOnlyList<ChartLabel> beside = spec.Horizontal ? xTicks : yTicks;
+            IReadOnlyList<ChartLabel> under = spec.IsHorizontal ? yTicks : xTicks;
+            IReadOnlyList<ChartLabel> beside = spec.IsHorizontal ? xTicks : yTicks;
 
             for (var i = 0; i < under.Count; i++)
             {
                 // A label at either end is kept inside the frame rather than hanging off it; its mark stays where it is.
                 var half = under[i].Text.Length * LabelCharacterWidth / 2;
-                var along = spec.Horizontal ? ValueCoord(spec, plot, y, under[i].Value) : BandCoord(spec, plot, x, under[i].Value);
+                var along = spec.IsHorizontal ? ValueCoord(spec, plot, y, under[i].Value) : BandCoord(spec, plot, x, under[i].Value);
 
                 RenderText(axes, LabelClassName, under[i].Text, Math.Min(Math.Max(along, half), NominalWidth - half), plot.Bottom + 16, "middle");
             }
 
             for (var i = 0; i < beside.Count; i++)
             {
-                var down = spec.Horizontal ? BandCoord(spec, plot, x, beside[i].Value) : ValueCoord(spec, plot, y, beside[i].Value);
+                var down = spec.IsHorizontal ? BandCoord(spec, plot, x, beside[i].Value) : ValueCoord(spec, plot, y, beside[i].Value);
 
                 RenderText(axes, LabelClassName, beside[i].Text, plot.Left - LabelGap, down + 4, "end");
             }

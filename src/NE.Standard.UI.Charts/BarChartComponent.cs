@@ -1,5 +1,6 @@
 using NE.Standard.UI.Authoring.Components;
 using NE.Standard.UI.Primitives.Annotations;
+using NE.Standard.UI.Primitives.Styling;
 
 namespace NE.Standard.UI.Charts;
 
@@ -11,11 +12,12 @@ public abstract partial class BarChartComponent<T>(string? id = null) : ChartCom
 {
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IStackedChartComponent), IsBindable = false, DefaultValue = false)]
-    public bool Stacked { get; set; }
+    public bool? Stacked { get; set; }
 
     /// <inheritdoc/>
-    [UIComponentProperty(Contract = typeof(IBarChartComponent), IsBindable = false, DefaultValue = false)]
-    public bool Horizontal { get; set; }
+    /// <remarks>One way at every width: the chart is drawn on the server, its bands laid out once.</remarks>
+    [UIComponentProperty(Contract = typeof(IBarChartComponent), IsBindable = false, DefaultValue = UIOrientation.Vertical)]
+    public UIOrientation? Orientation { get; set; }
 }
 
 /// <summary>

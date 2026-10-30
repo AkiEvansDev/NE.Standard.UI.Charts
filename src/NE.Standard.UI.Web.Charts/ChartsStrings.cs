@@ -14,7 +14,7 @@ public sealed partial class ChartsStrings : IUIStringsSource
     public const string Empty = "ui.chart.empty";
 
     /// <summary>What a chart's canvas is announced as where it has no series or rows to name.</summary>
-    public const string Chart = "ui.chart.label";
+    public const string Chart = "ui.chart.name";
 
     /// <summary>What a gauge says where it has no reading at all.</summary>
     public const string NoReading = "ui.chart.no-reading";

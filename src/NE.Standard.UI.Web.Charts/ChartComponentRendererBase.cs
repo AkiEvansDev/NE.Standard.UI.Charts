@@ -5,6 +5,7 @@ using System.Text.Json;
 using NE.Standard.UI.Charts;
 using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -89,7 +90,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string CentreClassName = "ui-chart__centre";
     protected const string CentreHiddenClassName = "ui-chart__centre--hidden";
     protected const string ShareClassName = "ui-chart--share";
-    protected const string HeadingClassName = "ui-chart__heading";
+    protected const string TitleClassName = "ui-chart__title";
     protected const string SegmentClassName = "ui-chart__segment";
     protected const string RestClassName = "ui-chart__rest";
     protected const string PointClassName = "ui-chart__point";
@@ -149,9 +150,9 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected virtual bool ReadStacked(WebRenderContext context)
         => false;
 
-    /// <summary>Whether this chart lies on its side, the values running across the box; a chart that cannot never does.</summary>
-    protected virtual bool ReadHorizontal(WebRenderContext context)
-        => false;
+    /// <summary>Which way this chart's bars run; horizontal lays it on its side, and a chart that cannot is vertical.</summary>
+    protected virtual UIOrientation ReadOrientation(WebRenderContext context)
+        => UIOrientation.Vertical;
 
     /// <summary>How much of the radius the hole in the middle of this chart takes; a chart with no middle has none.</summary>
     protected virtual double ReadDonut(WebRenderContext context)
@@ -182,9 +183,9 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     }
 
     /// <summary>
-    /// Writes the words over a share bar: a static caption recorded for a language switch, a bound one following its pushes.
+    /// Writes the words over a share bar: a static title recorded for a language switch, a bound one following its pushes.
     /// </summary>
-    protected virtual void RenderHeading(WebRenderContext context, IHtmlElementBuilder heading)
+    protected virtual void RenderTitle(WebRenderContext context, IHtmlElementBuilder title)
     {
     }
 
@@ -221,7 +222,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         if (spec.Zoomable)
             _ = root.Class(ZoomableClassName);
 
-        if (spec.Horizontal)
+        if (spec.IsHorizontal)
             _ = root.Class(HorizontalClassName);
 
         if (spec.Pressable)
@@ -274,7 +275,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         // A chart with nothing around it has no ticks to write and no gutters to leave: the plot is the box, less a hair of air.
         IReadOnlyList<ChartLabel> xTicks = spec.Bare ? [] : BuildTicks(spec.XAxis, formats.X, x, data.Categories, formats, data.Rows.Count > 0);
         IReadOnlyList<ChartLabel> yTicks = spec.Bare ? [] : BuildTicks(spec.YAxis, formats.Y, y, data.Categories, formats, data.Rows.Count > 0);
-        ChartPlot plot = spec.Bare ? new ChartPlot(2, 2, NominalWidth - 4, NominalHeight - 4) : ResolvePlot(spec, spec.Horizontal ? xTicks : yTicks);
+        ChartPlot plot = spec.Bare ? new ChartPlot(2, 2, NominalWidth - 4, NominalHeight - 4) : ResolvePlot(spec, spec.IsHorizontal ? xTicks : yTicks);
 
         RenderCanvas(context, root, spec, data, plot, x, y, window is not null, xTicks, yTicks, formats);
         RenderWindowValue(context, root);
@@ -315,7 +316,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             Pressable = context.ViewResolution.View.Events.TryGet(new CompiledUIEventAddress(context.Node.ComponentId, ChartEvents.PointClick), out _),
             FollowLatest = ReadRenderValue(context, IChartComponent.FollowLatestProperty, false),
             VisibleRange = radar ? null : ReadRenderValue<UIChartWindow?>(context, IChartComponent.VisibleRangeProperty, null),
-            Horizontal = ReadHorizontal(context),
+            Orientation = ReadOrientation(context),
             Donut = ReadDonut(context),
             LegendValues = ReadLegendValues(context),
             Total = ReadTotal(context),
@@ -399,7 +400,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
 
             _ = RenderProperty<UIChartWindow?>(context, value, IChartComponent.VisibleRangeProperty, static (target, window) =>
             {
-                if (window is UIChartWindow view)
+                if (window is UIChartWindow view && double.IsFinite(view.From) && double.IsFinite(view.To) && view.To > view.From)
                     _ = target.Attribute(WindowAttribute, JsonSerializer.Serialize(view, WebWireJson.Options));
             }, [WebDomOperation.Custom(WindowValueKind)]);
         });

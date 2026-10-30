@@ -10,7 +10,7 @@ internal sealed class OverTimeView : ChartsDemoView, IUIViewDefinition
 
     protected override string Route => OverTimeRoute;
 
-    public override string Title => "charts.page.over-time";
+    protected override string Header => "charts.page.over-time";
 
     protected override string Description
         => "charts.page.over-time.description";
@@ -18,8 +18,8 @@ internal sealed class OverTimeView : ChartsDemoView, IUIViewDefinition
     protected override IVisualComponent[] CreateSections()
         =>
         [
-            Example("Eight quarters the page holds",
-                "A chart of rows the page holds whole: the x axis is a name rather than a number, and each series names the row property it reads. The ranges follow the data, rounded outward to the axis's own step, and the labels are written in the page's culture.",
+            Example("Multi-series line chart",
+                "Plots multiple property-mapped series across a categorical X axis with automatic outward-rounded Y bounds and culture-formatted tick labels.",
                 new LineChartComponent("revenue")
                     .SetItems(Catalogue.Quarters())
                     .SetX(nameof(Quarter.Name))
@@ -30,8 +30,8 @@ internal sealed class OverTimeView : ChartsDemoView, IUIViewDefinition
                     .AddSeries("us-east", "charts.us-east", nameof(Quarter.UsEast))
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
-            Example("Forty readings, and the ones that arrive",
-                "A bound collection over a clock: the server drew the first frame, and every change after it reaches the browser as values through the chart's sink. Take a reading and the line follows it; change the last one and that point alone moves. The wheel narrows the stretch of the clock on show about the pointer, a drag moves it, and a double press gives the whole of it back — the window is bound, so the line under the chart is the controller reading what the viewer settled on, and the button sets it the other way round. Zoomed in, the chart follows the latest reading as it arrives.",
+            Example("Live time series with zoom and follow",
+                "Binds an observable time series with wheel zoom, drag pan, double-click reset and two-way VisibleRange synchronization. With FollowLatest enabled, newly appended samples advance a zoomed window automatically.",
                 new StackPanelComponent()
                     .SetOrientation(UIOrientation.Vertical)
                     .SetSpacing(12)
@@ -53,7 +53,7 @@ internal sealed class OverTimeView : ChartsDemoView, IUIViewDefinition
                         )
                     )
                     .AddChild(new LineChartComponent("load")
-                        .BindItems(nameof(ChartsController.Samples))
+                        .BindItems<ChartsController>(static c => c.Samples)
                         .SetX(nameof(Sample.Time))
                         .SetXAxis(UIChartAxis.Time("charts.time", format: "HH:mm"))
                         .SetYAxis(UIChartAxis.Linear("charts.percent", min: 0, max: 100, format: "N0"))
@@ -63,22 +63,22 @@ internal sealed class OverTimeView : ChartsDemoView, IUIViewDefinition
                         .SetShowMarkers(false)
                         .SetZoomable(true)
                         .SetFollowLatest(true)
-                        .BindVisibleRange(nameof(ChartsController.VisibleRange))
+                        .BindVisibleRange<ChartsController>(static c => c.VisibleRange)
                         .OnWindowChange(nameof(ChartsController.WindowChanged))
                         .OnPointClick(nameof(ChartsController.PointClicked))
                         .SetMinHeight(UILayoutLength.Absolute(280))
                     )
                     .AddChild(new TextComponent()
-                        .BindTitle(nameof(ChartsController.Status))
+                        .BindTitle<ChartsController>(static c => c.Status)
                         .SetTitleWrap(true)
                         .SetTitleType(UITextAppearance.Caption)
                         .SetTitleColor(UIThemeColor.FromStyle(UIColorStyle.Muted))
                     )
             ),
-            Example("A day of requests, whose series are the data's own",
-                "The same component read the other way round: the chart names the row property that says which series a row belongs to, so the series are whatever the rows name — a kind that appears draws a line of its own, in the next colour of the theme's run. Stepped, because a count belongs to its hour rather than to the slope between two of them; the step is centred on the hour it holds, so a point's own mark sits in the middle of its step instead of on a corner. One tooltip names every kind at the hour under the pointer, with a line marking which hour that is, rather than one tooltip per point.",
+            Example("Data-driven series and stepped lines",
+                "Derives series dynamically from row data via SetSeriesPath and SetValuePath, rendered with stepped interpolation and a shared crosshair tooltip per X value.",
                 new LineChartComponent("requests")
-                    .BindItems(nameof(ChartsController.Requests))
+                    .BindItems<ChartsController>(static c => c.Requests)
                     .SetX(nameof(Reading.Hour))
                     .SetSeriesPath(nameof(Reading.Metric))
                     .SetValuePath(nameof(Reading.Value))
@@ -89,8 +89,8 @@ internal sealed class OverTimeView : ChartsDemoView, IUIViewDefinition
                     .SetLegend(UIChartLegendPlacement.End)
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
-            Example("The same quarters, stacked as bands",
-                "An area chart is the line chart with the ground under each series filled. Stacked, the bands stand on one another, so the top edge is the total and each band is what its own series added to it; the y axis takes zero in, since a band drawn from anywhere else lies about its size. A tooltip still says what its own series holds, not the running total.",
+            Example("Stacked area chart",
+                "Stacks filled series from a zero baseline so the top edge shows the combined total while each point tooltip reports its own series contribution.",
                 new AreaChartComponent("revenue-stacked")
                     .SetItems(Catalogue.Quarters())
                     .SetX(nameof(Quarter.Name))
@@ -102,10 +102,10 @@ internal sealed class OverTimeView : ChartsDemoView, IUIViewDefinition
                     .SetStacked(true)
                     .SetMinHeight(UILayoutLength.Absolute(280))
             ),
-            Example("A chart with nothing in it",
-                "A bound collection with no rows: the frame is drawn and the chart says so, rather than showing an empty box.",
+            Example("Empty state",
+                "An empty bound collection renders the chart frame and localized empty-data message instead of a blank plot.",
                 new LineChartComponent("empty")
-                    .BindItems(nameof(ChartsController.Nothing))
+                    .BindItems<ChartsController>(static c => c.Nothing)
                     .SetX(nameof(Sample.Time))
                     .SetXAxis(UIChartAxis.Time("charts.time"))
                     .SetYAxis(UIChartAxis.Linear("charts.percent", min: 0, max: 100, format: "N0"))

@@ -3,6 +3,9 @@
 import type { WrittenWords } from "ne-standard-ui";
 import { ChartAttributes } from "./chart-names.ts";
 
+/** A bar chart's way, as `UIOrientation` names it on the wire. */
+type Orientation = "Horizontal" | "Vertical";
+
 export type AxisKind = "Linear" | "Time" | "Category" | "Logarithmic";
 type LegendPlacement = "None" | "Top" | "Bottom" | "Start" | "End";
 
@@ -49,8 +52,8 @@ export type ChartModel = {
     readonly zoomable: boolean;
     /** Whether a window narrower than the data stays on the far end as the data grows past it. */
     readonly followLatest: boolean;
-    /** Whether the bars lie on their side: the values run across the box and one band per x runs down it. */
-    readonly horizontal: boolean;
+    /** Which way the bars run: horizontal lays them on their side, the values across the box and one band per x down it. */
+    readonly orientation: Orientation;
     /** Whether the chart is drawn with nothing around it: no grid, no axes, the plot the whole box. */
     readonly bare: boolean;
     /** How much of a pie's radius the hole in the middle takes; its words are an element of their own the framework writes. */
@@ -111,4 +114,9 @@ export function categoryNames(axis: ChartAxis, names: readonly string[], transla
 /** Whether a row is one point of the series it names, rather than an x with a value per series. */
 export function isLongForm(model: ChartModel): boolean {
     return model.seriesPath !== null && model.seriesPath.length > 0;
+}
+
+/** Whether the bars lie on their side, as the drawing's arithmetic reads the model's orientation. */
+export function isHorizontal(model: Pick<ChartModel, "orientation">): boolean {
+    return model.orientation === "Horizontal";
 }

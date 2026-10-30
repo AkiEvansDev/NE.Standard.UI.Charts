@@ -13,7 +13,11 @@ public abstract partial class ShareBarComponent<T>(string? id = null) : ChartCom
 {
     /// <inheritdoc/>
     [UIComponentProperty(Contract = typeof(IShareChartComponent), IsBindable = false, DefaultValue = false)]
-    public bool ShowLegendValues { get; set; }
+    public bool? ShowLegendValues { get; set; }
+
+    /// <inheritdoc/>
+    /// <remarks>Parts of one bar have no x axis to window.</remarks>
+    protected override bool HasWindow => false;
 
     /// <summary>
     /// Gets or sets the whole the parts are shares of; unset, or less than the parts come to, their own sum. What they leave of it
@@ -27,7 +31,7 @@ public abstract partial class ShareBarComponent<T>(string? id = null) : ChartCom
     /// </summary>
     [Translatable]
     [UIComponentProperty(DefaultValue = null)]
-    public UIPhrase? Caption { get; set; }
+    public UIPhrase? Title { get; set; }
 
     /// <summary>
     /// Gets or sets what the legend calls the part of <see cref="Total"/> the rows leave, translated as a series' caption is; unset,

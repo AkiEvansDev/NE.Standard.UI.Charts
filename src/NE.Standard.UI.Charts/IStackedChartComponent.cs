@@ -11,5 +11,5 @@ public interface IStackedChartComponent
     static UIProperty StackedProperty { get; } = new(nameof(Stacked));
 
     /// <summary>Whether the series stand on one another, so what the viewer reads at an x is the total.</summary>
-    bool Stacked { get; }
+    bool? Stacked { get; }
 }

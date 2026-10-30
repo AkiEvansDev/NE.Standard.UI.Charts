@@ -71,16 +71,16 @@
     overflow: hidden;
 }
 
-// The words over a share bar, in the page's type: what it shares out and how much is taken. Always written, so a bound caption's
+// The words over a share bar, in the page's type: what it shares out and how much is taken. Always written, so a bound title's
 // push is a text write; with no words it takes no room.
-.ui-chart__heading {
+.ui-chart__title {
     order: -2;
     color: @ui-text-ink;
     font-size: 0.8125rem;
     line-height: 1.25;
 }
 
-    .ui-chart__heading:empty {
+    .ui-chart__title:empty {
         display: none;
     }
 
@@ -526,7 +526,8 @@
     --ui-gauge-max: 100;
     --ui-gauge-value: var(--ui-gauge-min);
     --ui-gauge-share: clamp(0, calc((var(--ui-gauge-value) - var(--ui-gauge-min)) / (var(--ui-gauge-max) - var(--ui-gauge-min))), 1);
-    transition: --ui-gauge-share @ui-motion-normal @ui-motion-ease;
+    // The root's own list first, so a bound Hidden still fades the gauge as it does every root.
+    transition: @ui-root-transition, --ui-gauge-share @ui-motion-normal @ui-motion-ease;
 }
 
 // The dial's box is the arc's box: ratio and centre both come from the renderer, so words laid over it land exactly on the
@@ -613,12 +614,12 @@
 }
 
 // Always written, so a bound caption's push is a text write; with no words it takes no room under the reading.
-.ui-gauge__caption {
+.ui-gauge__title {
     color: @ui-text-muted;
     font-size: 0.8125rem;
 }
 
-    .ui-gauge__caption:empty {
+    .ui-gauge__title:empty {
         display: none;
     }
 

@@ -15,6 +15,7 @@ internal static class ChartsDemoWords
 
     private static readonly Dictionary<string, string> English = new(StringComparer.Ordinal)
     {
+        ["charts.title"] = "{page} · NE.Standard.UI.Charts",
         ["charts.eu-west"] = "Europe West",
         ["charts.eu-central"] = "Europe Central",
         ["charts.us-east"] = "US East",
@@ -91,6 +92,7 @@ internal static class ChartsDemoWords
     // The demo's second language, whole for its own words, so the missing-word report names only a real gap (DemoWordsCoverageTests).
     private static readonly Dictionary<string, string> Chinese = new(StringComparer.Ordinal)
     {
+        ["charts.title"] = "{page} · NE.Standard.UI.Charts",
         ["charts.eu-west"] = "西欧",
         ["charts.eu-central"] = "中欧",
         ["charts.us-east"] = "美国东部",

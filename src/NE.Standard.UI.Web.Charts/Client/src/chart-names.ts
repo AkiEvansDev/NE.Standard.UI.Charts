@@ -124,7 +124,7 @@ export const ChartOperations = {
 /** The words the client writes itself, by their `ChartsStrings` keys. */
 export const ChartWords = {
     empty: "ui.chart.empty",
-    label: "ui.chart.label",
+    chart: "ui.chart.name",
     noReading: "ui.chart.no-reading",
     point: "ui.chart.point",
     reading: "ui.chart.reading",

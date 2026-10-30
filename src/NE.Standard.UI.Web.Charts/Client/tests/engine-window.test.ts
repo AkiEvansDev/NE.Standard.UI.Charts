@@ -82,7 +82,7 @@ const model: ChartModel = {
     sharedTooltip: false,
     zoomable: true,
     followLatest: true,
-    horizontal: false,
+    orientation: "Vertical",
     bare: false,
     donut: 0,
     legendValues: false,
@@ -99,7 +99,10 @@ function livePage(view: Span | null, xs: readonly number[] = Array.from({ length
     const listeners = new Map<string, Listener[]>();
     const page = element("div", "");
 
-    Object.assign(page, { addEventListener: (type: string, listener: Listener) => listeners.set(type, [...(listeners.get(type) ?? []), listener]) });
+    Object.assign(page, {
+        addEventListener: (type: string, listener: Listener) => listeners.set(type, [...(listeners.get(type) ?? []), listener]),
+        removeEventListener: (type: string, listener: Listener) => listeners.set(type, (listeners.get(type) ?? []).filter(each => each !== listener))
+    });
 
     const rows = xs.map((x, i) => [`r${x}`, String(x), [i]]);
     const chart = element("div", ChartClasses.root, { [ChartAttributes.model]: JSON.stringify(model), [ChartAttributes.rows]: JSON.stringify(rows) }, page);
@@ -108,6 +111,11 @@ function livePage(view: Span | null, xs: readonly number[] = Array.from({ length
     let sent = 0;
     let raised = 0;
     let inert = false;
+    let released = 0;
+    let disconnected = 0;
+    let unsubscribedStrings = 0;
+    // What the engine hears of a removal anywhere on the page: the handler it gave for every element's childList.
+    const removals: (() => void)[] = [];
 
     Object.assign(canvas, { getBoundingClientRect: () => ({ left: 0, top: 0, width: 400, height: 200 }) });
     Object.assign(windowElement, {
@@ -131,7 +139,15 @@ function livePage(view: Span | null, xs: readonly number[] = Array.from({ length
         root: page,
         numbers: { parseInvariant: readNumber, readCulture: () => ({}), format: (value: number) => String(value) },
         temporal: { parse: () => null, readCulture: () => ({}) },
-        strings: { text: (key: string) => key, format: (key: string) => key, resolveText: (text: string) => text, resolve: (words: string) => words, onChange: () => {} },
+        strings: {
+            text: (key: string) => key,
+            format: (key: string) => key,
+            resolveText: (text: string) => text,
+            resolve: (words: string) => words,
+            onChange: () => () => {
+                unsubscribedStrings++;
+            }
+        },
         names: { tooltip: "data-tooltip" },
         popups: { focusReturn: () => null },
         dom: { ensureId: (_target: StubElement, prefix: string) => `${prefix}-1` },
@@ -140,9 +156,20 @@ function livePage(view: Span | null, xs: readonly number[] = Array.from({ length
         states: { isInert: () => inert },
         // A notch towards the reader: the window narrows.
         wheel: { pixels: () => ({ x: 0, y: -100 }), notch: 100 },
-        observeSize: () => () => {},
+        observeSize: () => () => {
+            released++;
+        },
         rows: { readPath: (item: unknown, path: string) => (item as Record<string, unknown>)[path] },
-        observeComponents: () => {}
+        observeComponents: (_root: unknown, _selector: string, init: { readonly removed?: () => void }) => {
+            if (init.removed !== undefined)
+                removals.push(init.removed);
+
+            return {
+                disconnect: () => {
+                    disconnected++;
+                }
+            };
+        }
     };
     const engine = new ChartEngine(context as unknown as PluginEngineContext);
 
@@ -193,6 +220,25 @@ function livePage(view: Span | null, xs: readonly number[] = Array.from({ length
             engine.applyWindow(real(windowElement), view, false);
             settle();
         },
+        /** The chart taken off the page, as a navigation does, with no resize of its own to hear. */
+        leave: (): void => {
+            chart.remove();
+
+            for (const removal of removals)
+                removal();
+        },
+        /** Starts a drag, disposes the engine before release, and settles any pending work. */
+        disposeMidDrag: (): void => {
+            fire(listeners, "pointerdown", new StubPointerEvent("pointerdown", canvas, 200));
+            fire(windowListeners, "pointermove", new StubPointerEvent("pointermove", canvas, 120));
+            engine.dispose();
+            settle();
+        },
+        released: () => released,
+        disconnected: () => disconnected,
+        unsubscribedStrings: () => unsubscribedStrings,
+        listenerCount: () => [...listeners.values()].reduce((sum, list) => sum + list.length, 0),
+        windowListenerCount: () => [...windowListeners.values()].reduce((sum, list) => sum + list.length, 0),
         /** The chart turned disabled or loading, or back. */
         setInert: (value: boolean): void => {
             inert = value;
@@ -401,4 +447,27 @@ test("a window ending short of the newest point stays where it was put", () => {
 
     assert.equal(page.sent(), 0);
     assert.equal(page.window(), JSON.stringify({ from: 80, to: 90 }));
+});
+
+test("a chart taken off the page lets go of its size watch, though it never resized", () => {
+    const page = livePage(null);
+
+    assert.equal(page.released(), 0);
+
+    page.leave();
+
+    assert.equal(page.released(), 1);
+});
+
+test("disposing the engine disconnects observers, removes listeners and cancels active gestures", () => {
+    const page = livePage({ from: 20, to: 60 });
+
+    page.disposeMidDrag();
+
+    assert.equal(page.released(), 1);
+    assert.equal(page.disconnected(), 1);
+    assert.equal(page.unsubscribedStrings(), 1);
+    assert.equal(page.listenerCount(), 0);
+    assert.equal(page.windowListenerCount(), 0);
+    assert.equal(page.sent(), 0);
 });

@@ -58,7 +58,7 @@ function bar(total: number | null): { state: State; root: StubElement; canvas: S
         sharedTooltip: false,
         zoomable: false,
         followLatest: false,
-        horizontal: false,
+        orientation: "Vertical",
         bare: false,
         donut: 0,
         legendValues: true,

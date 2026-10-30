@@ -41,7 +41,7 @@ function model(values: Partial<ChartModel>): ChartModel {
         sharedTooltip: false,
         zoomable: false,
         followLatest: false,
-        horizontal: false,
+        orientation: "Vertical",
         bare: false,
         donut: 0,
         legendValues: false,
@@ -200,8 +200,11 @@ test("a null item inserted, replaced into or removed by its index holds or gives
     applyChange(slots, "Insert", [{ key: "n", oldKey: null, index: 1, item: null }], [], single, read, readNumber);
     assert.deepEqual(slots.map(slot => slot?.key ?? null), ["a", null, "b"]);
 
-    // An item whose x path reads nothing is no row either, as the server holds none for it.
+    // An item whose x path reads nothing — or text that is no number on a numeric axis — is no row either, as the server holds none for it.
     applyChange(slots, "Replace", [{ key: "a", oldKey: "a", index: 0, item: { value: 3 } }], [], single, read, readNumber);
+    assert.deepEqual(slots.map(slot => slot?.key ?? null), [null, null, "b"]);
+
+    applyChange(slots, "Replace", [{ key: "a", oldKey: "a", index: 0, item: { time: "soon", value: 3 } }], [], single, read, readNumber);
     assert.deepEqual(slots.map(slot => slot?.key ?? null), [null, null, "b"]);
 
     applyChange(slots, "Remove", [{ key: "n", oldKey: "n", index: 1, item: null }], [], single, read, readNumber);

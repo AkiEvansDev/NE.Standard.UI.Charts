@@ -5,7 +5,7 @@ import type { CollectionChange, ComponentStates, ObserveSize, PluginEngineContex
 import { drawChart } from "./chart-draw.ts";
 import type { ChartColumn, ChartFormatting, ChartFrame } from "./chart-draw.ts";
 import { applyGaugeValue, rewriteGauges } from "./chart-gauge.ts";
-import { readModel, translateModel } from "./chart-model.ts";
+import { isHorizontal, readModel, translateModel } from "./chart-model.ts";
 import type { ChartModel } from "./chart-model.ts";
 import { ChartAttributes, ChartClasses, ChartEvents, ClientNames } from "./chart-names.ts";
 import { DoublePressWait, PointPress, seriesOf } from "./chart-press.ts";
@@ -95,6 +95,8 @@ type Drag = {
 
 export class ChartEngine {
     private readonly charts = new WeakMap<HTMLElement, ChartEntry>();
+    /** The charts watching their size, so one the page let go of releases its watch even while it measured nothing. */
+    private readonly watched = new Set<HTMLElement>();
     private readonly formatting: ChartFormatting;
     private readonly tooltips: Tooltips;
     private readonly states: ComponentStates;
@@ -115,7 +117,10 @@ export class ChartEngine {
     /** The charts waiting to be drawn at the next frame: a burst of changes, a drag's moves and a wheel's notches draw once. */
     private readonly dirty = new Set<HTMLElement>();
     private frameRequested = false;
+    private animationFrame: number | null = null;
+    private disposed = false;
     private drag: Drag | null = null;
+    private stopDrag: (() => void) | null = null;
     /** Whether the press that just ended moved the window, which is what keeps a drag from reading as a click on a point. */
     private dragged = false;
     /** The wheel's own settling, per chart: the timer its window waits on before it is sent. */
@@ -125,6 +130,8 @@ export class ChartEngine {
      * its point marked as taken meanwhile.
      */
     private readonly pointPress = new PointPress(DoublePressWait);
+    private readonly observer: MutationObserver | null;
+    private readonly cleanups: (() => void)[] = [];
 
     public constructor(context: PluginEngineContext) {
         const root = context.root;
@@ -149,38 +156,47 @@ export class ChartEngine {
         for (const chart of root.querySelectorAll<HTMLElement>(RootSelector))
             this.adopt(chart);
 
-        // The charts a navigation brings, and a chart the server rendered again: its model and its rows are attributes of the root.
-        context.observeComponents(root, RootSelector, { childList: true, attributeFilter: [ChartAttributes.model, ChartAttributes.rows] }, charts => {
+        // The charts a navigation brings, and a chart the server rendered again: its model and its rows are attributes of the root;
+        // a chart that left the page lets go of its size watch even while it measured 0×0.
+        this.observer = context.observeComponents(root, RootSelector, { childList: true, attributeFilter: [ChartAttributes.model, ChartAttributes.rows], removed: () => this.prune() }, charts => {
             for (const chart of charts)
                 this.onMutated(chart);
-        });
+        }) ?? null;
 
         // A caption is the author's words, translated off the model: a language switch translates it again and draws every chart and
         // gauge anew.
-        context.strings.onChange(() => this.wordsChanged(root));
+        const stopStrings = context.strings.onChange(() => this.wordsChanged(root));
 
-        root.addEventListener("click", domEvent => this.onPress(domEvent), true);
-        root.addEventListener("pointerover", domEvent => this.onReadingHover(domEvent), true);
-        root.addEventListener("pointerout", domEvent => this.onReadingHover(domEvent), true);
-        root.addEventListener("pointerover", domEvent => this.onSectorHover(domEvent), true);
-        root.addEventListener("pointerout", domEvent => this.onSectorHover(domEvent), true);
+        if (typeof stopStrings === "function")
+            this.cleanups.push(stopStrings);
+
+        const listen = (type: string, listener: EventListener, options: boolean | AddEventListenerOptions = true): void => {
+            root.addEventListener(type, listener, options);
+            this.cleanups.push(() => root.removeEventListener?.(type, listener, options));
+        };
+
+        listen("click", domEvent => this.onPress(domEvent));
+        listen("pointerover", domEvent => this.onReadingHover(domEvent));
+        listen("pointerout", domEvent => this.onReadingHover(domEvent));
+        listen("pointerover", domEvent => this.onSectorHover(domEvent));
+        listen("pointerout", domEvent => this.onSectorHover(domEvent));
 
         // Only a chart the author made zoomable answers the wheel and the drag, so a page still scrolls under the rest.
-        root.addEventListener("wheel", domEvent => this.onWheel(domEvent), { capture: true, passive: false });
-        root.addEventListener("pointerdown", domEvent => this.onDragStart(domEvent), true);
-        root.addEventListener("dblclick", domEvent => this.onReset(domEvent), true);
+        listen("wheel", domEvent => this.onWheel(domEvent), { capture: true, passive: false });
+        listen("pointerdown", domEvent => this.onDragStart(domEvent));
+        listen("dblclick", domEvent => this.onReset(domEvent));
 
         // One tooltip for every series at an x: the browser shows the words, the framework places them by the pointer. A chart
         // with no columns is left alone.
-        root.addEventListener("pointermove", domEvent => this.onSharedTooltip(domEvent), true);
-        root.addEventListener("pointerout", domEvent => this.onSharedTooltip(domEvent), true);
+        listen("pointermove", domEvent => this.onSharedTooltip(domEvent));
+        listen("pointerout", domEvent => this.onSharedTooltip(domEvent));
 
         // A finger has no hover, and its pointerout comes with the release: a tap reads what it lands on as a hover does — the rest go
         // back, its words show — until the next tap elsewhere. The words wait for the click, after the framework's tooltip has
         // answered the press and the release.
-        root.addEventListener("pointerup", domEvent => this.onTap(domEvent), true);
-        root.addEventListener("pointercancel", domEvent => this.onTapCancel(domEvent), true);
-        root.addEventListener("click", domEvent => this.onTapWords(domEvent), true);
+        listen("pointerup", domEvent => this.onTap(domEvent));
+        listen("pointercancel", domEvent => this.onTapCancel(domEvent));
+        listen("click", domEvent => this.onTapWords(domEvent));
     }
 
     private wordsChanged(root: ParentNode): void {
@@ -206,6 +222,7 @@ export class ChartEngine {
             return;
 
         entry.release ??= this.observeSize(root, () => this.onResize(root));
+        this.watched.add(root);
 
         this.schedule(root);
     }
@@ -264,17 +281,24 @@ export class ChartEngine {
 
     /** Draws a chart at the next frame, once however many times it was asked for before then. */
     private schedule(root: HTMLElement): void {
+        if (this.disposed)
+            return;
+
         this.dirty.add(root);
 
         if (this.frameRequested)
             return;
 
         this.frameRequested = true;
-        requestAnimationFrame(() => this.flush());
+        this.animationFrame = requestAnimationFrame(() => this.flush());
     }
 
     private flush(): void {
         this.frameRequested = false;
+        this.animationFrame = null;
+
+        if (this.disposed)
+            return;
 
         const roots = [...this.dirty];
 
@@ -329,9 +353,7 @@ export class ChartEngine {
             return;
 
         if (!root.isConnected) {
-            entry.release?.();
-            entry.release = null;
-            this.charts.delete(root);
+            this.release(root, entry);
             return;
         }
 
@@ -341,6 +363,63 @@ export class ChartEngine {
             return;
 
         this.schedule(root);
+    }
+
+    /** Releases every watched chart's size watch, observers, timers and listeners when the engine is disposed. */
+    public dispose(): void {
+        this.disposed = true;
+        this.observer?.disconnect();
+
+        for (const cleanup of this.cleanups.splice(0))
+            cleanup();
+
+        this.pointPress.cancel();
+        this.stopDrag?.();
+
+        if (this.drag !== null) {
+            this.drag.root.classList.remove(ClientNames.dragging);
+            this.drag = null;
+        }
+
+        if (this.animationFrame !== null && typeof cancelAnimationFrame === "function")
+            cancelAnimationFrame(this.animationFrame);
+
+        this.animationFrame = null;
+        this.frameRequested = false;
+
+        for (const root of [...this.watched])
+            this.release(root, this.charts.get(root));
+    }
+
+    /** Every watched chart no longer on the page lets go of its watch and its entry. */
+    private prune(): void {
+        for (const root of this.watched) {
+            if (!root.isConnected)
+                this.release(root, this.charts.get(root));
+        }
+    }
+
+    private release(root: HTMLElement, entry: ChartEntry | undefined): void {
+        if (entry !== undefined) {
+            entry.release?.();
+            entry.release = null;
+        }
+
+        this.cancelSettling(root);
+        this.dirty.delete(root);
+        this.charts.delete(root);
+        this.watched.delete(root);
+
+        if (this.shared === root)
+            this.closeShared();
+
+        if (this.tapped === root)
+            this.tapped = null;
+
+        if (this.sector !== null && root.contains(this.sector)) {
+            this.sector = null;
+            this.tooltips.hide();
+        }
     }
 
     /**
@@ -368,7 +447,7 @@ export class ChartEngine {
 
         // The attribute stays as first-frame data; re-reading it would undo the patch. Only a fresh render from the server
         // writes a new one.
-        applyChange(entry.slots, change.action, change.items, change.moves, entry.model, this.readPath, this.formatting.numbers.parseInvariant);
+        applyChange(entry.slots, change.action, change.items, change.moves, entry.model, this.readPath, this.formatting.numbers.parseInvariant, this.formatting.temporal.parse);
         entry.rows = rowsOf(entry.slots);
 
         // A point may have arrived: a window at the far end follows one past it, as the draw works out; a reset brings none, the inserts
@@ -470,7 +549,7 @@ export class ChartEngine {
         if (!withinPlot(frame, pointer.clientX - box.left, pointer.clientY - box.top))
             return false;
 
-        const horizontal = entry.model.horizontal;
+        const horizontal = isHorizontal(entry.model);
         const column = nearestColumn(frame.columns, horizontal ? pointer.clientY - box.top : pointer.clientX - box.left);
 
         // The same column as the last move: the words and the line are already where they belong.
@@ -532,7 +611,7 @@ export class ChartEngine {
         // Read against the window as it now stands, which a notch since the last frame may already have moved.
         const shown = shownWindow(entry.view, frame.whole);
         const current = shown ?? frame.whole;
-        const at = valueOf({ ...frame.x, min: current.from, max: current.to }, share(domEvent, frame, entry.model.horizontal));
+        const at = valueOf({ ...frame.x, min: current.from, max: current.to }, share(domEvent, frame, isHorizontal(entry.model)));
         const view = wheelWindow(shown, frame.whole, at, WheelStep ** notches);
 
         if (sameWindow(view, shown))
@@ -600,16 +679,24 @@ export class ChartEngine {
         if (found === null || shown === null || !(domEvent instanceof PointerEvent) || domEvent.button !== 0)
             return;
 
-        this.drag = { root: found.root, start: along(domEvent, found.entry.model.horizontal), window: shown, moved: 0 };
+        this.stopDrag?.();
+        this.drag = { root: found.root, start: along(domEvent, isHorizontal(found.entry.model)), window: shown, moved: 0 };
 
         const move = (event: Event): void => this.onDragMove(event);
-        const end = (): void => {
+        const stop = (): void => {
             window.removeEventListener("pointermove", move, true);
             window.removeEventListener("pointerup", end, true);
             window.removeEventListener("pointercancel", end, true);
+
+            if (this.stopDrag === stop)
+                this.stopDrag = null;
+        };
+        const end = (): void => {
+            stop();
             this.onDragEnd();
         };
 
+        this.stopDrag = stop;
         window.addEventListener("pointermove", move, true);
         window.addEventListener("pointerup", end, true);
         window.addEventListener("pointercancel", end, true);
@@ -628,7 +715,7 @@ export class ChartEngine {
             return;
 
         // Along the band axis: across the plot, or down it where the chart lies on its side.
-        const horizontal = entry.model.horizontal;
+        const horizontal = isHorizontal(entry.model);
         const at = along(domEvent, horizontal);
 
         drag.moved = Math.max(drag.moved, Math.abs(at - drag.start));

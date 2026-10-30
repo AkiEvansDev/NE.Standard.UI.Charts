@@ -64,19 +64,19 @@ public interface IChartComponent
     UIChartAxis? YAxis { get; }
 
     /// <summary>Where the legend stands.</summary>
-    UIChartLegendPlacement Legend { get; }
+    UIChartLegendPlacement? Legend { get; }
 
     /// <summary>Whether a point names itself on hover.</summary>
-    bool ShowTooltip { get; }
+    bool? ShowTooltip { get; }
 
     /// <summary>Whether one tooltip names every series at the x under the pointer, rather than one naming the point under it.</summary>
-    bool SharedTooltip { get; }
+    bool? SharedTooltip { get; }
 
     /// <summary>Whether the viewer may zoom and pan along the x axis.</summary>
-    bool Zoomable { get; }
+    bool? Zoomable { get; }
 
     /// <summary>Whether a window narrower than the data stays on the far end as the data grows past it.</summary>
-    bool FollowLatest { get; }
+    bool? FollowLatest { get; }
 
     /// <summary>The stretch of the x axis the chart shows; unset, the whole of what the data reaches.</summary>
     UIChartWindow? VisibleRange { get; }

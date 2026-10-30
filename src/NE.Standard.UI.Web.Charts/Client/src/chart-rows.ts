@@ -147,7 +147,8 @@ export function applyChange(
     moves: readonly { key: string | null; oldIndex: number | null; newIndex: number | null }[],
     model: ChartModel,
     read: PathReader,
-    readNumber: NumberReader
+    readNumber: NumberReader,
+    parse?: MomentParser
 ): void {
     if (action === "Reset") {
         slots.length = 0;
@@ -181,7 +182,7 @@ export function applyChange(
             continue;
         }
 
-        const slot = slotFromItem(change.item, change.key ?? key ?? "", model, read, readNumber);
+        const slot = slotFromItem(change.item, change.key ?? key ?? "", model, read, readNumber, parse);
         // A key the list already holds is that row, whichever action names it: an Insert of one must not draw the point twice. A
         // Replace of an item that was none takes its empty slot, which no key finds.
         const held = action === "Replace" ? slotOf(slots, keys, change.oldKey ?? key, change.index) : slotOf(slots, keys, key, null);
@@ -201,13 +202,23 @@ export function applyChange(
 }
 
 /** What an item holds: its row, or none for a null item or one whose x path reads nothing, as the server's reader holds none. */
-function slotFromItem(item: unknown, key: string, model: ChartModel, read: PathReader, readNumber: NumberReader): ChartSlot {
+function slotFromItem(item: unknown, key: string, model: ChartModel, read: PathReader, readNumber: NumberReader, parse?: MomentParser): ChartSlot {
     if (item === null || item === undefined)
         return null;
 
     const row = rowFromItem(item, key, model, read, readNumber);
 
-    return model.xPath !== null && row.x === null ? null : row;
+    return model.xPath !== null && (row.x === null || !hasX(row.x, model.x.kind, parse, readNumber)) ? null : row;
+}
+
+function hasX(text: string, kind: string, parse: MomentParser | undefined, readNumber: NumberReader): boolean {
+    if (kind === "Category")
+        return true;
+
+    if (readNumber(text) !== null)
+        return true;
+
+    return kind === "Time" && (parse === undefined || parse(text) !== null);
 }
 
 /** The slot of the row of that key, else the empty slot at that index — an item that was none has no key to find it by; -1 for neither. */
