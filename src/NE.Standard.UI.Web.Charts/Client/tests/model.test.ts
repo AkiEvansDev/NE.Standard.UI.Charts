@@ -21,8 +21,10 @@ function written(): WrittenModel {
         ],
         xPath: null,
         seriesPath: null,
+        translateSeriesNames: false,
         valuePath: null,
         legend: "Bottom",
+        hideEmptySeries: false,
         tooltip: true,
         stepped: false,
         smooth: false,
@@ -58,6 +60,17 @@ test("every caption reaches the page's words as the server wrote it: a key with 
     assert.equal(model.x.caption, "words");
     assert.equal(model.remainderCaption, "words");
     assert.deepEqual(seen, ["{\"key\":\"sales.by\",\"args\":{\"unit\":\"month\"}}", "{\"text\":\"Free\"}", "\"sales.revenue\""]);
+});
+
+test("translateSeriesNames translates a series key when no explicit caption was authored while keeping the raw key", () => {
+    const words: Readonly<Record<string, string>> = { "sales.month": "月份", "sales.revenue": "收入", cost: "成本" };
+    const model = translateModel(
+        { ...written(), translateSeriesNames: true },
+        caption => (typeof caption === "string" ? words[caption] ?? caption : "")
+    );
+
+    assert.deepEqual(model.series.map(series => series.key), ["revenue", "cost"]);
+    assert.deepEqual(model.series.map(series => series.caption), ["收入", "成本"]);
 });
 
 test("the model the server wrote is left as it was, so a language switch translates it again", () => {

@@ -65,9 +65,10 @@ new LineChartComponent()
     .SetStepped(true)
 ```
 
-A series the data names and the author did not draws a line of its own, captioned by its key and coloured by the
-next colour of the theme's categorical run. `AddSeries` for a key that does appear in the data gives that series its
-caption and its colour.
+A series the data names and the author did not draws a line of its own, captioned by its key — or translated as a phrase key
+when `SetSeriesPath(path, translate: true)` is set — and coloured by the next colour of the theme's categorical run. `AddSeries`
+for a key that does appear in the data gives that series its caption and its colour; `SetHideEmptySeries()` omits any series with
+no placed readings from the legend and the canvas's spoken name while keeping its colour slot.
 
 A series with a line style of its own is a `UIChartSeries`, passed to the other `AddSeries` overload: its `Stepped`,
 `Smooth` and `ShowMarkers`, left unset, take the chart's.

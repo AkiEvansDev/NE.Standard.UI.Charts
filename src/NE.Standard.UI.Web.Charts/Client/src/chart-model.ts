@@ -39,8 +39,12 @@ export type ChartModel = {
     readonly series: readonly ChartSeries[];
     readonly xPath: string | null;
     readonly seriesPath: string | null;
+    /** Whether a series with no caption of its own reads its key as a phrase key, as a translating category axis reads its names. */
+    readonly translateSeriesNames: boolean;
     readonly valuePath: string | null;
     readonly legend: LegendPlacement;
+    /** Whether a series with no readings is omitted from the legend and the canvas's spoken name. */
+    readonly hideEmptySeries: boolean;
     readonly tooltip: boolean;
     readonly stepped: boolean;
     readonly smooth: boolean;
@@ -93,7 +97,7 @@ export function readModel(root: Element): WrittenModel | null {
     }
 }
 
-/** The model in the page's words: each caption the author wrote translated (`strings.resolve`), a series with none named by its key. */
+/** The model in the page's words: each caption the author wrote translated (`strings.resolve`), a series with none named by its key — translated too where the chart says so. */
 export function translateModel(model: WrittenModel, translate: (caption: WrittenWords) => string): ChartModel {
     const axis = (written: WrittenAxis): ChartAxis => ({ ...written, caption: written.caption === null ? null : translate(written.caption) });
 
@@ -102,7 +106,10 @@ export function translateModel(model: WrittenModel, translate: (caption: Written
         x: axis(model.x),
         y: axis(model.y),
         remainderCaption: model.remainderCaption === null ? null : translate(model.remainderCaption),
-        series: model.series.map(series => ({ ...series, caption: series.caption === null ? series.key : translate(series.caption) }))
+        series: model.series.map(series => ({
+            ...series,
+            caption: series.caption === null ? (model.translateSeriesNames ? translate(series.key) : series.key) : translate(series.caption)
+        }))
     };
 }
 

@@ -58,17 +58,36 @@ public abstract partial class ChartComponentRendererBase
         if (spec.Legend == UIChartLegendPlacement.None)
             return;
 
-        LegendEntry[] entries = new LegendEntry[data.Series.Count];
+        List<LegendEntry> entries = new(data.Series.Count);
 
         for (var i = 0; i < data.Series.Count; i++)
-            entries[i] = new LegendEntry(data.Series[i].Series.Key, ReadCaption(context, data.Series[i].Series), SeriesColor(context, data.Series[i]));
+        {
+            ChartRenderSeries current = data.Series[i];
+
+            if (spec.HideEmptySeries && !HasReading(current.Points))
+                continue;
+
+            entries.Add(new LegendEntry(current.Series.Key, ReadCaption(context, spec, current.Series), SeriesColor(context, current)));
+        }
 
         RenderLegendEntries(root, entries, false, null);
     }
 
-    /// <summary>The words the legend and the tooltip name a series by: the caption, translated, or the key itself.</summary>
-    private static string ReadCaption(WebRenderContext context, UIChartSeries series)
-        => ChartCaption.Words(series.Caption) is { } caption ? context.Translate(caption) : series.Key;
+    /// <summary>Whether a series holds at least one placed value, so an empty series can be omitted without shifting colours.</summary>
+    private static bool HasReading(List<ChartPoint> points)
+    {
+        for (var i = 0; i < points.Count; i++)
+        {
+            if (points[i].Y is not null)
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>The words the legend and the tooltip name a series by: the caption, translated, or the key — translated where the chart says so.</summary>
+    private static string ReadCaption(WebRenderContext context, ChartSpec spec, UIChartSeries series)
+        => ChartCaption.Words(series.Caption) is { } caption ? context.Translate(caption) : spec.TranslateSeriesNames ? context.Translate(series.Key) : series.Key;
 
     /// <summary>
     /// An entry per part rather than per series — a pie's sector, a share bar's part — and a share bar's rest of its total: a pie's

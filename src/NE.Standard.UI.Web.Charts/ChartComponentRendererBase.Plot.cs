@@ -20,7 +20,7 @@ public abstract partial class ChartComponentRendererBase
         {
             _ = area.Class(AreaClassName);
 
-            ChartSvg.Render(area, CanvasClassName, NominalWidth, NominalHeight, CanvasLabel(context, data), svg =>
+            ChartSvg.Render(area, CanvasClassName, NominalWidth, NominalHeight, CanvasLabel(context, spec, data), svg =>
             {
                 RenderCanvasBoundary(svg, spec);
 
@@ -42,27 +42,29 @@ public abstract partial class ChartComponentRendererBase
     }
 
     /// <summary>
-    /// What the canvas is announced as: its series' names, or the chart's own word.
+    /// What the canvas is announced as: its listed series' names, or the chart's own word.
     /// </summary>
-    private static string CanvasLabel(WebRenderContext context, ChartRenderData data)
+    private static string CanvasLabel(WebRenderContext context, ChartSpec spec, ChartRenderData data)
     {
-        if (data.Series.Count == 0)
-            return context.Translate(ChartsStrings.Chart);
+        List<string> captions = new(data.Series.Count);
 
-        var captions = new string[data.Series.Count];
+        for (var i = 0; i < data.Series.Count; i++)
+        {
+            if (spec.HideEmptySeries && !HasReading(data.Series[i].Points))
+                continue;
 
-        for (var i = 0; i < captions.Length; i++)
-            captions[i] = ReadCaption(context, data.Series[i].Series);
+            captions.Add(ReadCaption(context, spec, data.Series[i].Series));
+        }
 
-        return WordList(context, captions);
+        return captions.Count == 0 ? context.Translate(ChartsStrings.Chart) : WordList(context, captions);
     }
 
     /// <summary>Names as one list, each joined on by the package's word (<see cref="ChartsStrings.List"/>), so a language writes its own separator.</summary>
-    private static string WordList(WebRenderContext context, string[] names)
+    private static string WordList(WebRenderContext context, IReadOnlyList<string> names)
     {
-        var list = names.Length > 0 ? names[0] : string.Empty;
+        var list = names.Count > 0 ? names[0] : string.Empty;
 
-        for (var i = 1; i < names.Length; i++)
+        for (var i = 1; i < names.Count; i++)
             list = context.Translate(ChartsStrings.List, new Dictionary<string, object?>(StringComparer.Ordinal) { ["list"] = list, ["next"] = names[i] });
 
         return list;
@@ -159,7 +161,7 @@ public abstract partial class ChartComponentRendererBase
     private static void RenderSeries(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, int index, ChartPlot plot, ChartScale x, ChartScale y, double band, ChartFormats formats)
     {
         ChartRenderSeries series = data.Series[index];
-        var caption = ReadCaption(context, series.Series);
+        var caption = ReadCaption(context, spec, series.Series);
         var stepped = series.Series.Stepped ?? spec.Stepped;
         var smooth = series.Series.Smooth ?? spec.Smooth;
         var markers = series.Series.ShowMarkers ?? spec.Markers;
@@ -286,13 +288,19 @@ public abstract partial class ChartComponentRendererBase
             if (point.Y is not double value)
                 continue;
 
+            var rawValue = RawValue(series, i);
+
+            // In a stack, a zero reading sits inside neighbours' edges and has no height of its own to point at; side by side it still draws a hair.
+            if (spec.Stacked && rawValue == 0)
+                continue;
+
             ChartBar bar = ChartBars.Bar(BandCoord(spec, plot, x, point.X), band, index, data.Series.Count, spec.Stacked);
             var reading = ValueCoord(spec, plot, y, value);
             var stands = ValueCoord(spec, plot, y, y.Within(point.Base ?? 0));
             var near = Math.Min(reading, stands);
             // A value of zero still draws a hair, so the bar is there to point at.
             var length = Math.Max(1, Math.Abs(reading - stands));
-            var tooltip = TooltipText(context, spec, data, caption, point.X, RawValue(series, i), formats);
+            var tooltip = TooltipText(context, spec, data, caption, point.X, rawValue, formats);
             var key = point.Key;
 
             _ = group.Element("rect", rectangle =>
@@ -401,7 +409,7 @@ public abstract partial class ChartComponentRendererBase
             return;
 
         // A point's words, the series naming what the value counts; a pie shares no tooltip, so SharedTooltip silences none.
-        var tooltip = spec.Tooltip ? PointWords(context, spec, data, ReadCaption(context, data.Series[0].Series), point.X, point.Y ?? 0, formats) : null;
+        var tooltip = spec.Tooltip ? PointWords(context, spec, data, ReadCaption(context, spec, data.Series[0].Series), point.X, point.Y ?? 0, formats) : null;
 
         _ = plotGroup.Element("g", group =>
         {
@@ -560,7 +568,7 @@ public abstract partial class ChartComponentRendererBase
         var start = Math.Round(part.Start * NominalWidth);
         var width = Math.Max(1, Math.Round((part.Start + part.Length) * NominalWidth) - start - (followed ? 1 : 0));
         // A point's words, the series naming what the value counts; a share bar shares no tooltip, so SharedTooltip silences none.
-        var tooltip = spec.Tooltip ? PointWords(context, spec, data, ReadCaption(context, data.Series[0].Series), point.X, point.Y ?? 0, formats) : null;
+        var tooltip = spec.Tooltip ? PointWords(context, spec, data, ReadCaption(context, spec, data.Series[0].Series), point.X, point.Y ?? 0, formats) : null;
 
         _ = plotGroup.Element("g", group =>
         {
@@ -618,7 +626,7 @@ public abstract partial class ChartComponentRendererBase
         {
             _ = area.Class(AreaClassName);
 
-            ChartSvg.Render(area, CanvasClassName, NominalWidth, NominalHeight, CanvasLabel(context, data), svg =>
+            ChartSvg.Render(area, CanvasClassName, NominalWidth, NominalHeight, CanvasLabel(context, spec, data), svg =>
             {
                 RenderCanvasBoundary(svg, spec);
 
@@ -746,7 +754,7 @@ public abstract partial class ChartComponentRendererBase
     private static void RenderRadarSeries(WebRenderContext context, IHtmlElementBuilder plotGroup, ChartSpec spec, ChartRenderData data, int index, RadarShape shape, ChartFormats formats)
     {
         ChartRenderSeries series = data.Series[index];
-        var caption = ReadCaption(context, series.Series);
+        var caption = ReadCaption(context, spec, series.Series);
         var markers = series.Series.ShowMarkers ?? spec.Markers;
 
         _ = plotGroup.Element("g", group =>

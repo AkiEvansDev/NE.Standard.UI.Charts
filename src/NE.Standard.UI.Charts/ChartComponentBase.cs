@@ -43,6 +43,12 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     public string? SeriesPath { get; private set; }
 
     /// <summary>
+    /// Gets whether a series with no caption of its own reads its key as a phrase key, set by <see cref="SetSeriesPath"/>.
+    /// </summary>
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = false)]
+    public bool? TranslateSeriesNames { get; private set; }
+
+    /// <summary>
     /// Gets the row property every series that names none of its own reads, set by <see cref="SetValuePath"/>.
     /// </summary>
     [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
@@ -65,6 +71,12 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     /// </summary>
     [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, DefaultValue = UIChartLegendPlacement.Bottom)]
     public UIChartLegendPlacement? Legend { get; set; }
+
+    /// <summary>
+    /// Gets whether a series with no readings is omitted from the legend and the canvas's spoken name, set by <see cref="SetHideEmptySeries"/>.
+    /// </summary>
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = false)]
+    public bool? HideEmptySeries { get; private set; }
 
     /// <summary>
     /// Gets or sets whether a point names its series, its x and its value on hover, through the framework's tooltip.
@@ -202,6 +214,12 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     /// <summary>
     /// Reads the x of every point from this row property — a number, a moment or a name, which the x axis's kind says which of.
     /// </summary>
+    public T SetX<TRow>(Expression<Func<TRow, object?>> propertyPath)
+        => SetX(RecursivePath.FromExpression(propertyPath).ToString());
+
+    /// <summary>
+    /// Reads the x of every point from this row property — a number, a moment or a name, which the x axis's kind says which of.
+    /// </summary>
     public T SetX(string propertyPath)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyPath);
@@ -211,15 +229,39 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     }
 
     /// <summary>
-    /// Reads which series a row belongs to from this row property; without it, a row carries a value per series.
+    /// Reads which series a row belongs to from this row property; without it, a row carries a value per series. With <paramref name="translate"/>,
+    /// a series with no caption of its own reads its key as a phrase key, as a translating category axis reads its names.
     /// </summary>
-    public T SetSeriesPath(string propertyPath)
+    public T SetSeriesPath<TRow>(Expression<Func<TRow, object?>> propertyPath, bool translate = false)
+        => SetSeriesPath(RecursivePath.FromExpression(propertyPath).ToString(), translate);
+
+    /// <summary>
+    /// Reads which series a row belongs to from this row property; without it, a row carries a value per series. With <paramref name="translate"/>,
+    /// a series with no caption of its own reads its key as a phrase key, as a translating category axis reads its names.
+    /// </summary>
+    public T SetSeriesPath(string propertyPath, bool translate = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(propertyPath);
 
         SeriesPath = propertyPath;
+        TranslateSeriesNames = translate;
         return Self;
     }
+
+    /// <summary>
+    /// Omits a series with no readings from the legend and the canvas's spoken name while keeping its colour slot.
+    /// </summary>
+    public T SetHideEmptySeries(bool hide = true)
+    {
+        HideEmptySeries = hide;
+        return Self;
+    }
+
+    /// <summary>
+    /// Reads a point's value from this row property, for every series that names none of its own.
+    /// </summary>
+    public T SetValuePath<TRow>(Expression<Func<TRow, object?>> propertyPath)
+        => SetValuePath(RecursivePath.FromExpression(propertyPath).ToString());
 
     /// <summary>
     /// Reads a point's value from this row property, for every series that names none of its own.
@@ -231,6 +273,15 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
         ValuePath = propertyPath;
         return Self;
     }
+
+    /// <summary>
+    /// Adds a series reading <paramref name="valuePath"/>, else the chart's own <c>ValuePath</c> for rows keyed by <c>SeriesPath</c>.
+    /// </summary>
+    public T AddSeries<TRow>(string key, UIPhrase? caption = null, Expression<Func<TRow, object?>>? valuePath = null, Expression<Func<TRow, object?>>? sizePath = null, UIThemeColor? color = null)
+        => AddSeries(key, caption, PathOrNull(valuePath), PathOrNull(sizePath), color);
+
+    private static string? PathOrNull<TRow>(Expression<Func<TRow, object?>>? path)
+        => path is null ? null : RecursivePath.FromExpression(path).ToString();
 
     /// <summary>
     /// Adds a series reading <paramref name="valuePath"/>, else the chart's own <c>ValuePath</c> for rows keyed by <c>SeriesPath</c>.

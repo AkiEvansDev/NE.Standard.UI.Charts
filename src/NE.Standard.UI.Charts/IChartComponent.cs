@@ -18,6 +18,9 @@ public interface IChartComponent
     /// <summary>Gets the registered property key for <see cref="SeriesPath"/>.</summary>
     static UIProperty SeriesPathProperty { get; } = new(nameof(SeriesPath));
 
+    /// <summary>Gets the registered property key for <see cref="TranslateSeriesNames"/>.</summary>
+    static UIProperty TranslateSeriesNamesProperty { get; } = new(nameof(TranslateSeriesNames));
+
     /// <summary>Gets the registered property key for <see cref="ValuePath"/>.</summary>
     static UIProperty ValuePathProperty { get; } = new(nameof(ValuePath));
 
@@ -29,6 +32,9 @@ public interface IChartComponent
 
     /// <summary>Gets the registered property key for <see cref="Legend"/>.</summary>
     static UIProperty LegendProperty { get; } = new(nameof(Legend));
+
+    /// <summary>Gets the registered property key for <see cref="HideEmptySeries"/>.</summary>
+    static UIProperty HideEmptySeriesProperty { get; } = new(nameof(HideEmptySeries));
 
     /// <summary>Gets the registered property key for <see cref="ShowTooltip"/>.</summary>
     static UIProperty ShowTooltipProperty { get; } = new(nameof(ShowTooltip));
@@ -54,6 +60,9 @@ public interface IChartComponent
     /// <summary>The row property naming which series a row belongs to; unset, a row carries a value per series.</summary>
     string? SeriesPath { get; }
 
+    /// <summary>Whether a series with no caption of its own reads its key as a phrase key, as a translating category axis reads its names.</summary>
+    bool? TranslateSeriesNames { get; }
+
     /// <summary>The row property a series that names none of its own reads.</summary>
     string? ValuePath { get; }
 
@@ -65,6 +74,9 @@ public interface IChartComponent
 
     /// <summary>Where the legend stands.</summary>
     UIChartLegendPlacement? Legend { get; }
+
+    /// <summary>Whether a series with no readings is omitted from the legend and the canvas's spoken name.</summary>
+    bool? HideEmptySeries { get; }
 
     /// <summary>Whether a point names itself on hover.</summary>
     bool? ShowTooltip { get; }

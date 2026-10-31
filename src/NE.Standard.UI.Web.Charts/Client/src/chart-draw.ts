@@ -118,8 +118,14 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
 
     const model = state.model;
     const built = buildData(state.rows, model, formatting.temporal.parse, formatting.numbers.parseInvariant);
-    // Translated at every draw, so a language switch's redraw writes the names anew; a name's place is the rows' own text.
-    const data: ChartData = { ...built, categories: categoryNames(model.x, built.categories, text => formatting.strings.resolveText(text)) };
+    // Translated at every draw, so a language switch's redraw writes the names and any data-discovered series captions anew; a name's place is the rows' own text.
+    const data: ChartData = {
+        ...built,
+        series: model.translateSeriesNames
+            ? built.series.map((entry, index) => (index < model.series.length ? entry : { ...entry, series: { ...entry.series, caption: formatting.strings.resolveText(entry.series.key) } }))
+            : built.series,
+        categories: categoryNames(model.x, built.categories, text => formatting.strings.resolveText(text))
+    };
     const visible = data.series.filter(series => !state.hidden.has(series.series.key));
 
     // The stack is of the series actually drawn: one the legend put aside leaves it rather than holding a gap in it.
@@ -153,10 +159,11 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
     const colors = formatting.colors.count(state.root);
     const parts = model.kind === ChartKinds.pie || model.kind === ChartKinds.share;
     const total = model.kind === ChartKinds.share ? readTotal(state.root) : null;
+    const listed = model.hideEmptySeries ? data.series.filter(entry => entry.points.some(point => point.y !== null)) : data.series;
     // A pie's and a share bar's legend names its parts rather than its series.
     const entries = parts
         ? partEntries(model, data, state.hidden, total, formats, numbers, dates, formatting, colors)
-        : data.series.map(entry => ({ key: entry.series.key, caption: entry.series.caption, color: colorOf(entry, colors, formatting.colors) }));
+        : listed.map(entry => ({ key: entry.series.key, caption: entry.series.caption, color: colorOf(entry, colors, formatting.colors) }));
     const rest = model.kind === ChartKinds.share ? restEntry(model, data, state.hidden, total, formats, numbers, dates, formatting) : null;
 
     // The legend first: its entries move the plot's box, and a box measured before them would stretch the old frame into the new.
@@ -1105,6 +1112,12 @@ function drawBars(
         if (point.y === null)
             continue;
 
+        const raw = rawValue(entry, i);
+
+        // In a stack, a zero reading sits inside neighbours' edges and has no height of its own to point at; side by side it still draws a hair.
+        if (model.stacked && raw === 0)
+            continue;
+
         const bar = barOf(bandCoord(model, plot, x, point.x), band, index, count, model.stacked);
         const reading = valueCoord(model, plot, y, point.y);
         const stands = valueCoord(model, plot, y, within(y, point.base ?? 0));
@@ -1124,7 +1137,7 @@ function drawBars(
 
         rectangle.setAttribute(
             formatting.names.tooltip,
-            tooltipText(model, entry, point.x, rawValue(entry, i), categories, formats, numbers, dates, formatting)
+            tooltipText(model, entry, point.x, raw, categories, formats, numbers, dates, formatting)
         );
     }
 }
@@ -1180,6 +1193,7 @@ function buildColumns(
     formatting: ChartFormatting
 ): ChartColumn[] {
     // What each series holds at every x in view, the first value a series has there as the tooltip has always read it.
+    const omitZero = model.kind === ChartKinds.bar && model.stacked;
     const byPlace = new Map<number, (number | null)[]>();
 
     for (let index = 0; index < series.length; index++) {
@@ -1198,7 +1212,9 @@ function buildColumns(
         }
     }
 
-    const places = [...byPlace.keys()].sort((left, right) => left - right);
+    const places = [...byPlace.keys()]
+        .filter(place => !omitZero || (byPlace.get(place)?.some(value => value !== null && value !== 0) ?? false))
+        .sort((left, right) => left - right);
 
     return places.map(place => {
         const values = byPlace.get(place) ?? [];
@@ -1215,7 +1231,7 @@ function buildColumns(
                 for (let index = 0; index < series.length; index++) {
                     const value = values[index];
 
-                    if (value === null || value === undefined)
+                    if (value === null || value === undefined || (omitZero && value === 0))
                         continue;
 
                     const reading = formatValue(model.y, formats.y, value, categories, numbers, dates, formatting);

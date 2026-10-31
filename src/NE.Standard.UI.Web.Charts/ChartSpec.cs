@@ -42,10 +42,16 @@ internal sealed record ChartSpec
     /// <summary>The row property naming the series a row belongs to; unset, a row carries a value per series.</summary>
     public string? SeriesPath { get; init; }
 
+    /// <summary>Whether a series with no caption of its own reads its key as a phrase key, as a translating category axis reads its names.</summary>
+    public bool TranslateSeriesNames { get; init; }
+
     /// <summary>The row property a series without one of its own reads.</summary>
     public string? ValuePath { get; init; }
 
     public UIChartLegendPlacement Legend { get; init; }
+
+    /// <summary>Whether a series with no readings is omitted from the legend and the canvas's spoken name.</summary>
+    public bool HideEmptySeries { get; init; }
 
     public bool Tooltip { get; init; }
 
