@@ -23,8 +23,20 @@ export function clampWindow(span: Span, min: number, max: number): Span {
         return { from: min, to: max };
 
     const whole = max - min;
-    const smallest = whole * SmallestShare;
-    const width = Math.min(Math.max(Number.isFinite(spanWidth(span)) && spanWidth(span) > 0 ? spanWidth(span) : whole, smallest), whole);
+    const rawWidth = spanWidth(span);
+    const smallest = Number.isFinite(whole) ? whole * SmallestShare : ((max * 0.5) - (min * 0.5)) * (2 * SmallestShare);
+
+    if (!Number.isFinite(whole)) {
+        if (!Number.isFinite(rawWidth) || rawWidth <= 0)
+            return { from: min, to: max };
+
+        const wide = Math.max(rawWidth, smallest);
+        const start = Math.max(Math.min(Number.isFinite(span.from) ? span.from : min, max - wide), min);
+
+        return { from: start, to: start + wide };
+    }
+
+    const width = Math.min(Math.max(Number.isFinite(rawWidth) && rawWidth > 0 ? rawWidth : whole, smallest), whole);
 
     // As wide as the whole is the whole: max - width can land a hair under min, and the window would hang off the start.
     if (width >= whole)
@@ -41,11 +53,19 @@ export function clampWindow(span: Span, min: number, max: number): Span {
  * reading stays where it is.
  */
 export function zoomWindow(span: Span, at: number, factor: number, min: number, max: number): Span {
-    if (!Number.isFinite(factor) || factor <= 0 || !Number.isFinite(at))
+    if (!Number.isFinite(factor) || factor <= 0 || !Number.isFinite(at) || !Number.isFinite(span.from) || !Number.isFinite(span.to))
         return clampWindow(span, min, max);
 
-    const width = spanWidth(span) * factor;
-    const share = spanWidth(span) > 0 ? Math.min(Math.max((at - span.from) / spanWidth(span), 0), 1) : 0.5;
+    const rawSpan = spanWidth(span);
+    const halfSpan = (span.to * 0.5) - (span.from * 0.5);
+    const width = Number.isFinite(rawSpan) ? rawSpan * factor : halfSpan * (2 * factor);
+
+    if (!Number.isFinite(width))
+        return clampWindow({ from: min, to: max }, min, max);
+
+    const share = halfSpan > 0
+        ? (Number.isFinite(rawSpan) ? Math.min(Math.max((at - span.from) / rawSpan, 0), 1) : Math.min(Math.max(((at * 0.5) - (span.from * 0.5)) / halfSpan, 0), 1))
+        : 0.5;
 
     return clampWindow({ from: at - share * width, to: at - share * width + width }, min, max);
 }

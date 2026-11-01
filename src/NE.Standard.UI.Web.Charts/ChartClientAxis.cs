@@ -28,14 +28,17 @@ internal sealed record ChartClientAxis
         => new()
         {
             Kind = axis.Kind,
-            Min = axis.Min,
-            Max = axis.Max,
+            Min = FiniteOrNull(axis.Min),
+            Max = FiniteOrNull(axis.Max),
             Format = axis.Format,
             Grid = axis.ShowGridLines,
             Ticks = axis.TickCount,
             Translate = axis.TranslateNames,
             Caption = ChartCaption.Wire(axis.Caption)
         };
+
+    private static double? FiniteOrNull(double? value)
+        => value is double number && double.IsFinite(number) ? number : null;
 }
 
 /// <summary>One series as the client reads it; the colour is a CSS value, resolved here where the theme is known.</summary>

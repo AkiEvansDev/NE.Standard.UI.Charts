@@ -23,7 +23,7 @@ public class ShareBarComponentRenderer : ChartComponentRendererBase
         => ReadRenderValue(context, IShareChartComponent.ShowLegendValuesProperty, false);
 
     protected override double? ReadTotal(WebRenderContext context)
-        => ReadRenderValue<double?>(context, ShareBarComponent.TotalProperty, null);
+        => ReadRenderValue<double?>(context, ShareBarComponent.TotalProperty, null) is double value && double.IsFinite(value) ? value : null;
 
     protected override UIPhrase? ReadRemainderCaption(WebRenderContext context)
         => ReadRenderValue<UIPhrase?>(context, ShareBarComponent.RemainderCaptionProperty, null);

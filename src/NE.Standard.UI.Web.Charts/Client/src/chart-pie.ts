@@ -25,17 +25,34 @@ export type Spot = {
  */
 export function sectorsOf(values: readonly (number | null)[]): Sector[] {
     let total = 0;
+    let max = 0;
 
     for (const value of values) {
-        if (value !== null && value > 0)
+        if (value !== null && Number.isFinite(value) && value > 0) {
             total += value;
+
+            if (value > max)
+                max = value;
+        }
+    }
+
+    let scale = 1;
+
+    if (!Number.isFinite(total) && max > 0) {
+        scale = max;
+        total = 0;
+
+        for (const value of values) {
+            if (value !== null && Number.isFinite(value) && value > 0)
+                total += value / scale;
+        }
     }
 
     const sectors: Sector[] = [];
     let angle = Top;
 
     for (const value of values) {
-        const sweep = total > 0 && value !== null && value > 0 ? (value / total) * Turn : 0;
+        const sweep = total > 0 && value !== null && Number.isFinite(value) && value > 0 ? ((value / scale) / total) * Turn : 0;
 
         sectors.push({ start: angle, sweep });
         angle += sweep;

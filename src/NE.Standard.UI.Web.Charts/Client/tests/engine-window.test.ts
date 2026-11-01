@@ -473,3 +473,13 @@ test("disposing the engine disconnects observers, removes listeners and cancels 
     assert.equal(page.windowListenerCount(), 0);
     assert.equal(page.sent(), 0);
 });
+
+test("a pushed window with a non-finite bound reads as unset instead of poisoning the scale", () => {
+    const page = livePage({ from: 20, to: 60 });
+
+    page.push({ from: Number.NaN, to: 60 });
+    assert.equal(page.window(), null);
+
+    page.push({ from: 20, to: Number.POSITIVE_INFINITY });
+    assert.equal(page.window(), null);
+});

@@ -7,6 +7,7 @@ import test from "node:test";
 
 import type { ChartModel } from "../src/chart-model.ts";
 import { ChartAttributes, ChartClasses } from "../src/chart-names.ts";
+import { sharesOf } from "../src/chart-share.ts";
 import type { ChartRow } from "../src/chart-rows.ts";
 import { readNumber } from "./framework-numbers.ts";
 import { element, installStubDom, real } from "./stub-dom.ts";
@@ -167,4 +168,11 @@ test("the rest leaves the legend once the parts reach the total, and the buttons
 
     assert.deepEqual(after, before.slice(0, 2));
     assert.deepEqual(words(after[0]), ["North", "3", "0.75"]);
+});
+
+test("large part values whose sum overflows still share the whole evenly", () => {
+    assert.deepEqual(sharesOf([1e308, 1e308], null), [
+        { start: 0, length: 0.5 },
+        { start: 0.5, length: 0.5 }
+    ]);
 });

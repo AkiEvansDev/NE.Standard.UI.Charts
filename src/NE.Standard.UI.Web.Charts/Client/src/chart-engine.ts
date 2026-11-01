@@ -999,7 +999,7 @@ function readWindowValue(value: unknown): Span | null {
     const from = (source as { from?: unknown }).from;
     const to = (source as { to?: unknown }).to;
 
-    return typeof from === "number" && typeof to === "number" && to > from ? { from, to } : null;
+    return typeof from === "number" && typeof to === "number" && Number.isFinite(from) && Number.isFinite(to) && to > from ? { from, to } : null;
 }
 
 function safeParse(text: string): unknown {

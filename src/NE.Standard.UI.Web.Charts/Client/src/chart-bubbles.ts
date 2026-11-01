@@ -19,14 +19,17 @@ export function pointReach(radius: number): number {
  * The radius for a value between `min` and `max`; the plain radius when there is no value, the middle radius when they are equal.
  */
 export function bubbleRadius(size: number | null | undefined, min: number, max: number): number {
-    if (size === null || size === undefined || !Number.isFinite(min) || !Number.isFinite(max))
+    if (size === null || size === undefined || !Number.isFinite(size) || !Number.isFinite(min) || !Number.isFinite(max))
         return PlainRadius;
 
     if (max <= min)
         return (SmallestRadius + LargestRadius) / 2;
 
     // By area: the radius follows the square root of the share, or a big value swamps the picture.
-    const share = Math.min(Math.max((size - min) / (max - min), 0), 1);
+    const span = max - min;
+    const share = Number.isFinite(span)
+        ? Math.min(Math.max((size - min) / span, 0), 1)
+        : Math.min(Math.max(((size * 0.5) - (min * 0.5)) / ((max * 0.5) - (min * 0.5)), 0), 1);
     const smallest = SmallestRadius * SmallestRadius;
     const largest = LargestRadius * LargestRadius;
 

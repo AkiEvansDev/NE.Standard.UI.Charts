@@ -15,11 +15,11 @@ export function shareWhole(values: readonly (number | null)[], total: number | n
     let sum = 0;
 
     for (const value of values) {
-        if (value !== null && value > 0)
+        if (value !== null && Number.isFinite(value) && value > 0)
             sum += value;
     }
 
-    return total !== null && total > sum ? total : sum;
+    return total !== null && Number.isFinite(total) && total > sum ? total : sum;
 }
 
 /**
@@ -27,16 +27,45 @@ export function shareWhole(values: readonly (number | null)[], total: number | n
  * does every value of a whole that is nothing.
  */
 export function sharesOf(values: readonly (number | null)[], total: number | null): Share[] {
-    const whole = shareWhole(values, total);
+    let whole = shareWhole(values, total);
+    let scale = 1;
+
+    if (!Number.isFinite(whole)) {
+        scale = maxPositive(values, total);
+        whole = scale > 0 ? scaledWhole(values, total, scale) : 0;
+    }
+
     const parts: Share[] = [];
     let start = 0;
 
     for (const value of values) {
-        const length = whole > 0 && value !== null && value > 0 ? value / whole : 0;
+        const length = whole > 0 && value !== null && Number.isFinite(value) && value > 0 ? (value / scale) / whole : 0;
 
         parts.push({ start, length });
         start += length;
     }
 
     return parts;
+}
+
+function maxPositive(values: readonly (number | null)[], total: number | null): number {
+    let max = total !== null && Number.isFinite(total) && total > 0 ? total : 0;
+
+    for (const value of values) {
+        if (value !== null && Number.isFinite(value) && value > max)
+            max = value;
+    }
+
+    return max;
+}
+
+function scaledWhole(values: readonly (number | null)[], total: number | null, scale: number): number {
+    let sum = 0;
+
+    for (const value of values) {
+        if (value !== null && Number.isFinite(value) && value > 0)
+            sum += value / scale;
+    }
+
+    return total !== null && Number.isFinite(total) && (total / scale) > sum ? total / scale : sum;
 }

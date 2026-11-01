@@ -32,11 +32,31 @@ public static class ChartPie
         ArgumentNullException.ThrowIfNull(values);
 
         var total = 0d;
+        var max = 0d;
 
         for (var i = 0; i < values.Count; i++)
         {
-            if (values[i] is double value && value > 0)
+            if (values[i] is double value && double.IsFinite(value) && value > 0)
+            {
                 total += value;
+
+                if (value > max)
+                    max = value;
+            }
+        }
+
+        var scale = 1d;
+
+        if (!double.IsFinite(total) && max > 0)
+        {
+            scale = max;
+            total = 0d;
+
+            for (var i = 0; i < values.Count; i++)
+            {
+                if (values[i] is double value && double.IsFinite(value) && value > 0)
+                    total += value / scale;
+            }
         }
 
         ChartSector[] sectors = new ChartSector[values.Count];
@@ -44,7 +64,7 @@ public static class ChartPie
 
         for (var i = 0; i < values.Count; i++)
         {
-            var sweep = total > 0 && values[i] is double value && value > 0 ? value / total * Turn : 0;
+            var sweep = total > 0 && values[i] is double value && double.IsFinite(value) && value > 0 ? value / scale / total * Turn : 0;
 
             sectors[i] = new ChartSector(angle, sweep);
             angle += sweep;

@@ -25,11 +25,11 @@ public static class ChartShares
 
         for (var i = 0; i < values.Count; i++)
         {
-            if (values[i] is double value && value > 0)
+            if (values[i] is double value && double.IsFinite(value) && value > 0)
                 sum += value;
         }
 
-        return total is double given && given > sum ? given : sum;
+        return total is double given && double.IsFinite(given) && given > sum ? given : sum;
     }
 
     /// <summary>
@@ -39,17 +39,51 @@ public static class ChartShares
     public static ChartShare[] Parts(IReadOnlyList<double?> values, double? total)
     {
         var whole = Whole(values, total);
+        var scale = 1d;
+
+        if (!double.IsFinite(whole))
+        {
+            scale = MaxPositive(values, total);
+            whole = scale > 0 ? ScaledWhole(values, total, scale) : 0;
+        }
+
         ChartShare[] parts = new ChartShare[values.Count];
         var start = 0d;
 
         for (var i = 0; i < values.Count; i++)
         {
-            var length = whole > 0 && values[i] is double value && value > 0 ? value / whole : 0;
+            var length = whole > 0 && values[i] is double value && double.IsFinite(value) && value > 0 ? value / scale / whole : 0;
 
             parts[i] = new ChartShare(start, length);
             start += length;
         }
 
         return parts;
+    }
+
+    private static double MaxPositive(IReadOnlyList<double?> values, double? total)
+    {
+        var max = total is double given && double.IsFinite(given) && given > 0 ? given : 0d;
+
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (values[i] is double value && double.IsFinite(value) && value > max)
+                max = value;
+        }
+
+        return max;
+    }
+
+    private static double ScaledWhole(IReadOnlyList<double?> values, double? total, double scale)
+    {
+        var sum = 0d;
+
+        for (var i = 0; i < values.Count; i++)
+        {
+            if (values[i] is double value && double.IsFinite(value) && value > 0)
+                sum += value / scale;
+        }
+
+        return total is double given && double.IsFinite(given) && given / scale > sum ? given / scale : sum;
     }
 }

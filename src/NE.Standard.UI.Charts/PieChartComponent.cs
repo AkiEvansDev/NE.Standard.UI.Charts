@@ -37,6 +37,9 @@ public abstract partial class PieChartComponent<T>(string? id = null) : ChartCom
     /// </summary>
     public T SetDonut(double share = 0.6)
     {
+        if (!double.IsFinite(share))
+            throw new ArgumentOutOfRangeException(nameof(share), share, "Donut share must be finite.");
+
         ArgumentOutOfRangeException.ThrowIfNegative(share);
         ArgumentOutOfRangeException.ThrowIfGreaterThan(share, 0.9);
 

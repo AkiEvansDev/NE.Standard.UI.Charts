@@ -20,7 +20,19 @@ public static class ChartWindow
             return new UIChartWindow(min, max);
 
         var whole = max - min;
-        var smallest = whole * SmallestShare;
+        var smallest = double.IsFinite(whole) ? whole * SmallestShare : ((max * 0.5) - (min * 0.5)) * (2 * SmallestShare);
+
+        if (!double.IsFinite(whole))
+        {
+            if (!double.IsFinite(span.Width) || span.Width <= 0)
+                return new UIChartWindow(min, max);
+
+            var wide = Math.Max(span.Width, smallest);
+            var start = Math.Max(Math.Min(double.IsFinite(span.From) ? span.From : min, max - wide), min);
+
+            return new UIChartWindow(start, start + wide);
+        }
+
         var width = Math.Clamp(double.IsFinite(span.Width) && span.Width > 0 ? span.Width : whole, smallest, whole);
         // As wide as the whole is the whole: max - width can land a hair under min, and the window would hang off the start.
         if (width >= whole)
@@ -37,11 +49,18 @@ public static class ChartWindow
     /// </summary>
     public static UIChartWindow Zoom(UIChartWindow span, double at, double factor, double min, double max)
     {
-        if (!double.IsFinite(factor) || factor <= 0 || !double.IsFinite(at))
+        if (!double.IsFinite(factor) || factor <= 0 || !double.IsFinite(at) || !double.IsFinite(span.From) || !double.IsFinite(span.To))
             return Clamp(span, min, max);
 
-        var width = span.Width * factor;
-        var share = span.Width > 0 ? Math.Clamp((at - span.From) / span.Width, 0, 1) : 0.5;
+        var halfSpan = (span.To * 0.5) - (span.From * 0.5);
+        var width = double.IsFinite(span.Width) ? span.Width * factor : halfSpan * (2 * factor);
+
+        if (!double.IsFinite(width))
+            return Clamp(new UIChartWindow(min, max), min, max);
+
+        var share = halfSpan > 0
+            ? double.IsFinite(span.Width) ? Math.Clamp((at - span.From) / span.Width, 0, 1) : Math.Clamp(((at * 0.5) - (span.From * 0.5)) / halfSpan, 0, 1)
+            : 0.5;
 
         return Clamp(new UIChartWindow(at - (share * width), at - (share * width) + width), min, max);
     }

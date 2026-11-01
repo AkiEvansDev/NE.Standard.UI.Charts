@@ -43,6 +43,7 @@ function model(values: Partial<ChartModel>): ChartModel {
 test("a point with no third value is drawn at the plain radius, and one in a run of equal values in the middle", () => {
     assert.equal(bubbleRadius(null, 0, 100), PlainRadius);
     assert.equal(bubbleRadius(undefined, 0, 100), PlainRadius);
+    assert.equal(bubbleRadius(Number.NaN, 0, 100), PlainRadius);
     assert.equal(bubbleRadius(5, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY), PlainRadius);
     assert.equal(bubbleRadius(5, 5, 5), 10.5);
 });

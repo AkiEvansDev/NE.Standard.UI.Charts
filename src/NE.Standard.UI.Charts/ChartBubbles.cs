@@ -27,14 +27,17 @@ public static class ChartBubbles
     /// </summary>
     public static double Radius(double? size, double min, double max)
     {
-        if (size is not double value || !double.IsFinite(min) || !double.IsFinite(max))
+        if (size is not double value || !double.IsFinite(value) || !double.IsFinite(min) || !double.IsFinite(max))
             return PlainRadius;
 
         if (max <= min)
             return (SmallestRadius + LargestRadius) / 2;
 
         // By area: the radius follows the square root of the share, or a big value swamps the picture.
-        var share = Math.Clamp((value - min) / (max - min), 0, 1);
+        var span = max - min;
+        var share = double.IsFinite(span)
+            ? Math.Clamp((value - min) / span, 0, 1)
+            : Math.Clamp(((value * 0.5) - (min * 0.5)) / ((max * 0.5) - (min * 0.5)), 0, 1);
         var smallest = SmallestRadius * SmallestRadius;
         var largest = LargestRadius * LargestRadius;
 

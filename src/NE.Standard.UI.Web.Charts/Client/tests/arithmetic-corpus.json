@@ -228,6 +228,7 @@
         { "case": "a value of nothing takes no angle", "values": [null, 3], "expectedShares": [0, 1] },
         { "case": "one below zero takes no angle", "values": [-5, 3], "expectedShares": [0, 1] },
         { "case": "a set that adds up to nothing takes no angle", "values": [0, 0], "expectedShares": [0, 0] },
+        { "case": "large values whose sum overflows share the turn evenly", "values": [1e308, 1e308], "expectedShares": [0.5, 0.5] },
         { "case": "no values at all", "values": [], "expectedShares": [] }
     ],
     "wholes": [
@@ -279,7 +280,8 @@
         { "case": "the smallest of the run", "size": 0, "min": 0, "max": 400, "expected": 3 },
         { "case": "the largest of the run", "size": 400, "min": 0, "max": 400, "expected": 18 },
         { "case": "a quarter of the run, by area", "size": 100, "min": 0, "max": 400, "expected": 9.367496997597596 },
-        { "case": "every value the same takes the middle of the run", "size": 5, "min": 5, "max": 5, "expected": 10.5 }
+        { "case": "every value the same takes the middle of the run", "size": 5, "min": 5, "max": 5, "expected": 10.5 },
+        { "case": "the near end of a span wider than a number holds", "size": -1e308, "min": -1e308, "max": 1e308, "expected": 3 }
     ],
     "reaches": [
         { "radius": 3, "expected": 11 },
@@ -299,7 +301,8 @@
         { "case": "a drag past the near end stops there", "op": "pan", "from": 20, "to": 40, "by": -40, "min": 0, "max": 100, "expected": { "from": 0, "to": 20 } },
         { "case": "following keeps the width on the far end", "op": "follow", "from": 20, "to": 40, "min": 0, "max": 120, "expected": { "from": 100, "to": 120 } },
         { "case": "following keeps the width it was given past a whole narrower than it, for the data to grow into", "op": "follow", "from": 0, "to": 3600000, "min": 0, "max": 1000, "expected": { "from": -3599000, "to": 1000 } },
-        { "case": "a window with no width follows as the whole", "op": "follow", "from": 50, "to": 50, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } }
+        { "case": "a window with no width follows as the whole", "op": "follow", "from": 50, "to": 50, "min": 0, "max": 100, "expected": { "from": 0, "to": 100 } },
+        { "case": "zooming at the near end of a span wider than a number holds keeps the near end", "op": "zoom", "from": -1e308, "to": 1e308, "at": -1e308, "factor": 0.5, "min": -1e308, "max": 1e308, "expected": { "from": -1e308, "to": 0 } }
     ],
     "extents": [
         { "case": "every point counts where there is no window", "series": [[{ "x": 0, "y": 10 }, { "x": 10, "y": 50 }, { "x": 20, "y": 90 }, { "x": 30, "y": 20 }]], "window": null, "expected": { "min": 10, "max": 90 } },

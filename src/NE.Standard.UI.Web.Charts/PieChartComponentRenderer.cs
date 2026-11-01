@@ -1,3 +1,4 @@
+using System;
 using NE.Standard.UI.Charts;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -14,7 +15,11 @@ public class PieChartComponentRenderer : ChartComponentRendererBase
     protected override string ChartKind => PieKind;
 
     protected override double ReadDonut(WebRenderContext context)
-        => ReadRenderValue(context, PieChartComponent.DonutProperty, 0d);
+    {
+        var donut = ReadRenderValue(context, PieChartComponent.DonutProperty, 0d);
+
+        return double.IsFinite(donut) ? Math.Clamp(donut, 0, 0.9) : 0;
+    }
 
     protected override bool ReadLegendValues(WebRenderContext context)
         => ReadRenderValue(context, IShareChartComponent.ShowLegendValuesProperty, false);
