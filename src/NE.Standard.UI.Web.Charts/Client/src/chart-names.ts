@@ -54,6 +54,8 @@ export const ChartClasses = {
     legendCaption: "ui-chart__legend-caption",
     /** On a legend that is a table of each part's value and share. */
     legendValues: "ui-chart__legend--values",
+    /** On a legend laid across a fixed number of columns. */
+    legendColumns: "ui-chart__legend--columns",
     legendValue: "ui-chart__legend-value",
     legendShare: "ui-chart__legend-share",
     /** A share bar's rest of its total, after the entries: named, but no button. */
@@ -72,6 +74,7 @@ export const DrawnClipPrefix = "ui-chart-clip-drawn";
 /** The custom properties the renderers write and the client writes again. */
 export const ChartVariables = {
     seriesColor: "--ui-chart-series-color",
+    legendColumns: "--ui-chart-legend-columns",
     arcStart: "--ui-arc-start",
     arcSweep: "--ui-arc-sweep",
     /** The reading as a number, on the gauge's root: what the stylesheet's arc is drawn from, and what a language switch writes again. */

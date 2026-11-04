@@ -43,6 +43,8 @@ export type ChartModel = {
     readonly translateSeriesNames: boolean;
     readonly valuePath: string | null;
     readonly legend: LegendPlacement;
+    /** How many equal columns the legend lays its entries across; null for the chart kind's default layout. */
+    readonly legendColumns?: number | null;
     /** Whether a series with no readings is omitted from the legend and the canvas's spoken name. */
     readonly hideEmptySeries: boolean;
     readonly tooltip: boolean;
@@ -54,6 +56,8 @@ export type ChartModel = {
     readonly sharedTooltip: boolean;
     /** Whether the viewer may zoom and pan along the x axis; a pie, a radar and a bare chart never do. */
     readonly zoomable: boolean;
+    /** Whether a press on a point, a bar or a sector reaches a command the author wired (`OnPointClick`). */
+    readonly pressable?: boolean;
     /** Whether a window narrower than the data stays on the far end as the data grows past it. */
     readonly followLatest: boolean;
     /** Which way the bars run: horizontal lays them on their side, the values across the box and one band per x down it. */

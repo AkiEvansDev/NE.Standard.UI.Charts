@@ -461,11 +461,11 @@
 }
 
 // A legend that is a table: a row per part — its mark, its name, its value and its share — the numbers in columns of their own,
-// aligned down the rows. Centred under a pie as its buttons are, and down its side as theirs; a share bar's runs the bar's width, the
-// names taking what the numbers leave.
+// aligned down the rows. Centred under a pie as its buttons are, and down its side as theirs; a share bar's lays its entries
+// across a multi-column grid so a long list of parts does not stretch vertically down the page.
 .ui-chart__legend--values {
     display: grid;
-    grid-template-columns: repeat(4, auto);
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
     gap: 0;
     justify-content: center;
     align-content: center;
@@ -489,9 +489,57 @@
     }
 }
 
-.ui-chart--share > .ui-chart__legend--values {
-    grid-template-columns: auto minmax(0, 1fr) auto auto;
+.ui-chart--share > .ui-chart__legend {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(12rem, 1fr));
+    gap: @ui-space-1 @ui-space-4;
     justify-content: stretch;
+    padding: 0;
+
+    > :is(.ui-chart__legend-entry, .ui-chart__legend-rest) {
+        justify-content: flex-start;
+        min-width: 0;
+    }
+
+    > * > .ui-chart__legend-caption {
+        min-width: 0;
+        .ui-text-nowrap();
+    }
+}
+
+.ui-chart--share > .ui-chart__legend--values {
+    grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+    gap: @ui-space-1 @ui-space-4;
+    justify-content: stretch;
+
+    > :is(.ui-chart__legend-entry, .ui-chart__legend-rest) {
+        grid-column: auto;
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+    }
+}
+
+// A legend laid across an author-chosen number of equal columns (`SetLegendColumns`).
+.ui-chart > .ui-chart__legend--columns {
+    display: grid;
+    grid-template-columns: repeat(var(--ui-chart-legend-columns, 2), minmax(0, 1fr));
+    gap: @ui-space-1 @ui-space-4;
+    justify-content: stretch;
+    padding: 0;
+
+    > :is(.ui-chart__legend-entry, .ui-chart__legend-rest) {
+        grid-column: auto;
+        justify-content: flex-start;
+        min-width: 0;
+    }
+
+    > * > .ui-chart__legend-caption {
+        min-width: 0;
+        .ui-text-nowrap();
+    }
+
+    &.ui-chart__legend--values > :is(.ui-chart__legend-entry, .ui-chart__legend-rest) {
+        grid-template-columns: auto minmax(0, 1fr) auto auto;
+    }
 }
 
 .ui-chart__legend-value,

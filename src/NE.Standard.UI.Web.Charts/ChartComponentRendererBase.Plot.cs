@@ -196,8 +196,8 @@ public abstract partial class ChartComponentRendererBase
                 _ = reach.Attribute("d", ChartPath.Line(series.Drawn, x, y, plot, stepped, smooth));
             });
 
-            // A chart drawing no marks keeps one unpainted for a tooltip to anchor on; the stylesheet shows it under the pointer.
-            if (!markers && !spec.Tooltip)
+            // A chart drawing no marks keeps one unpainted for a tooltip or a point click to anchor on; the stylesheet shows it under the pointer.
+            if (!markers && !spec.Tooltip && !spec.Pressable)
                 return;
 
             for (var i = 0; i < series.Drawn.Count; i++)
@@ -765,8 +765,8 @@ public abstract partial class ChartComponentRendererBase
 
             RenderSegments(group, LineClassName, ChartRadar.Edges(shape.Spots));
 
-            // As on a line: a chart that draws no marks still needs something for a tooltip to anchor on.
-            if (!markers && !spec.Tooltip)
+            // As on a line: a chart that draws no marks still needs something for a tooltip or a point click to anchor on.
+            if (!markers && !spec.Tooltip && !spec.Pressable)
                 return;
 
             for (var i = 0; i < shape.Points.Length; i++)

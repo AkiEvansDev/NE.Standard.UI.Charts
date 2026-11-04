@@ -193,3 +193,21 @@ test("a turn beside its legend stands on an area as wide as it needs, and takes 
     fitTurn(real<HTMLElement>(root), pie as unknown as HTMLElement, "End", null);
     assert.equal(pie.style.width, "");
 });
+
+test("a legend created or updated on the client carries its values and columns classes and variable", () => {
+    const root = chart();
+
+    syncLegend(real<HTMLElement>(root), entries("west", "east"), null, new Set(), names, focusReturn, true, 3);
+
+    const legend = root.querySelector(`.${ChartClasses.legend}`);
+
+    assert.equal(legend?.classList.contains(ChartClasses.legendValues), true);
+    assert.equal(legend?.classList.contains(ChartClasses.legendColumns), true);
+    assert.equal(legend?.style.getPropertyValue("--ui-chart-legend-columns"), "3");
+
+    syncLegend(real<HTMLElement>(root), entries("west", "east"), null, new Set(), names, focusReturn, false, null);
+
+    assert.equal(legend?.classList.contains(ChartClasses.legendValues), false);
+    assert.equal(legend?.classList.contains(ChartClasses.legendColumns), false);
+    assert.equal(legend?.style.getPropertyValue("--ui-chart-legend-columns"), "");
+});

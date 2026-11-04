@@ -973,6 +973,13 @@ export class ChartEngine {
         button.setAttribute("aria-pressed", hidden ? "false" : "true");
         button.classList.toggle(ClientNames.legendOff, hidden);
 
+        // A finger's tap on a legend entry toggled its series rather than holding it forward: release the tap so a series just
+        // brought back does not dim every other series until the next tap elsewhere.
+        if (this.tapped === root && entry.front === key) {
+            this.tapped = null;
+            entry.front = null;
+        }
+
         this.schedule(root);
 
         return true;

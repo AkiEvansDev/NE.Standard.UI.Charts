@@ -73,6 +73,13 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
     public UIChartLegendPlacement? Legend { get; set; }
 
     /// <summary>
+    /// Gets the number of columns the legend lays its entries across, set by <see cref="SetLegendColumns"/>; unset, a share bar's
+    /// legend fills as many columns as fit and every other chart's wraps its entries along a row or down a side column.
+    /// </summary>
+    [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = null)]
+    public int? LegendColumns { get; private set; }
+
+    /// <summary>
     /// Gets whether a series with no readings is omitted from the legend and the canvas's spoken name, set by <see cref="SetHideEmptySeries"/>.
     /// </summary>
     [UIComponentProperty(Contract = typeof(IChartComponent), IsBindable = false, GenerateSetter = false, DefaultValue = false)]
@@ -245,6 +252,17 @@ public abstract partial class ChartComponentBase<T>(string? id = null) : ItemsCo
 
         SeriesPath = propertyPath;
         TranslateSeriesNames = translate;
+        return Self;
+    }
+
+    /// <summary>
+    /// Lays the legend's entries across <paramref name="columns"/> equal columns.
+    /// </summary>
+    public T SetLegendColumns(int columns)
+    {
+        ArgumentOutOfRangeException.ThrowIfLessThan(columns, 1);
+
+        LegendColumns = columns;
         return Self;
     }
 

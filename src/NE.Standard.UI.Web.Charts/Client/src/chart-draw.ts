@@ -168,7 +168,7 @@ export function drawChart(state: ChartState, formatting: ChartFormatting): Chart
 
     // The legend first: its entries move the plot's box, and a box measured before them would stretch the old frame into the new.
     if (model.legend !== "None")
-        syncLegend(state.root, entries, rest, state.hidden, formatting.names, formatting.focusReturn);
+        syncLegend(state.root, entries, rest, state.hidden, formatting.names, formatting.focusReturn, model.legendValues, model.legendColumns ?? null);
 
     // Beside the plot or under it, before the plot's box is measured: where the legend stands is what the plot is left.
     placeSideLegend(state.root, model.legend);
@@ -695,8 +695,8 @@ function drawRadarSeries(
     drawBand(bands, entry.series.key, color, radarOutline(spots));
     segmentGroup(shape, ChartClasses.line, radarEdges(spots));
 
-    // As on a line: a chart that draws no marks still needs something for a tooltip to anchor on.
-    if (!markers && !model.tooltip)
+    // As on a line: a chart that draws no marks still needs something for a tooltip or a point click to anchor on.
+    if (!markers && !model.tooltip && !model.pressable)
         return;
 
     for (let i = 0; i < points.length; i++) {
@@ -1021,8 +1021,8 @@ function drawSeries(
 
         reach.setAttribute("d", linePath(entry.drawn, x, y, plot, stepped, smooth));
 
-        // A chart drawing no marks keeps one unpainted for a tooltip to anchor on; the stylesheet shows it under the pointer.
-        if (!markers && !model.tooltip)
+        // A chart drawing no marks keeps one unpainted for a tooltip or a point click to anchor on; the stylesheet shows it under the pointer.
+        if (!markers && !model.tooltip && !model.pressable)
             continue;
 
         for (let i = 0; i < entry.drawn.length; i++)

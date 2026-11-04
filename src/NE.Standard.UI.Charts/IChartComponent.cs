@@ -33,6 +33,9 @@ public interface IChartComponent
     /// <summary>Gets the registered property key for <see cref="Legend"/>.</summary>
     static UIProperty LegendProperty { get; } = new(nameof(Legend));
 
+    /// <summary>Gets the registered property key for <see cref="LegendColumns"/>.</summary>
+    static UIProperty LegendColumnsProperty { get; } = new(nameof(LegendColumns));
+
     /// <summary>Gets the registered property key for <see cref="HideEmptySeries"/>.</summary>
     static UIProperty HideEmptySeriesProperty { get; } = new(nameof(HideEmptySeries));
 
@@ -74,6 +77,9 @@ public interface IChartComponent
 
     /// <summary>Where the legend stands.</summary>
     UIChartLegendPlacement? Legend { get; }
+
+    /// <summary>How many equal columns the legend lays its entries across; unset, the chart kind's default layout.</summary>
+    int? LegendColumns { get; }
 
     /// <summary>Whether a series with no readings is omitted from the legend and the canvas's spoken name.</summary>
     bool? HideEmptySeries { get; }

@@ -38,7 +38,9 @@ export function syncLegend(
     rest: LegendRest | null,
     hidden: ReadonlySet<string>,
     names: DomNames,
-    focusReturn: Popups["focusReturn"]
+    focusReturn: Popups["focusReturn"],
+    values = false,
+    columns: number | null = null
 ): void {
     let legend = legendOf(root);
     const buttons = legend === null ? [] : [...legend.children].filter(child => !child.classList.contains(ChartClasses.legendRest));
@@ -58,6 +60,21 @@ export function syncLegend(
         legend.className = ChartClasses.legend;
         legend.setAttribute(names.eventBoundary, "");
         root.append(legend);
+    }
+
+    const hasColumns = columns !== null && columns > 0;
+
+    if (legend.classList.contains(ChartClasses.legendValues) !== values)
+        legend.classList.toggle(ChartClasses.legendValues, values);
+
+    if (legend.classList.contains(ChartClasses.legendColumns) !== hasColumns)
+        legend.classList.toggle(ChartClasses.legendColumns, hasColumns);
+
+    if (legend instanceof HTMLElement) {
+        const count = hasColumns ? String(columns) : "";
+
+        if (legend.style.getPropertyValue(ChartVariables.legendColumns) !== count)
+            legend.style.setProperty(ChartVariables.legendColumns, count);
     }
 
     const kept = keepButtons(buttons, entries);

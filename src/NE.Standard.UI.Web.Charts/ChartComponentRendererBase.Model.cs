@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Globalization;
 using NE.Standard.UI.Charts;
 using NE.Standard.UI.Primitives.Styling;
 using NE.Standard.UI.Web.Abstractions.Html;
@@ -70,7 +71,7 @@ public abstract partial class ChartComponentRendererBase
             entries.Add(new LegendEntry(current.Series.Key, ReadCaption(context, spec, current.Series), SeriesColor(context, current)));
         }
 
-        RenderLegendEntries(root, entries, false, null);
+        RenderLegendEntries(root, entries, false, spec.LegendColumns, null);
     }
 
     /// <summary>Whether a series holds at least one placed value, so an empty series can be omitted without shifting colours.</summary>
@@ -113,7 +114,7 @@ public abstract partial class ChartComponentRendererBase
                 : new LegendEntry(points[i].Key, label, color);
         }
 
-        RenderLegendEntries(root, entries, spec.LegendValues, spec.Kind == ShareKind ? RestEntry(context, spec, values, formats) : null);
+        RenderLegendEntries(root, entries, spec.LegendValues, spec.LegendColumns, spec.Kind == ShareKind ? RestEntry(context, spec, values, formats) : null);
     }
 
     /// <summary>Every point's value as the arithmetic of a whole reads it.</summary>
@@ -155,7 +156,7 @@ public abstract partial class ChartComponentRendererBase
     /// The legend as a row of buttons, one per entry, each pressed until the viewer puts it aside, and a share bar's rest after them,
     /// named but no button; a table of the parts' values and shares where <paramref name="values"/>. None where there is nothing to name.
     /// </summary>
-    private static void RenderLegendEntries(IHtmlElementBuilder root, IReadOnlyList<LegendEntry> entries, bool values, LegendEntry? rest)
+    private static void RenderLegendEntries(IHtmlElementBuilder root, IReadOnlyList<LegendEntry> entries, bool values, int? columns, LegendEntry? rest)
     {
         if (entries.Count == 0 && rest is null)
             return;
@@ -166,6 +167,12 @@ public abstract partial class ChartComponentRendererBase
 
             if (values)
                 _ = legend.Class(LegendValuesClassName);
+
+            if (columns is int count)
+            {
+                _ = legend.Class(LegendColumnsClassName);
+                _ = legend.Style(LegendColumnsVariable, count.ToString(CultureInfo.InvariantCulture));
+            }
 
             // A press on an entry is the chart's own, never a clickable component's around it.
             _ = legend.Attribute(WebAttributes.EventBoundary);

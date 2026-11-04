@@ -102,12 +102,14 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected const string LegendMarkClassName = "ui-chart__legend-mark";
     protected const string LegendCaptionClassName = "ui-chart__legend-caption";
     protected const string LegendValuesClassName = "ui-chart__legend--values";
+    protected const string LegendColumnsClassName = "ui-chart__legend--columns";
     protected const string LegendValueClassName = "ui-chart__legend-value";
     protected const string LegendShareClassName = "ui-chart__legend-share";
     protected const string LegendRestClassName = "ui-chart__legend-rest";
     protected const string EmptyClassName = "ui-chart__empty";
     protected const string WindowClassName = "ui-chart__window";
     protected const string SeriesColorVariable = "--ui-chart-series-color";
+    protected const string LegendColumnsVariable = "--ui-chart-legend-columns";
 
     // The first frame's box: text doesn't scale with the viewBox, so the browser re-draws at the real size and this only shapes
     // the first paint.
@@ -307,6 +309,7 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             TranslateSeriesNames = ReadRenderValue(context, IChartComponent.TranslateSeriesNamesProperty, false),
             ValuePath = ReadRenderValue<string?>(context, IChartComponent.ValuePathProperty, null),
             Legend = kind == ShareKind && legend is UIChartLegendPlacement.Start or UIChartLegendPlacement.End ? UIChartLegendPlacement.Bottom : legend,
+            LegendColumns = ReadRenderValue<int?>(context, IChartComponent.LegendColumnsProperty, null) is int columns && columns > 0 ? columns : null,
             HideEmptySeries = ReadRenderValue(context, IChartComponent.HideEmptySeriesProperty, false),
             Tooltip = ReadRenderValue(context, IChartComponent.ShowTooltipProperty, true),
             Stepped = lines.Stepped,

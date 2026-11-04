@@ -50,6 +50,9 @@ internal sealed record ChartSpec
 
     public UIChartLegendPlacement Legend { get; init; }
 
+    /// <summary>How many equal columns the legend lays its entries across; null for the chart kind's default layout.</summary>
+    public int? LegendColumns { get; init; }
+
     /// <summary>Whether a series with no readings is omitted from the legend and the canvas's spoken name.</summary>
     public bool HideEmptySeries { get; init; }
 
@@ -71,7 +74,6 @@ internal sealed record ChartSpec
     public bool Zoomable { get; init; }
 
     /// <summary>Whether a press on a point, a bar or a sector reaches a command the author wired (<c>OnPointClick</c>).</summary>
-    [JsonIgnore]
     public bool Pressable { get; init; }
 
     /// <summary>Whether a window narrower than the data stays on the far end as the data grows past it.</summary>
