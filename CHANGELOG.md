@@ -4,6 +4,6 @@ This slice's changelog. It holds only what is not released yet, under `## X.Y.Z`
 workflow cuts that section out as the body of the GitHub release (a tag with no section fails the release), and the notes of every
 released version live there — https://github.com/AkiEvansDev/NE.Standard.UI.Charts/releases.
 
-## 2.4.0
+## 2.4.1
 
-- `ShareBarComponent.RemainderCaption` marked `[Translatable]` and resolved as a word key in `data-ui-chart` so `RemainderCaption` and series captions localize on initial boot and language switches (#290). Built on the framework's 2.4.0.
+- Built on the framework's 2.4.1 release.
