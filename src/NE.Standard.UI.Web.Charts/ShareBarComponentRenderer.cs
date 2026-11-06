@@ -26,7 +26,16 @@ public class ShareBarComponentRenderer : ChartComponentRendererBase
         => ReadRenderValue<double?>(context, ShareBarComponent.TotalProperty, null) is double value && double.IsFinite(value) ? value : null;
 
     protected override UIPhrase? ReadRemainderCaption(WebRenderContext context)
-        => ReadRenderValue<UIPhrase?>(context, ShareBarComponent.RemainderCaptionProperty, null);
+    {
+        _ = ResolveRenderWord(context, ShareBarComponent.RemainderCaptionProperty, out var key, out var words);
+
+        return key switch
+        {
+            UIPhrase phrase => phrase,
+            string text => text,
+            _ => string.IsNullOrWhiteSpace(words) ? null : UIPhrase.Text(words)
+        };
+    }
 
     protected override void RenderTotal(WebRenderContext context, IHtmlElementBuilder root)
         => _ = RenderProperty<double?>(context, root, ShareBarComponent.TotalProperty, static (target, total) =>
