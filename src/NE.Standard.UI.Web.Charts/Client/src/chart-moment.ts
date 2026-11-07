@@ -2,7 +2,7 @@
 // in NE.Standard.UI.Charts, numbering by wall clock so both sides land on the same places.
 
 import type { WrittenMoment } from "ne-standard-ui";
-import { daysFromCivil } from "./chart-calendar.ts";
+import { daysFromCivil, MaxTime, MinTime } from "./chart-calendar.ts";
 
 /** What reads a moment off the wire's text: the framework's parser, handed in so the arithmetic stays a function of its arguments. */
 export type MomentParser = (text: string) => WrittenMoment | null;
@@ -20,8 +20,9 @@ export function momentNumber(moment: WrittenMoment): number {
  * clock, not an instant.
  */
 export function momentDate(value: number): Date {
+    const clamped = Number.isNaN(value) ? 0 : Math.min(MaxTime, Math.max(MinTime, value));
     // The offset in force at the moment itself, not at the instant the number would otherwise name, which a zone's change moves.
-    const guess = new Date(value + new Date(value).getTimezoneOffset() * 60_000);
+    const guess = new Date(clamped + new Date(clamped).getTimezoneOffset() * 60_000);
 
-    return new Date(value + guess.getTimezoneOffset() * 60_000);
+    return new Date(clamped + guess.getTimezoneOffset() * 60_000);
 }

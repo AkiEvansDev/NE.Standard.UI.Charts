@@ -56,7 +56,7 @@ internal static class ChartDataReader
             return;
         }
 
-        // A log axis has no place for zero or below: still a row, which a chart with no x path numbers by, but no point and no range.
+        // A log axis has no place for zero or below: still a row on the wire, but no point and no range.
         if (spec.XAxis.Kind == UIChartAxisKind.Logarithmic && x <= 0)
         {
             data.AddRow([key, text, Array.Empty<double?>()]);

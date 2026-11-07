@@ -351,12 +351,7 @@ public abstract partial class ChartComponentRendererBase
     private void RenderPie(WebRenderContext context, IHtmlElementBuilder root, ChartSpec spec, ChartRenderData data, ChartFormats formats)
     {
         List<ChartPoint> points = data.Series.Count > 0 ? data.Series[0].Points : [];
-        var values = new double?[points.Count];
-
-        for (var i = 0; i < points.Count; i++)
-            values[i] = points[i].Y;
-
-        ChartSector[] sectors = ChartPie.Sectors(values);
+        ChartSector[] sectors = ChartPie.Sectors(PartValues(points));
         ChartSpot centre = new(NominalWidth / 2, NominalHeight / 2);
         var radius = (Math.Min(NominalWidth, NominalHeight) / 2) - PlotInset;
         var inner = radius * spec.Donut;
@@ -566,7 +561,8 @@ public abstract partial class ChartComponentRendererBase
             return;
 
         var start = Math.Round(part.Start * NominalWidth);
-        var width = Math.Max(1, Math.Round((part.Start + part.Length) * NominalWidth) - start - (followed ? 1 : 0));
+        var rawWidth = Math.Round((part.Start + part.Length) * NominalWidth) - start;
+        var width = Math.Max(1, rawWidth - (followed && rawWidth > 1 ? 1 : 0));
         // A point's words, the series naming what the value counts; a share bar shares no tooltip, so SharedTooltip silences none.
         var tooltip = spec.Tooltip ? PointWords(context, spec, data, ReadCaption(context, spec, data.Series[0].Series), point.X, point.Y ?? 0, formats) : null;
 

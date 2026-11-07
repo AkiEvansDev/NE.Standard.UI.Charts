@@ -470,7 +470,8 @@ function drawShare(
 
         const point = points[i];
         const start = Math.round(parts[i].start * width);
-        const length = Math.max(1, Math.round((parts[i].start + parts[i].length) * width) - start - (i < last || end < width ? 1 : 0));
+        const rawLength = Math.round((parts[i].start + parts[i].length) * width) - start;
+        const length = Math.max(1, rawLength - ((i < last || end < width) && rawLength > 1 ? 1 : 0));
         const shape = append(group, "g", ChartClasses.series);
         const segment = append(shape, "rect", ChartClasses.segment);
 
@@ -1160,7 +1161,7 @@ function tooltipText(
     formatting: ChartFormatting
 ): string {
     const left = formatValue(model.x, formats.x, x, categories, numbers, dates, formatting);
-    const right = formatValue(model.y, formats.y, value, categories, numbers, dates, formatting);
+    const right = formatValue(model.y, formats.y, value, [], numbers, dates, formatting);
 
     return pointWords(series.series.caption, left, right, formatting);
 }
@@ -1234,7 +1235,7 @@ function buildColumns(
                     if (value === null || value === undefined || (omitZero && value === 0))
                         continue;
 
-                    const reading = formatValue(model.y, formats.y, value, categories, numbers, dates, formatting);
+                    const reading = formatValue(model.y, formats.y, value, [], numbers, dates, formatting);
 
                     lines.push(readingWords(series[index].series.caption, reading, formatting));
                 }
