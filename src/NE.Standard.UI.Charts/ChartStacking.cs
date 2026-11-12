@@ -26,7 +26,7 @@ public static class ChartStacking
         for (var i = 0; i < series.Count; i++)
         {
             IReadOnlyList<ChartPoint> points = series[i];
-            List<ChartPoint> result = new(points.Count);
+            List<ChartPoint> result = [with(points.Count)];
 
             for (var j = 0; j < points.Count; j++)
             {

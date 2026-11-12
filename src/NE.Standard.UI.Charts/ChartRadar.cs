@@ -92,7 +92,7 @@ public static class ChartRadar
     {
         ArgumentNullException.ThrowIfNull(spots);
 
-        List<ChartSegment> edges = new(spots.Count);
+        List<ChartSegment> edges = [with(spots.Count)];
 
         for (var i = 0; i < spots.Count && spots.Count > 1; i++)
         {

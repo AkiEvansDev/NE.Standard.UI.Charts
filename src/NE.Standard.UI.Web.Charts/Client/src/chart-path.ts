@@ -30,7 +30,7 @@ type Vertex = {
 const CurvePiece = 4;
 
 /** The line through the points, broken wherever a row had no value — a run of one point draws nothing, and its marker shows it. */
-export function linePath(points: readonly ChartPoint[], x: Scale, y: Scale, plot: Plot, stepped: boolean, smooth: boolean): string {
+export function linePath(points: readonly ChartPoint[], x: Scale, y: Scale, plot: Plot, stepped: boolean, smooth: boolean, clipped = false): string {
     let path = "";
     let run: Vertex[] = [];
 
@@ -40,18 +40,18 @@ export function linePath(points: readonly ChartPoint[], x: Scale, y: Scale, plot
             continue;
         }
 
-        path = appendRun(path, run, stepped, smooth);
+        path = appendShownRun(path, run, plot, stepped, smooth, clipped);
         run = [];
     }
 
-    return appendRun(path, run, stepped, smooth);
+    return appendShownRun(path, run, plot, stepped, smooth, clipped);
 }
 
 /**
  * The band between a series' line and what it stands on — each point's own `base` in a stack, or the axis's zero — closed like
  * the line.
  */
-export function areaPath(points: readonly ChartPoint[], x: Scale, y: Scale, plot: Plot, stepped: boolean, smooth: boolean): string {
+export function areaPath(points: readonly ChartPoint[], x: Scale, y: Scale, plot: Plot, stepped: boolean, smooth: boolean, clipped = false): string {
     const zero = plotY(plot, y, within(y, 0));
     let path = "";
     let start = -1;
@@ -65,7 +65,7 @@ export function areaPath(points: readonly ChartPoint[], x: Scale, y: Scale, plot
         }
 
         if (start >= 0)
-            path = appendBand(path, points, start, i - 1, x, y, plot, stepped, smooth, zero);
+            path = appendShownBands(path, points, start, i - 1, x, y, plot, stepped, smooth, zero, clipped);
 
         start = -1;
     }
@@ -207,22 +207,104 @@ export function coord(value: number): string {
     return String(rounded === 0 ? 0 : rounded);
 }
 
-function appendRun(path: string, run: readonly Vertex[], stepped: boolean, smooth: boolean): string {
-    if (run.length === 0)
+function appendShownRun(path: string, run: readonly Vertex[], plot: Plot, stepped: boolean, smooth: boolean, clipped: boolean): string {
+    if (!clipped || run.length === 0)
+        return appendRun(path, run, 0, run.length - 1, stepped, smooth);
+
+    if (run.length === 1)
+        return beside(plot, run[0].x, run[0].x) ? path : appendRun(path, run, 0, 0, stepped, smooth);
+
+    for (const [from, to] of visibleSubruns(run, plot, smooth))
+        path = appendRun(path, run, from, to, stepped, smooth);
+
+    return path;
+}
+
+function appendShownBands(
+    path: string,
+    points: readonly ChartPoint[],
+    from: number,
+    to: number,
+    x: Scale,
+    y: Scale,
+    plot: Plot,
+    stepped: boolean,
+    smooth: boolean,
+    zero: number,
+    clipped: boolean
+): string {
+    if (!clipped || from === to) {
+        if (clipped && from === to) {
+            const px = plotX(plot, x, points[from].x);
+
+            if (beside(plot, px, px))
+                return path;
+        }
+
+        return appendBand(path, points, from, to, from, to, x, y, plot, stepped, smooth, zero);
+    }
+
+    const xs: Vertex[] = [];
+
+    for (let i = from; i <= to; i++)
+        xs.push({ x: plotX(plot, x, points[i].x), y: 0 });
+
+    for (const [subFrom, subTo] of visibleSubruns(xs, plot, smooth))
+        path = appendBand(path, points, from, to, from + subFrom, from + subTo, x, y, plot, stepped, smooth, zero);
+
+    return path;
+}
+
+/** Vertex index ranges `[start, end]` within `run` whose segments cross or sit inside `[plot.left, plotRight]`. */
+function visibleSubruns(run: readonly Vertex[], plot: Plot, smooth: boolean): [number, number][] {
+    const ranges: [number, number][] = [];
+
+    for (let i = 1; i < run.length; i++) {
+        let minX = Math.min(run[i - 1].x, run[i].x);
+        let maxX = Math.max(run[i - 1].x, run[i].x);
+
+        if (smooth) {
+            const before = Math.max(0, i - 2);
+            const after = Math.min(run.length - 1, i + 1);
+            const firstX = run[i - 1].x + (run[i].x - run[before].x) / 6;
+            const secondX = run[i].x - (run[after].x - run[i - 1].x) / 6;
+
+            minX = Math.min(minX, firstX, secondX);
+            maxX = Math.max(maxX, firstX, secondX);
+        }
+
+        if (beside(plot, minX, maxX))
+            continue;
+
+        const sliceFrom = i - 1;
+        const sliceTo = i;
+        const previous = ranges.at(-1);
+
+        if (previous !== undefined && sliceFrom <= previous[1])
+            previous[1] = Math.max(previous[1], sliceTo);
+        else
+            ranges.push([sliceFrom, sliceTo]);
+    }
+
+    return ranges;
+}
+
+function appendRun(path: string, run: readonly Vertex[], from: number, to: number, stepped: boolean, smooth: boolean): string {
+    if (run.length === 0 || from > to)
         return path;
 
     const prefix = path.length > 0 ? path + " " : "";
 
-    return prefix + `M${coord(run[0].x)} ${coord(run[0].y)}` + segments(run, stepped, smooth);
+    return prefix + `M${coord(run[from].x)} ${coord(run[from].y)}` + segments(run, from, to, stepped, smooth);
 }
 
-function segments(run: readonly Vertex[], stepped: boolean, smooth: boolean): string {
+function segments(run: readonly Vertex[], from: number, to: number, stepped: boolean, smooth: boolean): string {
     if (stepped)
-        return steps(run);
+        return steps(run, from, to);
 
     let result = "";
 
-    for (let i = 1; i < run.length; i++) {
+    for (let i = from + 1; i <= to; i++) {
         if (smooth) {
             result += curve(run, i);
             continue;
@@ -238,16 +320,16 @@ function segments(run: readonly Vertex[], stepped: boolean, smooth: boolean): st
  * A stair centred on its points: a value holds from halfway back to halfway on, so a point's mark sits mid-step, not on a
  * corner.
  */
-function steps(run: readonly Vertex[]): string {
-    if (run.length < 2)
+function steps(run: readonly Vertex[], from: number, to: number): string {
+    if (to - from < 1)
         return "";
 
     let result = "";
 
-    for (let i = 1; i < run.length; i++)
+    for (let i = from + 1; i <= to; i++)
         result += ` H${coord((run[i - 1].x + run[i].x) / 2)} V${coord(run[i].y)}`;
 
-    return result + ` H${coord(run[run.length - 1].x)}`;
+    return result + ` H${coord(run[to].x)}`;
 }
 
 /** One segment as a cubic whose handles follow the points on either side — a Catmull-Rom curve, which passes through every point. */
@@ -263,12 +345,14 @@ function curve(run: readonly Vertex[], index: number): string {
     return ` C${coord(firstX)} ${coord(firstY)} ${coord(secondX)} ${coord(secondY)} ${coord(run[index].x)} ${coord(run[index].y)}`;
 }
 
-/** One unbroken stretch of the band: the tops from `from` to `to`, then the bases back. */
+/** One unbroken stretch of the band: the tops from `subFrom` to `subTo`, then the bases back. */
 function appendBand(
     path: string,
     points: readonly ChartPoint[],
-    from: number,
-    to: number,
+    runFrom: number,
+    runTo: number,
+    subFrom: number,
+    subTo: number,
     x: Scale,
     y: Scale,
     plot: Plot,
@@ -276,23 +360,30 @@ function appendBand(
     smooth: boolean,
     zero: number
 ): string {
+    const padFrom = smooth ? Math.max(runFrom, subFrom - 1) : subFrom;
+    const padTo = smooth ? Math.min(runTo, subTo + 1) : subTo;
     const top: Vertex[] = [];
 
-    for (let i = from; i <= to; i++)
+    for (let i = padFrom; i <= padTo; i++)
         top.push({ x: plotX(plot, x, points[i].x), y: plotY(plot, y, points[i].y as number) });
 
-    let result = appendRun(path, top, stepped, smooth);
+    const localFrom = subFrom - padFrom;
+    const localTo = subTo - padFrom;
+    let result = appendRun(path, top, localFrom, localTo, stepped, smooth);
 
     // Nothing under it: the band closes on the axis's zero, which is one straight edge whatever the line did.
-    if (points[from].base === undefined || points[from].base === null)
-        return result + ` L${coord(top[top.length - 1].x)} ${coord(zero)} L${coord(top[0].x)} ${coord(zero)} Z`;
+    if (points[subFrom].base === undefined || points[subFrom].base === null)
+        return result + ` L${coord(top[localTo].x)} ${coord(zero)} L${coord(top[localFrom].x)} ${coord(zero)} Z`;
 
     const bottom: Vertex[] = [];
 
-    for (let i = to; i >= from; i--)
+    for (let i = padTo; i >= padFrom; i--)
         bottom.push({ x: plotX(plot, x, points[i].x), y: plotY(plot, y, points[i].base ?? 0) });
 
-    result += ` L${coord(bottom[0].x)} ${coord(bottom[0].y)}`;
+    const bottomFrom = padTo - subTo;
+    const bottomTo = padTo - subFrom;
 
-    return result + segments(bottom, stepped, smooth) + " Z";
+    result += ` L${coord(bottom[bottomFrom].x)} ${coord(bottom[bottomFrom].y)}`;
+
+    return result + segments(bottom, bottomFrom, bottomTo, stepped, smooth) + " Z";
 }

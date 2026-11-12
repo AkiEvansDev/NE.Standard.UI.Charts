@@ -229,6 +229,24 @@ public static class ChartPath
         return (rounded == 0 ? 0 : rounded).ToString(CultureInfo.InvariantCulture);
     }
 
+    private static void AppendCoord(StringBuilder builder, double value)
+    {
+        if (!double.IsFinite(value))
+        {
+            _ = builder.Append('0');
+            return;
+        }
+
+        var rounded = Math.Floor((value * 100) + 0.5) / 100;
+        var normalized = rounded == 0 ? 0 : rounded;
+        Span<char> buffer = stackalloc char[32];
+
+        if (normalized.TryFormat(buffer, out var written, default, CultureInfo.InvariantCulture))
+            _ = builder.Append(buffer[..written]);
+        else
+            _ = builder.Append(normalized.ToString(CultureInfo.InvariantCulture));
+    }
+
     private static void AppendRun(StringBuilder builder, List<(double X, double Y)> run, bool stepped, bool smooth)
     {
         if (run.Count == 0)
@@ -237,7 +255,10 @@ public static class ChartPath
         if (builder.Length > 0)
             _ = builder.Append(' ');
 
-        _ = builder.Append('M').Append(Coord(run[0].X)).Append(' ').Append(Coord(run[0].Y));
+        _ = builder.Append('M');
+        AppendCoord(builder, run[0].X);
+        _ = builder.Append(' ');
+        AppendCoord(builder, run[0].Y);
 
         AppendSegments(builder, run, stepped, smooth);
     }
@@ -258,7 +279,10 @@ public static class ChartPath
                 continue;
             }
 
-            _ = builder.Append(" L").Append(Coord(run[i].X)).Append(' ').Append(Coord(run[i].Y));
+            _ = builder.Append(" L");
+            AppendCoord(builder, run[i].X);
+            _ = builder.Append(' ');
+            AppendCoord(builder, run[i].Y);
         }
     }
 
@@ -275,10 +299,14 @@ public static class ChartPath
         {
             var middle = (run[i - 1].X + run[i].X) / 2;
 
-            _ = builder.Append(" H").Append(Coord(middle)).Append(" V").Append(Coord(run[i].Y));
+            _ = builder.Append(" H");
+            AppendCoord(builder, middle);
+            _ = builder.Append(" V");
+            AppendCoord(builder, run[i].Y);
         }
 
-        _ = builder.Append(" H").Append(Coord(run[^1].X));
+        _ = builder.Append(" H");
+        AppendCoord(builder, run[^1].X);
     }
 
     /// <summary>One segment as a cubic whose handles follow the points on either side — a Catmull-Rom curve, which passes through every point.</summary>
@@ -292,16 +320,24 @@ public static class ChartPath
         var secondX = run[index].X - ((run[after].X - run[index - 1].X) / 6);
         var secondY = run[index].Y - ((run[after].Y - run[index - 1].Y) / 6);
 
-        _ = builder
-            .Append(" C").Append(Coord(firstX)).Append(' ').Append(Coord(firstY))
-            .Append(' ').Append(Coord(secondX)).Append(' ').Append(Coord(secondY))
-            .Append(' ').Append(Coord(run[index].X)).Append(' ').Append(Coord(run[index].Y));
+        _ = builder.Append(" C");
+        AppendCoord(builder, firstX);
+        _ = builder.Append(' ');
+        AppendCoord(builder, firstY);
+        _ = builder.Append(' ');
+        AppendCoord(builder, secondX);
+        _ = builder.Append(' ');
+        AppendCoord(builder, secondY);
+        _ = builder.Append(' ');
+        AppendCoord(builder, run[index].X);
+        _ = builder.Append(' ');
+        AppendCoord(builder, run[index].Y);
     }
 
     /// <summary>One unbroken stretch of the band: the tops from <paramref name="from"/> to <paramref name="to"/>, then the bases back.</summary>
     private static void AppendBand(StringBuilder builder, IReadOnlyList<ChartPoint> points, int from, int to, ChartScale x, ChartScale y, ChartPlot plot, bool stepped, bool smooth, double zero)
     {
-        List<(double X, double Y)> top = new(to - from + 1);
+        List<(double X, double Y)> top = [with(to - from + 1)];
 
         for (var i = from; i <= to; i++)
             top.Add((plot.X(x, points[i].X), plot.Y(y, points[i].Y!.Value)));
@@ -311,20 +347,28 @@ public static class ChartPath
         // Nothing under it: the band closes on the axis's zero, which is one straight edge whatever the line did.
         if (points[from].Base is null)
         {
-            _ = builder
-                .Append(" L").Append(Coord(top[^1].X)).Append(' ').Append(Coord(zero))
-                .Append(" L").Append(Coord(top[0].X)).Append(' ').Append(Coord(zero))
-                .Append(" Z");
+            _ = builder.Append(" L");
+            AppendCoord(builder, top[^1].X);
+            _ = builder.Append(' ');
+            AppendCoord(builder, zero);
+            _ = builder.Append(" L");
+            AppendCoord(builder, top[0].X);
+            _ = builder.Append(' ');
+            AppendCoord(builder, zero);
+            _ = builder.Append(" Z");
 
             return;
         }
 
-        List<(double X, double Y)> bottom = new(top.Count);
+        List<(double X, double Y)> bottom = [with(top.Count)];
 
         for (var i = to; i >= from; i--)
             bottom.Add((plot.X(x, points[i].X), plot.Y(y, points[i].Base ?? 0)));
 
-        _ = builder.Append(" L").Append(Coord(bottom[0].X)).Append(' ').Append(Coord(bottom[0].Y));
+        _ = builder.Append(" L");
+        AppendCoord(builder, bottom[0].X);
+        _ = builder.Append(' ');
+        AppendCoord(builder, bottom[0].Y);
 
         AppendSegments(builder, bottom, stepped, smooth);
 

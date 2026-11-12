@@ -155,49 +155,75 @@ export function applyChange(
         return;
     }
 
-    // The keys held, so an insert of many rows — the first load is one — asks a set rather than scanning the list once per row.
-    const keys = new Set<string>();
-
-    for (const slot of slots) {
-        if (slot !== null)
-            keys.add(slot.key);
-    }
+    // Each key's index in `slots`, kept in sync so large Replace/Remove/Insert batches stay linear instead of scanning per item.
+    const indexByKey = buildIndexByKey(slots);
 
     if (action === "Move") {
         for (const move of moves)
-            moveSlot(slots, keys, move.key, move.oldIndex, move.newIndex);
+            moveSlot(slots, indexByKey, move.key, move.oldIndex, move.newIndex);
+
+        return;
+    }
+
+    if (action === "Remove") {
+        if (items.length > 1 && items.every(change => change.index === null)) {
+            const removed = new Set<number>();
+
+            for (const change of items) {
+                const key = change.key ?? change.oldKey;
+                const at = key !== null ? indexByKey.get(key) ?? -1 : -1;
+
+                if (at >= 0) {
+                    removed.add(at);
+                    indexByKey.delete(key!);
+                }
+            }
+
+            if (removed.size > 0)
+                compactSlots(slots, removed);
+
+            return;
+        }
+
+        for (const change of items) {
+            const key = change.key ?? change.oldKey;
+            const at = slotOf(slots, indexByKey, key, change.index);
+
+            if (at >= 0) {
+                forget(indexByKey, slots.splice(at, 1)[0]);
+                reindexFrom(slots, indexByKey, at);
+            }
+        }
 
         return;
     }
 
     for (const change of items) {
         const key = change.key ?? change.oldKey;
-
-        if (action === "Remove") {
-            const at = slotOf(slots, keys, key, change.index);
-
-            if (at >= 0)
-                forget(keys, slots.splice(at, 1)[0]);
-
-            continue;
-        }
-
         const slot = slotFromItem(change.item, change.key ?? key ?? "", model, read, readNumber, parse);
         // A key the list already holds is that row, whichever action names it: an Insert of one must not draw the point twice. A
         // Replace of an item that was none takes its empty slot, which no key finds.
-        const held = action === "Replace" ? slotOf(slots, keys, change.oldKey ?? key, change.index) : slotOf(slots, keys, key, null);
+        const held = action === "Replace" ? slotOf(slots, indexByKey, change.oldKey ?? key, change.index) : slotOf(slots, indexByKey, key, null);
 
         if (held >= 0) {
-            forget(keys, slots[held]);
+            forget(indexByKey, slots[held]);
             slots[held] = slot;
-        }
-        else if (change.index === null || change.index < 0 || change.index >= slots.length)
-            slots.push(slot);
-        else
-            slots.splice(change.index, 0, slot);
 
-        if (slot !== null)
-            keys.add(slot.key);
+            if (slot !== null)
+                indexByKey.set(slot.key, held);
+        }
+        else if (change.index === null || change.index < 0 || change.index >= slots.length) {
+            const at = slots.length;
+
+            slots.push(slot);
+
+            if (slot !== null)
+                indexByKey.set(slot.key, at);
+        }
+        else {
+            slots.splice(change.index, 0, slot);
+            reindexFrom(slots, indexByKey, change.index);
+        }
     }
 }
 
@@ -221,26 +247,59 @@ function hasX(text: string, kind: string, parse: MomentParser | undefined, readN
     return kind === "Time" && (parse === undefined || parse(text) !== null);
 }
 
+function buildIndexByKey(slots: readonly ChartSlot[]): Map<string, number> {
+    const indexByKey = new Map<string, number>();
+
+    for (let i = 0; i < slots.length; i++) {
+        const slot = slots[i];
+
+        if (slot !== null)
+            indexByKey.set(slot.key, i);
+    }
+
+    return indexByKey;
+}
+
+function reindexFrom(slots: readonly ChartSlot[], indexByKey: Map<string, number>, start: number): void {
+    for (let i = start; i < slots.length; i++) {
+        const slot = slots[i];
+
+        if (slot !== null)
+            indexByKey.set(slot.key, i);
+    }
+}
+
+function compactSlots(slots: ChartSlot[], removed: ReadonlySet<number>): void {
+    let write = 0;
+
+    for (let read = 0; read < slots.length; read++) {
+        if (!removed.has(read))
+            slots[write++] = slots[read];
+    }
+
+    slots.length = write;
+}
+
 /** The slot of the row of that key, else the empty slot at that index — an item that was none has no key to find it by; -1 for neither. */
-function slotOf(slots: readonly ChartSlot[], keys: ReadonlySet<string>, key: string | null, index: number | null): number {
-    if (key !== null && keys.has(key)) {
-        for (let i = 0; i < slots.length; i++) {
-            if (slots[i]?.key === key)
-                return i;
-        }
+function slotOf(slots: readonly ChartSlot[], indexByKey: ReadonlyMap<string, number>, key: string | null, index: number | null): number {
+    if (key !== null) {
+        const found = indexByKey.get(key);
+
+        if (found !== undefined)
+            return found;
     }
 
     return index !== null && index >= 0 && index < slots.length && slots[index] === null ? index : -1;
 }
 
-function forget(keys: Set<string>, slot: ChartSlot | undefined): void {
+function forget(indexByKey: Map<string, number>, slot: ChartSlot | undefined): void {
     if (slot !== null && slot !== undefined)
-        keys.delete(slot.key);
+        indexByKey.delete(slot.key);
 }
 
 /** A slot taken by its row's key, or an empty one by its index, to where the source moved its item. */
-function moveSlot(slots: ChartSlot[], keys: ReadonlySet<string>, key: string | null, oldIndex: number | null, newIndex: number | null): void {
-    const from = slotOf(slots, keys, key, oldIndex);
+function moveSlot(slots: ChartSlot[], indexByKey: Map<string, number>, key: string | null, oldIndex: number | null, newIndex: number | null): void {
+    const from = slotOf(slots, indexByKey, key, oldIndex);
 
     if (from < 0)
         return;
@@ -249,6 +308,7 @@ function moveSlot(slots: ChartSlot[], keys: ReadonlySet<string>, key: string | n
     const to = newIndex === null || newIndex < 0 || newIndex > slots.length ? slots.length : newIndex;
 
     slots.splice(to, 0, slot);
+    reindexFrom(slots, indexByKey, Math.min(from, to));
 }
 
 /** The rows as points: a series per key, the names a category axis met, and how far the data reaches on either axis. */

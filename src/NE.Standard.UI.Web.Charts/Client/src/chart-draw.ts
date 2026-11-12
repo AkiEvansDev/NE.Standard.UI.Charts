@@ -976,7 +976,9 @@ function drawSeries(
     const group = append(canvas, "g", ChartClasses.plot);
     const model = state.model;
 
-    if (state.view !== null)
+    const clipped = state.view !== null;
+
+    if (clipped)
         clipPlot(canvas, group, state, plot, formatting);
 
     // Every band under every series' line and marks: a later series' band laid over an earlier one would take its points from the
@@ -1000,34 +1002,34 @@ function drawSeries(
         shape.style.setProperty(ChartVariables.seriesColor, color);
 
         if (model.kind === ChartKinds.bar) {
-            drawBars(shape, entry, index, series.length, plot, x, y, band, categories, formats, numbers, dates, formatting, model);
+            drawBars(shape, entry, index, series.length, plot, x, y, band, categories, formats, numbers, dates, formatting, model, clipped);
             continue;
         }
 
         // A cloud of points: no line at all, and a third value may size each of them.
         if (model.kind === ChartKinds.scatter) {
             for (let i = 0; i < entry.drawn.length; i++)
-                drawMarker(shape, entry, i, plot, x, y, bubbleRadius(entry.drawn[i].size, sizes.min, sizes.max), true, categories, formats, numbers, dates, formatting, model);
+                drawMarker(shape, entry, i, plot, x, y, bubbleRadius(entry.drawn[i].size, sizes.min, sizes.max), true, categories, formats, numbers, dates, formatting, model, clipped);
 
             continue;
         }
 
         if (bands !== null)
-            drawBand(bands, entry.series.key, color, areaPath(entry.drawn, x, y, plot, stepped, smooth));
+            drawBand(bands, entry.series.key, color, areaPath(entry.drawn, x, y, plot, stepped, smooth, clipped));
 
         segmentGroup(shape, ChartClasses.line, lineSegments(entry.drawn, x, y, plot, stepped, smooth));
 
         // The same line unpainted and wide, for a pointer a thin stroke cannot hold; never painted, it stays one path.
         const reach = append(shape, "path", ChartClasses.lineHit);
 
-        reach.setAttribute("d", linePath(entry.drawn, x, y, plot, stepped, smooth));
+        reach.setAttribute("d", linePath(entry.drawn, x, y, plot, stepped, smooth, clipped));
 
         // A chart drawing no marks keeps one unpainted for a tooltip or a point click to anchor on; the stylesheet shows it under the pointer.
         if (!markers && !model.tooltip && !model.pressable)
             continue;
 
         for (let i = 0; i < entry.drawn.length; i++)
-            drawMarker(shape, entry, i, plot, x, y, markers ? PlainRadius - 1 : PlainRadius + 1, markers, categories, formats, numbers, dates, formatting, model);
+            drawMarker(shape, entry, i, plot, x, y, markers ? PlainRadius - 1 : PlainRadius + 1, markers, categories, formats, numbers, dates, formatting, model, clipped);
     }
 }
 
@@ -1049,18 +1051,29 @@ function drawMarker(
     numbers: NumberCulturePack,
     dates: TemporalCulturePack,
     formatting: ChartFormatting,
-    model: ChartModel
+    model: ChartModel,
+    clipped = false
 ): void {
     const point = entry.drawn[index];
 
     if (point.y === null)
         return;
 
+    const px = plotX(plot, x, point.x);
+    const py = plotY(plot, y, point.y);
+
+    if (clipped) {
+        const reach = pointReach(radius);
+
+        if (px + reach < plot.left || px - reach > plot.left + plot.width || py + reach < plot.top || py - reach > plot.top + plot.height)
+            return;
+    }
+
     const tooltip = !model.tooltip || model.sharedTooltip
         ? null
         : tooltipText(model, entry, point.x, rawValue(entry, index), categories, formats, numbers, dates, formatting);
 
-    drawPointMark(shape, point.key, plotX(plot, x, point.x), plotY(plot, y, point.y), radius, painted, tooltip, formatting.names);
+    drawPointMark(shape, point.key, px, py, radius, painted, tooltip, formatting.names);
 }
 
 /** A point's two circles where it stands: the mark, and the fixed-size one the pointer answers, carrying the tooltip. */
@@ -1103,7 +1116,8 @@ function drawBars(
     numbers: NumberCulturePack,
     dates: TemporalCulturePack,
     formatting: ChartFormatting,
-    model: ChartModel
+    model: ChartModel,
+    clipped = false
 ): void {
     const sideways = isHorizontal(model);
 
@@ -1120,6 +1134,9 @@ function drawBars(
             continue;
 
         const bar = barOf(bandCoord(model, plot, x, point.x), band, index, count, model.stacked);
+
+        if (clipped && (sideways ? bar.start + bar.thickness < plot.top || bar.start > plot.top + plot.height : bar.start + bar.thickness < plot.left || bar.start > plot.left + plot.width))
+            continue;
         const reading = valueCoord(model, plot, y, point.y);
         const stands = valueCoord(model, plot, y, within(y, point.base ?? 0));
         const near = Math.min(reading, stands);

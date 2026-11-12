@@ -46,7 +46,7 @@ public abstract partial class ChartComponentRendererBase
     /// </summary>
     private static string CanvasLabel(WebRenderContext context, ChartSpec spec, ChartRenderData data)
     {
-        List<string> captions = new(data.Series.Count);
+        List<string> captions = [with(data.Series.Count)];
 
         for (var i = 0; i < data.Series.Count; i++)
         {
@@ -338,12 +338,13 @@ public abstract partial class ChartComponentRendererBase
     /// translated as such: a series called `p*q` reads as written, the template's own markup stays.
     /// </summary>
     private static string PointWords(WebRenderContext context, ChartSpec spec, ChartRenderData data, string caption, double x, double value, ChartFormats formats)
-        => context.Translate(ChartsStrings.Point, new Dictionary<string, object?>(StringComparer.Ordinal)
-        {
-            ["series"] = caption,
-            ["x"] = FormatValue(spec.XAxis.Kind, formats.X, x, data.Categories, formats),
-            ["y"] = FormatValue(spec.YAxis.Kind, formats.Y, value, [], formats)
-        }, markup: true);
+    {
+        formats.PointArguments["series"] = caption;
+        formats.PointArguments["x"] = FormatValue(spec.XAxis.Kind, formats.X, x, data.Categories, formats);
+        formats.PointArguments["y"] = FormatValue(spec.YAxis.Kind, formats.Y, value, [], formats);
+
+        return context.Translate(ChartsStrings.Point, formats.PointArguments, markup: true);
+    }
 
     /// <summary>
     /// The turn shared out between the first series' points, with a donut's words over its hole.

@@ -16,11 +16,11 @@ public abstract partial class ChartComponentRendererBase
     /// How a value is written on each axis, and the page's packs it is written by, settled once per render so a tick and a tooltip
     /// read the same — and as the client's redraw writes them, through the formatters it shares with the server.
     /// </summary>
-    private readonly record struct ChartFormats(string? X, string? Y, WebNumberCulturePack Numbers, WebTemporalCulturePack Dates);
+    private readonly record struct ChartFormats(string? X, string? Y, WebNumberCulturePack Numbers, WebTemporalCulturePack Dates, Dictionary<string, object?> PointArguments);
 
     /// <summary>Each axis's format and the page's packs; a format the client could not write is refused here, with no rows as well.</summary>
     private static ChartFormats ResolveFormats(ChartSpec spec, ChartScale x, ChartScale y, CultureInfo culture)
-        => new(FormatOf(spec.XAxis, x, "XAxis"), FormatOf(spec.YAxis, y, "YAxis"), WebNumberCulturePack.FromCulture(culture), WebTemporalCulturePack.FromCulture(culture));
+        => new(FormatOf(spec.XAxis, x, "XAxis"), FormatOf(spec.YAxis, y, "YAxis"), WebNumberCulturePack.FromCulture(culture), WebTemporalCulturePack.FromCulture(culture), new Dictionary<string, object?>(3, StringComparer.Ordinal));
 
     /// <summary>The format the axis writes under: the author's, or the one its resolved step asks for.</summary>
     private static string? FormatOf(UIChartAxis axis, ChartScale scale, string name)
@@ -44,7 +44,7 @@ public abstract partial class ChartComponentRendererBase
             return [];
 
         var values = ChartTicks.Build(axis.Kind, scale, axis.TickCount);
-        List<ChartLabel> labels = new(values.Length);
+        List<ChartLabel> labels = [with(values.Length)];
 
         for (var i = 0; i < values.Length; i++)
             labels.Add(new ChartLabel(values[i], FormatValue(axis.Kind, format, values[i], categories, formats)));

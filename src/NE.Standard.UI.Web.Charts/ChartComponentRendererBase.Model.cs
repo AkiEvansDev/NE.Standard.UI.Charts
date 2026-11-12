@@ -27,7 +27,7 @@ public abstract partial class ChartComponentRendererBase
     /// <summary>The chart as the browser reads it: the settings with the series as the client reads them.</summary>
     private static ChartSpec BuildModel(ChartSpec spec, ChartRenderData data, WebRenderContext context)
     {
-        List<ChartClientSeries> series = new(data.Series.Count);
+        List<ChartClientSeries> series = [with(data.Series.Count)];
 
         for (var i = 0; i < data.Series.Count; i++)
         {
@@ -59,7 +59,7 @@ public abstract partial class ChartComponentRendererBase
         if (spec.Legend == UIChartLegendPlacement.None)
             return;
 
-        List<LegendEntry> entries = new(data.Series.Count);
+        List<LegendEntry> entries = [with(data.Series.Count)];
 
         for (var i = 0; i < data.Series.Count; i++)
         {

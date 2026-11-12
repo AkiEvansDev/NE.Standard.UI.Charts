@@ -126,7 +126,7 @@ internal static class Catalogue
     public static List<Sample> Samples(int count)
     {
         DateTime start = DateTime.Now.AddMinutes(-count);
-        List<Sample> samples = new(count);
+        List<Sample> samples = [with(count)];
 
         for (var i = 0; i < count; i++)
             samples.Add(new Sample($"s{i}", start.AddMinutes(i), CpuAt(i), MemoryAt(i)));

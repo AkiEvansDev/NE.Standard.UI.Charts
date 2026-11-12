@@ -271,3 +271,32 @@ test("a numeric text is read as the server's invariant culture reads one: a no-b
     assert.deepEqual(rowFromItem({ time: 1, value: " 12.5\t" }, "r1", single, read, readNumber).values, [12.5]);
     assert.deepEqual(rowFromItem({ time: 1, value: "\u00a012.5" }, "r1", single, read, readNumber).values, [null]);
 });
+
+test("batched Replace and keyed Remove keep exact order across thousands of slots", () => {
+    const single = model({ series: [series("value", "Value")] });
+    const slots: ChartSlot[] = Array.from({ length: 2000 }, (_, i) => ({ key: `k${i}`, x: String(i), values: [i], series: null, sizes: [] }));
+
+    applyChange(
+        slots,
+        "Replace",
+        Array.from({ length: 500 }, (_, i) => ({ key: `k${i * 2}`, oldKey: `k${i * 2}`, index: null, item: { time: i * 2, value: i * 100 } })),
+        [],
+        single,
+        read,
+        readNumber
+    );
+    assert.deepEqual(slots[4]?.values, [200]);
+
+    applyChange(
+        slots,
+        "Remove",
+        Array.from({ length: 1000 }, (_, i) => ({ key: `k${i * 2}`, oldKey: `k${i * 2}`, index: null, item: null })),
+        [],
+        single,
+        read,
+        readNumber
+    );
+    assert.equal(slots.length, 1000);
+    assert.equal(slots[0]?.key, "k1");
+    assert.equal(slots[999]?.key, "k1999");
+});

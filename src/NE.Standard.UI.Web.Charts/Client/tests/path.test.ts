@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { coord, linePath } from "../src/chart-path.ts";
+import { areaPath, coord, linePath } from "../src/chart-path.ts";
 import type { ChartPoint } from "../src/chart-path.ts";
 
 const plot = { left: 0, top: 0, width: 100, height: 100 };
@@ -48,4 +48,20 @@ test("a row with no value breaks the line, and a run of one point draws nothing 
     assert.equal(linePath(points, scale, scale, plot, false, false), "M0 100 M50 50 L100 0");
     assert.equal(linePath([point("a", 0, 0)], scale, scale, plot, false, false), "M0 100");
     assert.equal(linePath([], scale, scale, plot, false, false), "");
+});
+
+test("clipped linePath and areaPath drop off-plot runs while preserving Catmull-Rom tangents inside zoomed view", () => {
+    const zoomed = { min: 40, max: 60, logarithmic: false };
+    const many = Array.from({ length: 101 }, (_, i) => point(`p${i}`, i, i % 10));
+    const unclippedSmooth = linePath(many, zoomed, scale, plot, false, true, false);
+    const clippedSmooth = linePath(many, zoomed, scale, plot, false, true, true);
+
+    assert.ok(clippedSmooth.length < unclippedSmooth.length / 3);
+    // Every cubic curve segment ending inside [0..100] matches the unclipped curve verbatim.
+    assert.ok(unclippedSmooth.includes(clippedSmooth.replace(/^M[^C]+/, "")));
+
+    const clippedArea = areaPath(many, zoomed, scale, plot, false, false, true);
+
+    assert.ok(clippedArea.length < areaPath(many, zoomed, scale, plot, false, false, false).length / 3);
+    assert.ok(clippedArea.endsWith(" Z"));
 });
