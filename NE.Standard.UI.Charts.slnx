@@ -8,6 +8,7 @@
 
   <Folder Name="/examples/">
     <Project Path="examples/DemoApp.Charts/DemoApp.Charts.csproj" />
+    <Project Path="examples/DemoApp.Charts.Desktop/DemoApp.Charts.Desktop.csproj" />
     <Project Path="examples/DemoApp.Charts.Web/DemoApp.Charts.Web.csproj" />
   </Folder>
 
