@@ -2,6 +2,6 @@
 
 Each section below becomes the GitHub release body for that tag (`v<version>` in `NE.Standard.UI.Charts`) and is removed from this file after the release is cut.
 
-## 2.9.0
+## 2.10.0
 
-- Built on the framework's 2.9.0 release, adding the Windows `WebView2` desktop demo host (`DemoApp.Charts.Desktop`).
+- Built on the framework's 2.10.0 release, updating `DemoApp.Charts.Desktop` to the stable `2.10.0` `NE.Standard.UI.Desktop` host.
