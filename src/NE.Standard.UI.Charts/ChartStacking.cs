@@ -32,17 +32,18 @@ public static class ChartStacking
             {
                 ChartPoint point = points[j];
 
-                if (point.Y is not double value)
+                if (point.Y is not double value || !double.IsFinite(value))
                 {
-                    result.Add(point);
+                    result.Add(point.Y is null ? point : point with { Y = null });
                     continue;
                 }
 
                 Dictionary<double, double> totals = value < 0 ? below : above;
                 var stands = totals.TryGetValue(point.X, out var running) ? running : 0;
+                var sum = Math.Clamp(stands + value, -double.MaxValue, double.MaxValue);
 
-                totals[point.X] = stands + value;
-                result.Add(point with { Y = stands + value, Base = stands });
+                totals[point.X] = sum;
+                result.Add(point with { Y = sum, Base = stands });
             }
 
             stacked[i] = result;

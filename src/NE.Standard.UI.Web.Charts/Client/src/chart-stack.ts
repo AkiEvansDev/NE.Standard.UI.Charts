@@ -16,16 +16,17 @@ export function stackSeries(series: readonly ChartSeriesData[]): void {
 
         for (const point of entry.points) {
             // A point the row had no value for stays missing and adds nothing, so the stack breaks where the data does.
-            if (point.y === null) {
-                drawn.push(point);
+            if (point.y === null || !Number.isFinite(point.y)) {
+                drawn.push(point.y === null ? point : { ...point, y: null });
                 continue;
             }
 
             const totals = point.y < 0 ? below : above;
             const stands = totals.get(point.x) ?? 0;
+            const sum = Math.min(Math.max(stands + point.y, -Number.MAX_VALUE), Number.MAX_VALUE);
 
-            totals.set(point.x, stands + point.y);
-            drawn.push({ ...point, y: stands + point.y, base: stands });
+            totals.set(point.x, sum);
+            drawn.push({ ...point, y: sum, base: stands });
         }
 
         entry.drawn = drawn;

@@ -1,4 +1,5 @@
 using System;
+using DemoApp.Charts.Web;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace DemoApp.Charts.Desktop;
@@ -14,12 +15,5 @@ internal sealed class ChartsDesktopStartup : DesktopStartupBase<ChartsAppStartup
     }
 
     protected override void ConfigureServices(IServiceCollection services)
-    {
-        ArgumentNullException.ThrowIfNull(services);
-
-        _ = services.AddStandardRenderers();
-        _ = services.AddCodeInput();
-        _ = services.AddCharts();
-        _ = services.AddMaterialWebIcons(MaterialIconStyle.Outlined, [ChartsDemoView.LightIcon, ChartsDemoView.DarkIcon, ChartsDemoView.CodeIcon, ChartsDemoView.CopyIcon, .. ChartsDemoView.PageIcons]);
-    }
+        => ChartsWebServices.Register(services);
 }

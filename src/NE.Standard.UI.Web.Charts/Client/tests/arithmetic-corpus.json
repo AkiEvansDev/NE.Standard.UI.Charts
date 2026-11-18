@@ -268,6 +268,7 @@
     ],
     "edges": [
         { "case": "a side per place, the last back to the first", "spots": [{ "x": 0, "y": -10 }, { "x": 10, "y": 0 }, { "x": 0, "y": 10 }], "expected": [[0, -10, 10, 0], [10, 0, 0, 10], [0, 10, 0, -10]] },
+        { "case": "two places draw one line between them, not a second back", "spots": [{ "x": 0, "y": -10 }, { "x": 0, "y": 10 }], "expected": [[0, -10, 0, 10]] },
         { "case": "two places at one spot draw no side between them", "spots": [{ "x": 0, "y": 0 }, { "x": 0, "y": 0 }, { "x": 10, "y": 0 }], "expected": [[0, 0, 10, 0], [10, 0, 0, 0]] },
         { "case": "one place alone has no sides", "spots": [{ "x": 5, "y": 5 }], "expected": [] }
     ],

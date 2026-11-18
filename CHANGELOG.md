@@ -2,6 +2,6 @@
 
 Each section below becomes the GitHub release body for that tag (`v<version>` in `NE.Standard.UI.Charts`) and is removed from this file after the release is cut.
 
-## 2.10.0
+## 2.11.0
 
-- Built on the framework's 2.10.0 release, updating `DemoApp.Charts.Desktop` to the stable `2.10.0` `NE.Standard.UI.Desktop` host.
+- Non-finite (`NaN` / `Infinity`) value clamping across stacked series, radar charts, and `GaugeComponentRenderer`, plus deduplicated 2-spoke radar axis rendering.

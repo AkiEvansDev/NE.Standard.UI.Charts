@@ -205,7 +205,7 @@ public class GaugeComponentRenderer : WebComponentRendererBase
 
     /// <summary>Where a value falls in the range, from none of it to all of it.</summary>
     private static double Share(double value, double low, double high)
-        => high > low ? Math.Clamp((value - low) / (high - low), 0, 1) : 0;
+        => !double.IsFinite(value) ? double.NaN : high > low ? Math.Clamp(new ChartScale(low, high).Fraction(value), 0, 1) : 0;
 
     /// <summary>
     /// The reading and title: words of the page's own type laid over the arc, not drawn inside the viewBox, since scaled

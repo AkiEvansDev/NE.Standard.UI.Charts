@@ -5,6 +5,7 @@ import { bandWidth, barOf, barSlots } from "../src/chart-bars.ts";
 import type { ChartAxis, ChartSeries } from "../src/chart-model.ts";
 import { areaPath } from "../src/chart-path.ts";
 import type { ChartPoint } from "../src/chart-path.ts";
+import { radarReach } from "../src/chart-radar.ts";
 import type { ChartSeriesData } from "../src/chart-rows.ts";
 import { stackSeries } from "../src/chart-stack.ts";
 import { resolveRange } from "../src/chart-ticks.ts";
@@ -128,4 +129,16 @@ test("a window zoomed in shares the band among the places it shows, so the bars 
 
     assert.equal(barSlots(drawn, { min: -0.5, max: 3.5, logarithmic: false }), 4);
     assert.equal(barSlots(drawn, { min: 0.5, max: 2.5, logarithmic: false }), 2);
+});
+
+test("stacking clamps huge totals to finite bounds and treats non-finite readings as missing", () => {
+    const first = seriesData("a", [point(0, 1e308), point(1, Number.NaN)], 0);
+    const second = seriesData("b", [point(0, 1e308), point(1, 4)], 1);
+
+    stackSeries([first, second]);
+
+    assert.equal(second.drawn[0].y, Number.MAX_VALUE);
+    assert.equal(first.drawn[1].y, null);
+    assert.deepEqual(second.drawn[1], point(1, 4, 0));
+    assert.equal(radarReach(scale, Number.NaN, 50), 0);
 });

@@ -46,7 +46,9 @@ public static class ChartRadar
     /// stays at the centre.
     /// </summary>
     public static double Reach(ChartScale scale, double? value, double radius)
-        => value is double reading ? radius * Math.Clamp(scale.Fraction(scale.Within(reading)), 0, 1) : 0;
+        => value is double reading && double.IsFinite(reading) && double.IsFinite(radius)
+            ? radius * Math.Clamp(scale.Fraction(scale.Within(reading)), 0, 1)
+            : 0;
 
     /// <summary>
     /// Where a ring's value is written: the middle of the ring's first side, off every spoke a series has a corner on; on the first
@@ -92,9 +94,10 @@ public static class ChartRadar
     {
         ArgumentNullException.ThrowIfNull(spots);
 
-        List<ChartSegment> edges = [with(spots.Count)];
+        var count = spots.Count < 2 ? 0 : spots.Count == 2 ? 1 : spots.Count;
+        List<ChartSegment> edges = [with(count)];
 
-        for (var i = 0; i < spots.Count && spots.Count > 1; i++)
+        for (var i = 0; i < count; i++)
         {
             ChartSpot from = spots[i];
             ChartSpot to = spots[(i + 1) % spots.Count];

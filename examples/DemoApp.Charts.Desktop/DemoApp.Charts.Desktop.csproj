@@ -12,6 +12,10 @@
     <ProjectReference Include="..\..\src\NE.Standard.UI.Web.Charts\NE.Standard.UI.Web.Charts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Compile Include="..\DemoApp.Charts.Web\ChartsWebServices.cs" Link="ChartsWebServices.cs" />
+  </ItemGroup>
+
   <!-- See DemoApp.Charts.csproj: sources in the monorepo, packages in a mirror. -->
   <ItemGroup Condition="'$(InMonorepo)' == 'true'">
     <ProjectReference Include="..\..\..\..\src\Platforms\Desktop\NE.Standard.UI.Desktop\NE.Standard.UI.Desktop.csproj" />

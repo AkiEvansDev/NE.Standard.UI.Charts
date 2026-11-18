@@ -35,7 +35,9 @@ export function spokeAngle(index: number, count: number): number {
  * stays at the centre.
  */
 export function radarReach(scale: Scale, value: number | null, radius: number): number {
-    return value === null ? 0 : radius * Math.min(Math.max(fraction(scale, within(scale, value)), 0), 1);
+    return value === null || !Number.isFinite(value) || !Number.isFinite(radius)
+        ? 0
+        : radius * Math.min(Math.max(fraction(scale, within(scale, value)), 0), 1);
 }
 
 /**
@@ -73,8 +75,9 @@ export function radarOutline(spots: readonly Spot[]): string {
 /** `radarOutline` as straight pieces, for the reason `lineSegments` gives. */
 export function radarEdges(spots: readonly Spot[]): Segment[] {
     const edges: Segment[] = [];
+    const count = spots.length < 2 ? 0 : spots.length === 2 ? 1 : spots.length;
 
-    for (let i = 0; i < spots.length && spots.length > 1; i++) {
+    for (let i = 0; i < count; i++) {
         const from = spots[i];
         const to = spots[(i + 1) % spots.length];
 
