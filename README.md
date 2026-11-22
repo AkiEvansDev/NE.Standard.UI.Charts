@@ -99,7 +99,7 @@ after it, as a render would.
 | `RadarChartComponent` | each series as a filled shape over spokes, one spoke per x — a character's attributes, a product's scores, read against each other at a glance | `ShowMarkers`, which a series may override; the x axis is a category one unless the author sets another, and the y axis is the scale every spoke shares — its ticks are the rings, its low end the centre, each ring's value written on the middle of its first side, over the series. No zoom, no window and no shared tooltip: there is no x to move along |
 | `SparklineComponent` | one series with nothing around it, a line of text high | `Bars` for a run of bars instead of a line; no axes, no grid, no legend, and no marks until the pointer finds one |
 | `ScatterChartComponent` | a mark per point and no line between them | a third value sizes each mark where the series names one: `AddSeries(key, caption, valuePath, sizePath)`, by area rather than by radius |
-| `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)`, `Title`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule; a reading that is no number (NaN, an infinity) is none, a `Min` or `Max` that is none reads as unset, and a band with such an end is not drawn |
+| `GaugeComponent` | one reading on a three-quarter arc | binds `Value` rather than a collection; `SetRange(min, max)`, `AddBand(from, to, colour)` (both requiring finite upward bounds), `Title`, `Format`, `Unit`. No reading draws an empty arc and says so, and a reading at the low end draws nothing either — the progress ring's rule; a reading that is no number (NaN, an infinity) is none |
 
 A pie's and a share bar's legend may be a table (`SetShowLegendValues(true)`): each part's value, written as the y axis writes
 it, and its share of the whole to a tenth of a per cent, in columns of their own. A share bar's whole is its `Total`, or what
@@ -180,7 +180,7 @@ unannounced beside the words laid over it. A `Start` or `End` legend stands unde
 chart is too narrow for the two side by side — where beside it the plot would keep less than 256 px (a phone's width); the
 browser decides it at every draw, from the legend's widest entry, so the server's first frame always draws it beside.
 
-The words are the page's. An axis's and a series' caption is a phrase: a string is the author's text, shown as written, and a key
+The words are the page's. An axis's and a series' caption is a phrase: a string is the author's text (looked up unless marked content with `UIChartAxis.AsContent()` / `UIChartSeries.AsContent()`, or `AsContent(ShareBarComponent.RemainderCaptionProperty)` on a share bar's `RemainderCaption`), and a key
 (`UIPhrase.Of(key, arguments)`) travels in the model as its key and arguments, not the words it reads as — the browser translates
 it at every draw and draws every chart again when the page's language changes. A
 category's name is data and stays as the rows hold it, unless the axis says otherwise: `UIChartAxis.Category(translate: true)`

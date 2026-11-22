@@ -1,5 +1,6 @@
 using System.Globalization;
 using NE.Standard.UI.Charts;
+using NE.Standard.UI.Compiled.Models;
 using NE.Standard.UI.Primitives.Localization;
 using NE.Standard.UI.Web.Abstractions.Html;
 using NE.Standard.UI.Web.Abstractions.Rendering;
@@ -36,6 +37,10 @@ public class ShareBarComponentRenderer : ChartComponentRendererBase
             _ => string.IsNullOrWhiteSpace(words) ? null : UIPhrase.Text(words)
         };
     }
+
+    protected override bool ReadRemainderIsContent(WebRenderContext context)
+        => context.ViewResolution.View.State.TryGetValue(context.Node.ComponentId, ShareBarComponent.RemainderCaptionProperty, out CompiledUIPropertyValue? value)
+            && value?.IsContent == true;
 
     protected override void RenderTotal(WebRenderContext context, IHtmlElementBuilder root)
         => _ = RenderProperty<double?>(context, root, ShareBarComponent.TotalProperty, static (target, total) =>

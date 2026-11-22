@@ -66,6 +66,12 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
     /// </summary>
     public T SetRange(double min, double max)
     {
+        if (!double.IsFinite(min))
+            throw new ArgumentOutOfRangeException(nameof(min), min, "A gauge's range bounds must be finite.");
+
+        if (!double.IsFinite(max))
+            throw new ArgumentOutOfRangeException(nameof(max), max, "A gauge's range bounds must be finite.");
+
         if (max <= min)
             throw new ArgumentOutOfRangeException(nameof(max), max, "A gauge's range must run upward.");
 
@@ -80,6 +86,12 @@ public abstract partial class GaugeComponent<T>(string? id = null) : VisualCompo
     /// </summary>
     public T AddBand(double from, double to, UIThemeColor? color = null)
     {
+        if (!double.IsFinite(from))
+            throw new ArgumentOutOfRangeException(nameof(from), from, "A band's bounds must be finite.");
+
+        if (!double.IsFinite(to))
+            throw new ArgumentOutOfRangeException(nameof(to), to, "A band's bounds must be finite.");
+
         if (to <= from)
             throw new ArgumentOutOfRangeException(nameof(to), to, "A band must run upward.");
 

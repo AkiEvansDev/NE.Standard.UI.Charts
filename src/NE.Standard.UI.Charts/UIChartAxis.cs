@@ -1,4 +1,5 @@
 using System;
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Primitives.Localization;
 
 namespace NE.Standard.UI.Charts;
@@ -6,10 +7,16 @@ namespace NE.Standard.UI.Charts;
 /// <summary>
 /// One axis of a chart: what it is called, how its values are read, the range it covers and how a tick is written.
 /// </summary>
-public sealed record UIChartAxis
+public sealed record UIChartAxis : IContentItem
 {
     /// <summary>The caption beside the axis — a string is the author's text, a key with arguments a phrase; unset, none is drawn.</summary>
     public UIPhrase? Caption { get; init; }
+
+    /// <summary>
+    /// Whether <see cref="Caption"/> is content, shown as written beside the axis and never looked up as a translation key. A phrase's
+    /// key is looked up whatever this says.
+    /// </summary>
+    public bool IsContent { get; init; }
 
     /// <summary>How the values along the axis are read.</summary>
     public UIChartAxisKind Kind { get; init; }
@@ -36,6 +43,10 @@ public sealed record UIChartAxis
     /// stays as written.
     /// </summary>
     public bool TranslateNames { get; init; }
+
+    /// <summary>Marks the axis's caption as content, shown as written rather than looked up as a translation key.</summary>
+    public UIChartAxis AsContent(bool isContent = true)
+        => this with { IsContent = isContent };
 
     /// <summary>An axis of numbers.</summary>
     public static UIChartAxis Linear(UIPhrase? caption = null, double? min = null, double? max = null, string? format = null)

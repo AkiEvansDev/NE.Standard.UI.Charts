@@ -1,3 +1,4 @@
+using NE.Standard.UI.Abstractions.Binding;
 using NE.Standard.UI.Abstractions.Styling;
 using NE.Standard.UI.Primitives.Localization;
 
@@ -6,13 +7,19 @@ namespace NE.Standard.UI.Charts;
 /// <summary>
 /// One series of a chart: its key, the words the legend and the tooltip name it by, where its value comes from and how it is drawn.
 /// </summary>
-public sealed record UIChartSeries
+public sealed record UIChartSeries : IContentItem
 {
     /// <summary>The key the legend, the tooltip and a point's click name the series by.</summary>
     public required string Key { get; init; }
 
     /// <summary>The words the legend shows — a string is the author's text, a key with arguments a phrase; unset, the key itself.</summary>
     public UIPhrase? Caption { get; init; }
+
+    /// <summary>
+    /// Whether the series' name — its <see cref="Caption"/> or its <see cref="Key"/> — is content, shown as written and never looked
+    /// up as a translation key. A phrase's key is looked up whatever this says.
+    /// </summary>
+    public bool IsContent { get; init; }
 
     /// <summary>
     /// The row property this series' value is read from; unset, the chart's own <c>ValuePath</c>.
@@ -35,4 +42,8 @@ public sealed record UIChartSeries
 
     /// <summary>Whether a mark is drawn at every point; unset, the chart's own setting.</summary>
     public bool? ShowMarkers { get; init; }
+
+    /// <summary>Marks the series' name as content, shown as written rather than looked up as a translation key.</summary>
+    public UIChartSeries AsContent(bool isContent = true)
+        => this with { IsContent = isContent };
 }

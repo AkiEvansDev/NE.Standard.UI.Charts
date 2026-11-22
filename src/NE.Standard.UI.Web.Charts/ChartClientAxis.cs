@@ -1,3 +1,4 @@
+using System.Text.Json.Serialization;
 using NE.Standard.UI.Charts;
 
 namespace NE.Standard.UI.Web.Charts;
@@ -23,6 +24,10 @@ internal sealed record ChartClientAxis
     /// <summary>As the author wrote it — a text as the plain string, a key as its phrase: the client translates it, again at every language switch.</summary>
     public object? Caption { get; init; }
 
+    /// <summary>Whether an author-text <see cref="Caption"/> is content and shown as written rather than looked up as a key.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsContent { get; init; }
+
     /// <summary>An authored axis as the client reads it.</summary>
     public static ChartClientAxis Of(UIChartAxis axis)
         => new()
@@ -34,7 +39,8 @@ internal sealed record ChartClientAxis
             Grid = axis.ShowGridLines,
             Ticks = axis.TickCount,
             Translate = axis.TranslateNames,
-            Caption = ChartCaption.Wire(axis.Caption)
+            Caption = ChartCaption.Wire(axis.Caption),
+            IsContent = axis.IsContent
         };
 
     private static double? FiniteOrNull(double? value)
@@ -48,6 +54,10 @@ internal sealed record ChartClientSeries
 
     /// <summary>As the author wrote it — a text as the plain string, a key as its phrase — or null for none, the series then named by its key; translated there.</summary>
     public object? Caption { get; init; }
+
+    /// <summary>Whether an author-text <see cref="Caption"/> is content and shown as written rather than looked up as a key.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool IsContent { get; init; }
 
     public string? ValuePath { get; init; }
 

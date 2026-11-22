@@ -179,6 +179,10 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
     protected virtual UIPhrase? ReadRemainderCaption(WebRenderContext context)
         => null;
 
+    /// <summary>Whether an author-text <see cref="ReadRemainderCaption"/> was marked content (<c>AsContent</c>) on this instance.</summary>
+    protected virtual bool ReadRemainderIsContent(WebRenderContext context)
+        => false;
+
     /// <summary>Writes the total on the root for the browser to read at every draw, a bound one following its pushes.</summary>
     protected virtual void RenderTotal(WebRenderContext context, IHtmlElementBuilder root)
     {
@@ -297,6 +301,8 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
         var parts = kind is PieKind or ShareKind;
         UIChartLegendPlacement legend = ReadRenderValue(context, IChartComponent.LegendProperty, UIChartLegendPlacement.Bottom);
 
+        UIPhrase? remainder = ChartCaption.Words(ReadRemainderCaption(context));
+
         return new ChartSpec
         {
             Kind = kind,
@@ -325,7 +331,8 @@ public abstract partial class ChartComponentRendererBase : WebComponentRendererB
             Donut = ReadDonut(context),
             LegendValues = ReadLegendValues(context),
             Total = ReadTotal(context),
-            Remainder = ChartCaption.Words(ReadRemainderCaption(context))
+            Remainder = remainder,
+            RemainderIsContent = remainder is not null && ReadRemainderIsContent(context)
         };
     }
 

@@ -81,3 +81,32 @@ test("the model the server wrote is left as it was, so a language switch transla
     assert.equal(model.series[0].caption, "sales.revenue");
     assert.equal(model.x.caption, "sales.month");
 });
+
+test("isContent and remainderIsContent keep author text and series keys verbatim while still resolving explicit keyed phrases", () => {
+    const lookedUp: WrittenModel["remainderCaption"][] = [];
+    const model = translateModel(
+        {
+            ...written(),
+            translateSeriesNames: true,
+            x: { ...axis(null), caption: "sales.month", isContent: true },
+            y: { ...axis(null), caption: { key: "sales.by", args: { unit: "kW" } }, isContent: true },
+            remainderCaption: "test.free",
+            remainderIsContent: true,
+            series: [
+                { key: "sales.revenue", caption: "sales.revenue", isContent: true, valuePath: null, sizePath: null, color: null, stepped: null, smooth: null, markers: null },
+                { key: "cost", caption: null, isContent: true, valuePath: null, sizePath: null, color: null, stepped: null, smooth: null, markers: null },
+                { key: "other", caption: { text: "sales.other" }, isContent: true, valuePath: null, sizePath: null, color: null, stepped: null, smooth: null, markers: null }
+            ]
+        },
+        caption => {
+            lookedUp.push(caption);
+            return "TRANSLATED";
+        }
+    );
+
+    assert.equal(model.x.caption, "sales.month");
+    assert.equal(model.y.caption, "TRANSLATED");
+    assert.equal(model.remainderCaption, "test.free");
+    assert.deepEqual(model.series.map(entry => entry.caption), ["sales.revenue", "cost", "sales.other"]);
+    assert.deepEqual(lookedUp, [{ key: "sales.by", args: { unit: "kW" } }]);
+});

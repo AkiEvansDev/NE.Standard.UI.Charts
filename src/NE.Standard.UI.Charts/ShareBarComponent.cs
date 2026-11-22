@@ -34,7 +34,7 @@ public abstract partial class ShareBarComponent<T>(string? id = null) : ChartCom
     public UIPhrase? Title { get; set; }
 
     /// <summary>
-    /// Gets or sets what the legend calls the part of <see cref="Total"/> the rows leave, translated as a series' caption is; unset,
+    /// Gets or sets what the legend calls the part of <see cref="Total"/> the rows leave, translated as a series' caption is unless marked content (<c>AsContent</c>); unset,
     /// the package's word.
     /// </summary>
     [Translatable]

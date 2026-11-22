@@ -113,6 +113,10 @@ internal sealed record ChartSpec
     /// </summary>
     public object? RemainderCaption => ChartCaption.Wire(Remainder);
 
+    /// <summary>Whether an author-text <see cref="Remainder"/> was marked content (<c>AsContent</c>) and stays as written.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
+    public bool RemainderIsContent { get; init; }
+
     /// <summary>Whether a row is one point of the series it names, rather than an x with a value per series.</summary>
     [JsonIgnore]
     public bool IsLongForm => !string.IsNullOrWhiteSpace(SeriesPath);

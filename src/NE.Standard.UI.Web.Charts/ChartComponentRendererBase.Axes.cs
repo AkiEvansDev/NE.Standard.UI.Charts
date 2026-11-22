@@ -173,15 +173,17 @@ public abstract partial class ChartComponentRendererBase
                 RenderText(axes, LabelClassName, beside[i].Text, plot.Left - LabelGap, down + 4, "end");
             }
 
-            if (ChartCaption.Words(BottomAxis(spec).Caption) is { } bottomCaption)
-                RenderText(axes, CaptionClassName, context.Translate(bottomCaption), plot.Left + (plot.Width / 2), NominalHeight - 2, "middle");
+            UIChartAxis bottom = BottomAxis(spec);
+            if (ChartCaption.Words(bottom.Caption) is { } bottomCaption)
+                RenderText(axes, CaptionClassName, ChartCaption.Resolve(context, bottomCaption, bottom.IsContent), plot.Left + (plot.Width / 2), NominalHeight - 2, "middle");
 
-            if (ChartCaption.Words(LeftAxis(spec).Caption) is { } leftCaption)
+            UIChartAxis left = LeftAxis(spec);
+            if (ChartCaption.Words(left.Caption) is { } leftCaption)
             {
                 // Reading up the axis, which is how the caption beside a plot is read; the rotation is about the point it is placed at.
                 var middle = plot.Top + (plot.Height / 2);
 
-                RenderText(axes, CaptionClassName, context.Translate(leftCaption), 10, middle, "middle", $"rotate(-90 10 {ChartPath.Coord(middle)})");
+                RenderText(axes, CaptionClassName, ChartCaption.Resolve(context, leftCaption, left.IsContent), 10, middle, "middle", $"rotate(-90 10 {ChartPath.Coord(middle)})");
             }
         });
     }

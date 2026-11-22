@@ -37,6 +37,7 @@ public abstract partial class ChartComponentRendererBase
             {
                 Key = current.Series.Key,
                 Caption = ChartCaption.Wire(current.Series.Caption),
+                IsContent = current.Series.IsContent,
                 ValuePath = current.Series.ValuePath ?? spec.ValuePath,
                 SizePath = current.Series.SizePath,
                 Color = SeriesColor(context, current),
@@ -86,9 +87,13 @@ public abstract partial class ChartComponentRendererBase
         return false;
     }
 
-    /// <summary>The words the legend and the tooltip name a series by: the caption, translated, or the key — translated where the chart says so.</summary>
+    /// <summary>The words the legend and the tooltip name a series by: the caption, translated unless marked content, or the key — translated where the chart says so unless marked content.</summary>
     private static string ReadCaption(WebRenderContext context, ChartSpec spec, UIChartSeries series)
-        => ChartCaption.Words(series.Caption) is { } caption ? context.Translate(caption) : spec.TranslateSeriesNames ? context.Translate(series.Key) : series.Key;
+        => ChartCaption.Words(series.Caption) is { } caption
+            ? ChartCaption.Resolve(context, caption, series.IsContent)
+            : spec.TranslateSeriesNames && !series.IsContent
+                ? context.Translate(series.Key)
+                : series.Key;
 
     /// <summary>
     /// An entry per part rather than per series — a pie's sector, a share bar's part — and a share bar's rest of its total: a pie's
@@ -145,7 +150,7 @@ public abstract partial class ChartComponentRendererBase
         if (rest <= 0)
             return null;
 
-        var caption = spec.Remainder is { } remainder ? context.Translate(remainder) : context.Translate(ChartsStrings.Rest);
+        var caption = spec.Remainder is { } remainder ? ChartCaption.Resolve(context, remainder, spec.RemainderIsContent) : context.Translate(ChartsStrings.Rest);
 
         return spec.LegendValues
             ? new LegendEntry(string.Empty, caption, string.Empty, PartValue(context, spec, rest, formats), WebNumberFormat.Format(rest / whole, ShareFormat, formats.Numbers))

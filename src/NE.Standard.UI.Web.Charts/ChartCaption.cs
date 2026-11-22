@@ -1,4 +1,5 @@
 using NE.Standard.UI.Primitives.Localization;
+using NE.Standard.UI.Web.Abstractions.Rendering;
 
 namespace NE.Standard.UI.Web.Charts;
 
@@ -15,4 +16,11 @@ internal static class ChartCaption
     /// </summary>
     public static object? Wire(UIPhrase? caption)
         => UIPhrase.AsValue(Words(caption));
+
+    /// <summary>
+    /// The caption in the page's words, or as written when <paramref name="isContent"/> marks an author's text as content; a phrase's
+    /// key is still looked up with its arguments.
+    /// </summary>
+    public static string Resolve(WebRenderContext context, UIPhrase caption, bool isContent)
+        => isContent && caption.IsText ? caption.Key : context.Translate(caption);
 }

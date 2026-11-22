@@ -19,11 +19,13 @@ export type ChartAxis = {
     /** Whether a category's name is a phrase key, written in the page's words as a caption is. */
     readonly translate: boolean;
     readonly caption: string | null;
+    readonly isContent?: boolean;
 };
 
 export type ChartSeries = {
     readonly key: string;
     readonly caption: string;
+    readonly isContent?: boolean;
     readonly valuePath: string | null;
     readonly sizePath: string | null;
     readonly color: string | null;
@@ -84,6 +86,7 @@ export type WrittenModel = Omit<ChartModel, "x" | "y" | "series" | "remainderCap
     readonly y: WrittenAxis;
     readonly series: readonly WrittenSeries[];
     readonly remainderCaption: WrittenWords | null;
+    readonly remainderIsContent?: boolean;
 };
 
 /** The model off a chart's root; null when the attribute is missing or does not parse, which leaves the server's frame alone. */
@@ -101,20 +104,37 @@ export function readModel(root: Element): WrittenModel | null {
     }
 }
 
-/** The model in the page's words: each caption the author wrote translated (`strings.resolve`), a series with none named by its key — translated too where the chart says so. */
+/** The model in the page's words: each caption the author wrote translated (`strings.resolve`) unless marked content, a series with none named by its key — translated too where the chart says so unless marked content. */
 export function translateModel(model: WrittenModel, translate: (caption: WrittenWords) => string): ChartModel {
-    const axis = (written: WrittenAxis): ChartAxis => ({ ...written, caption: written.caption === null ? null : translate(written.caption) });
+    const axis = (written: WrittenAxis): ChartAxis => ({
+        ...written,
+        caption: written.caption === null ? null : resolveCaption(written.caption, written.isContent, translate)
+    });
 
     return {
         ...model,
         x: axis(model.x),
         y: axis(model.y),
-        remainderCaption: model.remainderCaption === null ? null : translate(model.remainderCaption),
+        remainderCaption: model.remainderCaption === null ? null : resolveCaption(model.remainderCaption, model.remainderIsContent, translate),
         series: model.series.map(series => ({
             ...series,
-            caption: series.caption === null ? (model.translateSeriesNames ? translate(series.key) : series.key) : translate(series.caption)
+            caption: series.caption === null
+                ? (model.translateSeriesNames && series.isContent !== true ? translate(series.key) : series.key)
+                : resolveCaption(series.caption, series.isContent, translate)
         }))
     };
+}
+
+function resolveCaption(caption: WrittenWords, isContent: boolean | undefined, translate: (caption: WrittenWords) => string): string {
+    if (isContent === true) {
+        if (typeof caption === "string")
+            return caption;
+
+        if ("text" in caption)
+            return caption.text;
+    }
+
+    return translate(caption);
 }
 
 /** An axis's names as a draw writes them: each translated as a caption is where the axis says so, else as the rows hold them. */
