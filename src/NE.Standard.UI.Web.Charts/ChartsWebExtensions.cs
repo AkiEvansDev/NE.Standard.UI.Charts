@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NE.Standard.UI.Charts;
 using NE.Standard.UI.Shell.Localization;
 using NE.Standard.UI.Web.Abstractions.Rendering;
 using NE.Standard.UI.Web.Renderers.Foundation;
@@ -30,6 +31,6 @@ public static class ChartsWebExtensions
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IWebComponentRenderer, GaugeComponentRenderer>());
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IUIStringsSource, ChartsStrings>());
 
-        return services.AddPackageClient(AssemblyName, "ui-charts");
+        return services.AddPackageClient(AssemblyName, "ui-charts", LineChartComponent.ComponentTypeKey, AreaChartComponent.ComponentTypeKey, BarChartComponent.ComponentTypeKey, PieChartComponent.ComponentTypeKey, ShareBarComponent.ComponentTypeKey, SparklineComponent.ComponentTypeKey, ScatterChartComponent.ComponentTypeKey, RadarChartComponent.ComponentTypeKey, GaugeComponent.ComponentTypeKey);
     }
 }
